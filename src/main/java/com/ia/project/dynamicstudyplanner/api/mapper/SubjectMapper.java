@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.api.mapper;
 
 import com.ia.project.dynamicstudyplanner.api.dto.SubjectDto;
-import com.ia.project.dynamicstudyplanner.domain.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import org.springframework.stereotype.Component;
 
 @Component

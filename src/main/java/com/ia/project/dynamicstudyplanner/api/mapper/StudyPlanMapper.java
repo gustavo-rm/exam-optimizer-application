@@ -2,6 +2,7 @@ package com.ia.project.dynamicstudyplanner.api.mapper;
 
 import com.ia.project.dynamicstudyplanner.api.dto.StudyPlanDto;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -32,7 +33,8 @@ public class StudyPlanMapper implements Mapper<StudyPlanDto, StudyPlan> {
         Map<String, Integer> daysPerSubjectName = plan.daysPerSubject().entrySet().stream()
                 .collect(Collectors.toMap(
                         entry -> entry.getKey().name(),
-                        Map.Entry::getValue
+                        Map.Entry::getValue,
+                        (oldValue, newValue) -> newValue
                 ));
         return new StudyPlanDto(daysPerSubjectName);
     }

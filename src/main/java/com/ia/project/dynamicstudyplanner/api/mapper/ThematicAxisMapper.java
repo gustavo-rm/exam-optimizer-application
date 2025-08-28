@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.api.mapper;
 
 import com.ia.project.dynamicstudyplanner.api.dto.ThematicAxisDto;
-import com.ia.project.dynamicstudyplanner.domain.ThematicAxis;
+import com.ia.project.dynamicstudyplanner.domain.exam.ThematicAxis;
 import org.springframework.stereotype.Component;
 
 @Component

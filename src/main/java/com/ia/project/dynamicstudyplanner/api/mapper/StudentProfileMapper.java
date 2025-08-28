@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.api.mapper;
 
 import com.ia.project.dynamicstudyplanner.api.dto.StudentProfileDto;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
-import com.ia.project.dynamicstudyplanner.domain.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -11,7 +11,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
-public class StudentProfileMapper { // Não implementa a interface diretamente devido ao contexto extra
+public class StudentProfileMapper {
 
     public StudentProfile toDomain(StudentProfileDto dto, List<Subject> allSubjects) {
         Map<String, Subject> subjectMap = allSubjects.stream()
