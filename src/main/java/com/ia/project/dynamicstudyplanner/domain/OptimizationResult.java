@@ -14,9 +14,4 @@ public record OptimizationResult(
         double fitness,
         int generationsRun,
         long executionTimeMillis
-) {
-    // A record automatically provides:
-    // - A canonical constructor
-    // - Accessor methods for each field (e.g., plan(), fitness())
-    // - Implementations of equals(), hashCode(), and toString()
-}
+) {}
