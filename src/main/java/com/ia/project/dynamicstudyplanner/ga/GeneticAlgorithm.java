@@ -1,0 +1,149 @@
+package com.ia.project.dynamicstudyplanner.ga;
+
+import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.CrossoverStrategy;
+import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.MutationStrategy;
+import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrategy;
+
+/**
+ * The main engine for the Genetic Algorithm, featuring adaptive logic to detect and react to population stagnation.
+ * <p>
+ * This class is responsible for taking a population of solutions and evolving it to the next
+ * generation. It orchestrates the core evolutionary processes: selection, crossover, and mutation,
+ * and intelligently adapts its strategy when it detects that the population is no longer improving.
+ */
+public final class GeneticAlgorithm {
+
+    // --- Core Strategy Dependencies ---
+    private final SelectionStrategy selectionStrategy;
+    private final CrossoverStrategy crossoverStrategy;
+    private final MutationStrategy mutationStrategy;
+
+    // --- Core GA Parameters ---
+    private final double crossoverRate;
+    private final double baseMutationRate;
+    private final boolean elitism;
+
+    // --- Adaptive Strategy Parameters ---
+    private final int stagnationPatience;
+    private final double hypermutationRate;
+
+    // --- Internal Evolution State ---
+    private int generationsWithoutImprovement = 0;
+    private double bestFitnessSoFar = Double.NEGATIVE_INFINITY;
+    private boolean inHypermutationMode = false;
+    private int hypermutationCounter = 0;
+
+    /**
+     * Constructs the GeneticAlgorithm engine. (Package-private to be called by the GeneticAlgorithmBuilder).
+     */
+    GeneticAlgorithm(SelectionStrategy sel, CrossoverStrategy cross, MutationStrategy mut,
+                     double crossRate, double mutRate, boolean elitism,
+                     int stagnationPatience, double hypermutationRate) {
+        this.selectionStrategy = sel;
+        this.crossoverStrategy = cross;
+        this.mutationStrategy = mut;
+        this.crossoverRate = crossRate;
+        this.baseMutationRate = mutRate;
+        this.elitism = elitism;
+        this.stagnationPatience = stagnationPatience;
+        this.hypermutationRate = hypermutationRate;
+    }
+
+    /**
+     * Evolves a given population to the next generation.
+     * <p>
+     * This is the primary public method of the class. It orchestrates the entire evolution
+     * process for a single generation step.
+     *
+     * @param currentPopulation The population from the previous generation to be evolved.
+     * @param context An EvolutionContext object containing all data required for the evolution.
+     * @return The new, evolved population for the next generation.
+     */
+    public Population evolvePopulation(Population currentPopulation, EvolutionContext context) {
+        trackStagnation(currentPopulation.getFittest().getFitness());
+        double currentMutationRate = determineCurrentMutationRate();
+
+        Population newPopulation = new Population(currentPopulation.getSize());
+
+        // 1. Apply elitism: preserve the best individual from the current generation.
+        if (elitism) {
+            newPopulation.addIndividual(currentPopulation.getFittest());
+        }
+
+        // 2. Fill the rest of the new population with offspring.
+        int startIndex = elitism ? 1 : 0;
+        for (int i = startIndex; i < currentPopulation.getSize(); i++) {
+            Individual offspring = createOffspring(currentPopulation, context, currentMutationRate);
+            newPopulation.addIndividual(offspring);
+        }
+
+        // 3. Calculate the fitness for all new individuals.
+        newPopulation.calculateFitness(context);
+        return newPopulation;
+    }
+
+    /**
+     * Creates a single offspring by selecting parents, performing crossover, and applying mutation.
+     * This method encapsulates the complete reproductive cycle.
+     *
+     * @param population The current population from which to select parents.
+     * @param context The evolution context for constraints and data.
+     * @param mutationRate The mutation rate to be applied for this generation.
+     * @return A new Individual representing the created offspring.
+     */
+    private Individual createOffspring(Population population, EvolutionContext context, double mutationRate) {
+        Individual parent1 = selectionStrategy.select(population);
+        Individual parent2 = selectionStrategy.select(population);
+
+        Individual child = crossoverStrategy.crossover(parent1, parent2, crossoverRate, context);
+
+        return mutationStrategy.mutate(child, mutationRate, context);
+    }
+
+    /**
+     * Monitors the evolution's progress and detects if the population has stagnated.
+     * If the best fitness score has not improved for a set number of generations (patience),
+     * it triggers the hypermutation mode.
+     *
+     * @param currentBestFitness The best fitness score in the current generation.
+     */
+    private void trackStagnation(double currentBestFitness) {
+        if (currentBestFitness > bestFitnessSoFar) {
+            bestFitnessSoFar = currentBestFitness;
+            generationsWithoutImprovement = 0;
+            if (inHypermutationMode) {
+                inHypermutationMode = false;
+                hypermutationCounter = 0;
+                System.out.println("--- Improvement found! Halting hypermutation. ---");
+            }
+        } else {
+            generationsWithoutImprovement++;
+        }
+
+        if (generationsWithoutImprovement >= stagnationPatience && !inHypermutationMode) {
+            System.out.printf("--- STAGNATION DETECTED! Triggering HYPERMUTATION for 5 generations. ---%n");
+            inHypermutationMode = true;
+            hypermutationCounter = 5;
+            generationsWithoutImprovement = 0;
+        }
+    }
+
+    /**
+     * Determines which mutation rate to use for the current generation based on the evolution's state.
+     * It returns the high {@code hypermutationRate} if in hypermutation mode, otherwise returns
+     * the {@code baseMutationRate}.
+     *
+     * @return The effective mutation rate for the current generation.
+     */
+    private double determineCurrentMutationRate() {
+        if (inHypermutationMode && hypermutationCounter > 0) {
+            hypermutationCounter--;
+            if (hypermutationCounter == 0) {
+                System.out.println("--- Hypermutation finished. Returning to normal mutation rate. ---");
+                inHypermutationMode = false;
+            }
+            return hypermutationRate;
+        }
+        return baseMutationRate;
+    }
+}

@@ -1,0 +1,136 @@
+package com.ia.project.dynamicstudyplanner.ga;
+
+import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+
+import java.util.Map;
+
+/**
+ * Represents a single individual in the population.
+ * <p>
+ * An Individual acts as a wrapper for a potential solution (the {@link StudyPlan}, or chromosome)
+ * and its evaluated quality score (the fitness). This class is the core object upon which
+ * all genetic operators (selection, crossover, mutation) act. It implements {@link Comparable}
+ * to allow for easy sorting and selection based on fitness.
+ */
+public final class Individual implements Comparable<Individual> {
+
+    private final StudyPlan plan;
+    private double fitness = -1.0; // Cached fitness score. -1.0 indicates it has not been calculated yet.
+
+    /**
+     * Constructs a new Individual with a given study plan.
+     * The fitness is initialized to a non-calculated state.
+     *
+     * @param plan The {@link StudyPlan} (chromosome) that this individual represents.
+     */
+    public Individual(StudyPlan plan) {
+        this.plan = plan;
+    }
+
+    /**
+     * Calculates the fitness of this individual based on a given context.
+     * <p>
+     * This method is a pure calculator; it computes the fitness score but does not
+     * modify the individual's state. The result should be set using {@link #setFitness(double)}.
+     *
+     * @param context The {@link EvolutionContext} containing all data needed for the calculation,
+     * such as importance scores and minimum day constraints.
+     * @return The calculated fitness score.
+     */
+    public double calculateFitness(EvolutionContext context) {
+        // Step 1: Calculate the base score from the plan's knowledge acquisition.
+        double baseScore = calculateBaseScore(context.importanceScores());
+
+        // Step 2: Check if the plan violates any minimum day constraints.
+        boolean constraintsViolated = violatesConstraints(context.minimumDaysPerSubject());
+
+        // Step 3: Apply a penalty to the score if constraints were violated.
+        return applyPenalty(baseScore, constraintsViolated);
+    }
+
+    /**
+     * Calculates the base fitness score by summing the "knowledge" gained for each subject,
+     * weighted by that subject's importance.
+     *
+     * @param importanceScores A map of subjects to their importance scores.
+     * @return The raw, unpenalized fitness score.
+     */
+    private double calculateBaseScore(Map<Subject, Double> importanceScores) {
+        double score = 0.0;
+        for (Map.Entry<Subject, Integer> entry : plan.daysPerSubject().entrySet()) {
+            Subject subject = entry.getKey();
+            int days = entry.getValue();
+
+            double importance = importanceScores.getOrDefault(subject, 0.0);
+            if (importance == 0.0) {
+                System.err.println("Warning: The subject '" + subject.name() + "' does not have an importance score.");
+            }
+
+            // A logarithmic function models the diminishing returns of studying.
+            double knowledge = Math.log(1.0 + days);
+            score += knowledge * importance;
+        }
+        return score;
+    }
+
+    /**
+     * Checks if the individual's study plan violates any of the minimum day constraints.
+     *
+     * @param minimumDaysPerSubject The map of constraints.
+     * @return {@code true} if at least one constraint is violated, {@code false} otherwise.
+     */
+    private boolean violatesConstraints(Map<Subject, Integer> minimumDaysPerSubject) {
+        for (Map.Entry<Subject, Integer> entry : plan.daysPerSubject().entrySet()) {
+            int allocatedDays = entry.getValue();
+            int minimumDays = minimumDaysPerSubject.getOrDefault(entry.getKey(), 1);
+            if (allocatedDays < minimumDays) {
+                return true; // Found a violation.
+            }
+        }
+        return false; // No violations found.
+    }
+
+    /**
+     * Applies a penalty to the base score if constraints were violated.
+     *
+     * @param score The base fitness score.
+     * @param isViolated A boolean indicating if a violation occurred.
+     * @return The final, potentially penalized fitness score.
+     */
+    private double applyPenalty(double score, boolean isViolated) {
+        if (isViolated) {
+            // A multiplicative penalty is often effective. Here we reduce fitness by 50%.
+            return score * 0.5;
+        }
+        return score;
+    }
+
+    /**
+     * Compares this individual with another based on their fitness score for sorting purposes.
+     * The comparison is for **descending order** (higher fitness is considered "less than"
+     * for sorting, making it appear first).
+     *
+     * @param other The other Individual to be compared.
+     * @return A negative integer, zero, or a positive integer as this individual is greater than,
+     * equal to, or less than the specified individual.
+     */
+    @Override
+    public int compareTo(Individual other) {
+        return Double.compare(other.getFitness(), this.getFitness());
+    }
+
+    // --- Standard Getters and Setters ---
+
+    public StudyPlan getPlan() {
+        return plan;
+    }
+
+    public double getFitness() {
+        return this.fitness;
+    }
+
+    public void setFitness(double fitness) {
+        this.fitness = fitness;
+    }
+}
