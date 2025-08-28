@@ -1,6 +1,6 @@
-package examoptimizer.domain;
+package com.ia.project.dynamicstudyplanner.domain;
 
-import examoptimizer.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 
 /**
  * Represents a single, scheduled block of study for a specific subject on a given day.

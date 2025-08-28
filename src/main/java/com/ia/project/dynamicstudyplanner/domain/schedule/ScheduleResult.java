@@ -1,6 +1,6 @@
-package examoptimizer.domain.schedule;
+package com.ia.project.dynamicstudyplanner.domain.schedule;
 
-import examoptimizer.domain.StudyBlock;
+import com.ia.project.dynamicstudyplanner.domain.StudyBlock;
 
 import java.time.LocalDate;
 import java.util.List;

@@ -1,4 +1,4 @@
-package examoptimizer.domain.exam;
+package com.ia.project.dynamicstudyplanner.domain.exam;
 
 /**
  * Defines the type of exam a subject belongs to.

@@ -1,4 +1,4 @@
-package examoptimizer.domain.schedule;
+package com.ia.project.dynamicstudyplanner.domain.schedule;
 
 /**
  * Represents the outcome status of the schedule generation process.

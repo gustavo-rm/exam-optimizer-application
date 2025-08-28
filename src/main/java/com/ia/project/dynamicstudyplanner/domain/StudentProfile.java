@@ -1,6 +1,6 @@
-package examoptimizer.domain;
+package com.ia.project.dynamicstudyplanner.domain;
 
-import examoptimizer.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 
 import java.time.DayOfWeek;
 import java.util.Map;

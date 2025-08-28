@@ -1,4 +1,4 @@
-package examoptimizer.domain.exam;
+package com.ia.project.dynamicstudyplanner.domain.exam;
 
 /**
  * Represents a single, self-contained subject.

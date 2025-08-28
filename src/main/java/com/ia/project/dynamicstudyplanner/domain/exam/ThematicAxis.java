@@ -1,4 +1,4 @@
-package examoptimizer.domain.exam;
+package com.ia.project.dynamicstudyplanner.domain.exam;
 
 import java.util.List;
 

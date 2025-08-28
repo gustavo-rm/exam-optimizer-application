@@ -1,4 +1,4 @@
-package examoptimizer.domain;
+package com.ia.project.dynamicstudyplanner.domain;
 
 /**
  * A data transfer object (DTO) that encapsulates the final result of the optimization process.
