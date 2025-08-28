@@ -1,22 +1,21 @@
-package examoptimizer.service;
+package com.ia.project.dynamicstudyplanner.service;
 
-import examoptimizer.domain.StudentProfile;
-import examoptimizer.domain.exam.Exam;
-import examoptimizer.ga.*;
-import examoptimizer.ga.factory.StudyPlanFactory;
-import examoptimizer.ga.strategy.crossover.CrossoverStrategy;
-import examoptimizer.ga.strategy.crossover.HybridCrossover;
-import examoptimizer.ga.strategy.crossover.RepairingCrossover;
-import examoptimizer.ga.strategy.crossover.WeightedAverageCrossover;
-import examoptimizer.ga.strategy.mutation.CreepMutation;
-import examoptimizer.ga.strategy.mutation.MutationStrategy;
-import examoptimizer.ga.strategy.mutation.SwapMutation;
-import examoptimizer.ga.strategy.selection.SelectionStrategy;
-import examoptimizer.ga.strategy.selection.TournamentSelection;
-import examoptimizer.domain.OptimizationResult;
-import examoptimizer.domain.exam.Subject;
-import examoptimizer.service.calculation.BaselineCalculator;
-import examoptimizer.service.calculation.ImportanceCalculator;
+import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
+import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
+import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.ga.*;
+import com.ia.project.dynamicstudyplanner.ga.factory.StudyPlanFactory;
+import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.CrossoverStrategy;
+import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.HybridCrossover;
+import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.RepairingCrossover;
+import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.WeightedAverageCrossover;
+import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.CreepMutation;
+import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.MutationStrategy;
+import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrategy;
+import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
+import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
+import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
 
 import java.util.Map;
 

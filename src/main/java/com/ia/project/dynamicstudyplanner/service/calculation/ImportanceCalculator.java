@@ -1,9 +1,9 @@
-package examoptimizer.service.calculation;
+package com.ia.project.dynamicstudyplanner.service.calculation;
 
-import examoptimizer.domain.StudentProfile;
-import examoptimizer.domain.exam.Exam;
-import examoptimizer.domain.exam.Subject;
-import examoptimizer.domain.exam.ThematicAxis;
+import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
+import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.ThematicAxis;
 
 import java.util.HashMap;
 import java.util.Map;

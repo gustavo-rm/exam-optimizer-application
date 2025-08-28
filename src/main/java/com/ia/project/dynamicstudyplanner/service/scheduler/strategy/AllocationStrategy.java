@@ -1,10 +1,8 @@
-package examoptimizer.service.scheduler.strategy;
+package com.ia.project.dynamicstudyplanner.service.scheduler.strategy;
 
-import examoptimizer.domain.StudyBlock;
-import examoptimizer.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.StudyBlock;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Defines the contract for a strategy that allocates study hours for a single day.

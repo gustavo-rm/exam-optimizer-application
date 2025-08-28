@@ -1,6 +1,6 @@
-package examoptimizer.service.scheduler.strategy;
+package com.ia.project.dynamicstudyplanner.service.scheduler.strategy;
 
-import examoptimizer.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 
 import java.time.LocalDate;
 import java.util.Map;

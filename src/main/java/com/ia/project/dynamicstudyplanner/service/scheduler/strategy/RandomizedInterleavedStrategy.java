@@ -1,7 +1,7 @@
-package examoptimizer.service.scheduler.strategy;
+package com.ia.project.dynamicstudyplanner.service.scheduler.strategy;
 
-import examoptimizer.domain.StudyBlock;
-import examoptimizer.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.StudyBlock;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 
 import java.util.*;
 import java.util.stream.Collectors;

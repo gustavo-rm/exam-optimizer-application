@@ -1,14 +1,14 @@
-package examoptimizer.service;
+package com.ia.project.dynamicstudyplanner.dynamicstudyplanner.service;
 
-import examoptimizer.domain.exam.Exam;
-import examoptimizer.domain.schedule.ScheduleResult;
-import examoptimizer.domain.schedule.ScheduleStatus;
-import examoptimizer.domain.StudentProfile;
-import examoptimizer.domain.StudyBlock;
-import examoptimizer.domain.StudyPlan;
-import examoptimizer.domain.exam.Subject;
-import examoptimizer.service.scheduler.strategy.AllocationContext;
-import examoptimizer.service.scheduler.strategy.AllocationStrategy;
+import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
+import com.ia.project.dynamicstudyplanner.domain.StudyBlock;
+import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
+import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleResult;
+import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleStatus;
+import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationContext;
+import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationStrategy;
 
 import java.time.LocalDate;
 import java.util.*;
