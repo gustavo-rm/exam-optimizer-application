@@ -1,14 +1,14 @@
 package com.ia.project.dynamicstudyplanner.api.controller;
 
 import com.ia.project.dynamicstudyplanner.api.dto.OptimizationRequest;
-import com.ia.project.dynamicstudyplanner.api.dto.OptimizationResponse;
+import com.ia.project.dynamicstudyplanner.api.dto.PlannerResponseDto;
 import com.ia.project.dynamicstudyplanner.api.mapper.ExamMapper;
-import com.ia.project.dynamicstudyplanner.api.mapper.OptimizationResultMapper;
+import com.ia.project.dynamicstudyplanner.api.mapper.FullPlannerResultMapper;
 import com.ia.project.dynamicstudyplanner.api.mapper.StudentProfileMapper;
+import com.ia.project.dynamicstudyplanner.domain.FullPlannerResult;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
-import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
-import com.ia.project.dynamicstudyplanner.service.StudyOptimizerService;
+import com.ia.project.dynamicstudyplanner.service.DynamicStudyPlannerService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,27 +20,34 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/optimizer")
 public class OptimizerController {
 
-    private final StudyOptimizerService optimizerService;
+    private final DynamicStudyPlannerService plannerService;
     private final ExamMapper examMapper;
     private final StudentProfileMapper studentProfileMapper;
-    private final OptimizationResultMapper optimizationResultMapper;
+    private final FullPlannerResultMapper resultMapper;
 
-    public OptimizerController(StudyOptimizerService optimizerService, ExamMapper examMapper,
-                               StudentProfileMapper studentProfileMapper, OptimizationResultMapper optimizationResultMapper) {
-        this.optimizerService = optimizerService;
+    public OptimizerController(DynamicStudyPlannerService plannerService, ExamMapper examMapper,
+                               StudentProfileMapper studentProfileMapper, FullPlannerResultMapper resultMapper) {
+        this.plannerService = plannerService;
         this.examMapper = examMapper;
         this.studentProfileMapper = studentProfileMapper;
-        this.optimizationResultMapper = optimizationResultMapper;
+        this.resultMapper = resultMapper;
     }
 
-    @PostMapping("/generate-plan")
-    public ResponseEntity<OptimizationResponse> generateStudyPlan(@Valid @RequestBody OptimizationRequest request) {
-        // 1. Mapear DTOs para o Domínio usando mappers especializados
+    /**
+     * The primary endpoint to generate a complete, personalized, and optimized study plan.
+     * It orchestrates both the strategic (GA) and tactical (daily schedule) planning phases.
+     *
+     * @param request The request body containing the exam, student profile, and GA config.
+     * @return A ResponseEntity containing the full PlannerResponseDto with the generated plan.
+     */
+    @PostMapping("/generate")
+    public ResponseEntity<PlannerResponseDto> generateFullStudyPlan(@Valid @RequestBody OptimizationRequest request) {
+        // 1. Map from API DTOs to Domain Objects
         Exam exam = examMapper.toDomain(request.exam());
         StudentProfile profile = studentProfileMapper.toDomain(request.studentProfile(), exam.getAllSubjects());
 
-        // 2. Chamar o serviço
-        OptimizationResult result = optimizerService.optimize(
+        // 2. Call the high-level orchestrator service
+        FullPlannerResult result = plannerService.generateFullStudyPlan(
                 exam,
                 profile,
                 request.gaConfig().totalStudyDays(),
@@ -48,7 +55,7 @@ public class OptimizerController {
                 request.gaConfig().populationSize()
         );
 
-        // 3. Mapear o resultado do Domínio de volta para um DTO de resposta
-        return ResponseEntity.ok(optimizationResultMapper.toResponse(result));
+        // 3. Map the full domain result back to a response DTO and return
+        return ResponseEntity.ok(resultMapper.toResponse(result));
     }
 }
