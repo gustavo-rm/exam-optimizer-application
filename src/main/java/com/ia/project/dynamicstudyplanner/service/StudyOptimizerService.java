@@ -16,6 +16,7 @@ import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrateg
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
@@ -24,6 +25,7 @@ import java.util.Map;
  * It acts as a Facade, hiding the complexity of the genetic algorithm
  * from the main application.
  */
+@Service
 public class StudyOptimizerService {
 
     /**

@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.dynamicstudyplanner.service;
+package com.ia.project.dynamicstudyplanner.service;
 
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.StudyBlock;
@@ -32,7 +32,6 @@ public class StudyScheduleGenerator {
      * @param profile The student's profile, containing weekly availability.
      * @param exam The Exam object, containing the final deadline.
      * @param startDate The date to start the study plan.
-     * @param hoursPerStudyDay The conversion factor from "study days" to hours.
      * @param allocationStrategy The chosen strategy for allocating daily study hours.
      * @return A ScheduleResult containing the schedule and the outcome status.
      */
@@ -41,9 +40,12 @@ public class StudyScheduleGenerator {
             StudentProfile profile,
             Exam exam,
             LocalDate startDate,
-            int hoursPerStudyDay,
             AllocationStrategy allocationStrategy
     ) {
+        // The conversion factor from "study days" to hours.
+        double averageDailyHours = profile.getTotalWeeklyHours() / 7.0;
+        int hoursPerStudyDay = Math.max(1, (int) Math.ceil(averageDailyHours));
+
         // --- 1. VIABILITY ANALYSIS & PLAN ADJUSTMENT ---
         ScheduleContext context = prepareScheduleContext(plan, profile, startDate, exam.examDate(), hoursPerStudyDay);
 
