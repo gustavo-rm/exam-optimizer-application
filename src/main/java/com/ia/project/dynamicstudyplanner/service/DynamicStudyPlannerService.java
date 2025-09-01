@@ -42,18 +42,17 @@ public final class DynamicStudyPlannerService {
             int numGenerations,
             int populationSize
     ) {
-        // --- Fase 1: Otimização Estratégica ---
+        // --- Step 1: Strategic Optimization ---
         OptimizationResult optimizationResult = optimizerService.optimize(
                 exam, profile, totalStudyDays, numGenerations, populationSize
         );
 
-        // --- Fase 2: Agendamento Tático ---
+        // --- Step 2: Tactical Scheduling ---
         AllocationStrategy chosenStrategy = new ReviewFocusedStrategy(new InterleavedCriticalStrategy());
         ScheduleResult scheduleResult = scheduleGenerator.generate(
                 optimizationResult.plan(), profile, exam, LocalDate.now(), chosenStrategy
         );
 
-        // Retorna o objeto de domínio público
         return new FullPlannerResult(optimizationResult, scheduleResult);
     }
 }

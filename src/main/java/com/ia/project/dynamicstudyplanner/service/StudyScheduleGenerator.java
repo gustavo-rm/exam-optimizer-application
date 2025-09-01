@@ -9,6 +9,7 @@ import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleResult;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleStatus;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationContext;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationStrategy;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -22,6 +23,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
  * 2. Adjusting the plan if necessary.
  * 3. Iterating through the days and delegating hour allocation to a chosen strategy.
  */
+@Service
 public class StudyScheduleGenerator {
 
     /**
