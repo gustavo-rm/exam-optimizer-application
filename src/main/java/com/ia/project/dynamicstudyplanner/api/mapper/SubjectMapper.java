@@ -9,11 +9,11 @@ public class SubjectMapper implements Mapper<SubjectDto, Subject> {
 
     @Override
     public SubjectDto toDto(Subject subject) {
-        return new SubjectDto(subject.name(), subject.questionCount());
+        return new SubjectDto(subject.name(), subject.questionCount(), subject.cognitiveLoad());
     }
 
     @Override
     public Subject toDomain(SubjectDto dto) {
-        return new Subject(dto.name(), dto.questionCount());
+        return new Subject(dto.name(), dto.questionCount(), dto.cognitiveLoad());
     }
 }

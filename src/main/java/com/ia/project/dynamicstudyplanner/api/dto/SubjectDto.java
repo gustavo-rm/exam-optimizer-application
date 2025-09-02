@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.api.dto;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
@@ -14,5 +15,9 @@ public record SubjectDto(
         String name,
 
         @Min(value = 1, message = "Question count must be at least 1.")
-        int questionCount
+        int questionCount,
+
+        @Min(value = 1, message = "Cognitive load must be at least 1.")
+        @Max(value = 5, message = "Cognitive load must be at most 5.")
+        int cognitiveLoad
 ) {}
