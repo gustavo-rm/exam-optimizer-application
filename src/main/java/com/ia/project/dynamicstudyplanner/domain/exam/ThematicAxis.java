@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.domain.exam;
 
 import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Represents a "Thematic Axis" within the Specific Knowledge part of the exam.
@@ -17,6 +18,18 @@ public record ThematicAxis(
         double weight,
         List<Subject> subjects
 ) {
+    public ThematicAxis(int id, String name, double weight, List<Subject> subjects) {
+        this.id = id;
+        this.name = name;
+        this.weight = weight;
+        this.subjects = new ArrayList<>(subjects);
+    }
+
+    @Override
+    public List<Subject> subjects() {
+        return new ArrayList<>(this.subjects);
+    }
+
     /**
      * Calculates the total number of questions within this axis.
      * @return The sum of question counts from all subjects in this axis.

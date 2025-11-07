@@ -90,12 +90,12 @@ public class StudyScheduleGenerator {
             status = (availableHours > requiredHours) ?
                     ScheduleStatus.SUCCESS_WITH_SURPLUS_TIME : ScheduleStatus.SUCCESS_IDEAL_PLAN;
             hoursToSchedulePerSubject = plan.daysPerSubject().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> (double) (e.getValue() * hoursPerStudyDay)));
+                    .collect(Collectors.toMap(Map.Entry::getKey, e -> (double) e.getValue() * hoursPerStudyDay));
         } else {
             status = ScheduleStatus.WARNING_TIME_DEFICIT;
             double reductionFactor = availableHours / requiredHours;
             hoursToSchedulePerSubject = plan.daysPerSubject().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> (e.getValue() * hoursPerStudyDay) * reductionFactor));
+                    .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue() * hoursPerStudyDay * reductionFactor));
         }
         return new ScheduleContext(hoursToSchedulePerSubject, status, requiredHours, availableHours);
     }
@@ -163,7 +163,9 @@ public class StudyScheduleGenerator {
      * @return The total number of available hours.
      */
     private double calculateTotalAvailableHours(StudentProfile profile, LocalDate start, LocalDate end) {
-        if (start.isAfter(end)) return 0;
+        if (start.isAfter(end)) {
+            return 0;
+        }
         long totalDays = DAYS.between(start, end);
         double totalHours = 0;
         for (long i = 0; i < totalDays; i++) {

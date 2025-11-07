@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleStatus;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * DTO for a ScheduleResult.
@@ -19,4 +20,16 @@ public record ScheduleResultDto(
         ScheduleStatus status,
         double requiredHours,
         double availableHours
-) {}
+) {
+    public ScheduleResultDto(Map<LocalDate, List<StudyBlockDto>> schedule, ScheduleStatus status, double requiredHours, double availableHours) {
+        this.schedule = new HashMap<>(schedule);
+        this.status = status;
+        this.requiredHours = requiredHours;
+        this.availableHours = availableHours;
+    }
+
+    @Override
+    public Map<LocalDate, List<StudyBlockDto>> schedule() {
+        return new HashMap<>(this.schedule);
+    }
+}

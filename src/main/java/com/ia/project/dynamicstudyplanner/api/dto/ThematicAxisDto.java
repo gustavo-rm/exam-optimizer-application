@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.api.dto;
 
 import java.util.List;
+import java.util.ArrayList;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
@@ -26,5 +27,16 @@ public record ThematicAxisDto(
         @NotEmpty(message = "Specific knowledge axis must have at least one subject.")
         @Valid // Crucial: Aciona a validação para cada SubjectDto na lista
         List<SubjectDto> subjects
-) {}
+) {
+    public ThematicAxisDto(int id, String name, double weight, List<SubjectDto> subjects) {
+        this.id = id;
+        this.name = name;
+        this.weight = weight;
+        this.subjects = new ArrayList<>(subjects);
+    }
 
+    @Override
+    public List<SubjectDto> subjects() {
+        return new ArrayList<>(this.subjects);
+    }
+}

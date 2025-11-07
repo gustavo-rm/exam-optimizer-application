@@ -4,7 +4,11 @@ import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
-import com.ia.project.dynamicstudyplanner.ga.*;
+import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneticAlgorithm;
+import com.ia.project.dynamicstudyplanner.ga.GeneticAlgorithmBuilder;
+import com.ia.project.dynamicstudyplanner.ga.Individual;
+import com.ia.project.dynamicstudyplanner.ga.Population;
 import com.ia.project.dynamicstudyplanner.ga.factory.StudyPlanFactory;
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.CrossoverStrategy;
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.HybridCrossover;
@@ -98,9 +102,9 @@ public class StudyOptimizerService {
     private GeneticAlgorithm configureGeneticAlgorithm() {
         CrossoverStrategy weightedAverage = new WeightedAverageCrossover();
         CrossoverStrategy repairing = new RepairingCrossover();
-        CrossoverStrategy hybridCrossover = new HybridCrossover(weightedAverage, repairing, 0.75);
-        SelectionStrategy selection = new TournamentSelection(3);
-        MutationStrategy mutation = new CreepMutation(3);
+        CrossoverStrategy hybridCrossover = new HybridCrossover(weightedAverage, repairing, Constants.HYBRID_CROSSOVER_RATE);
+        SelectionStrategy selection = new TournamentSelection(Constants.TOURNAMENT_SIZE);
+        MutationStrategy mutation = new CreepMutation(Constants.CREEP_MUTATION_DISTANCE);
         //MutationStrategy mutation = new SwapMutation();
 
         return new GeneticAlgorithmBuilder()
@@ -108,10 +112,10 @@ public class StudyOptimizerService {
                 .withCrossoverStrategy(hybridCrossover)
                 .withMutationStrategy(mutation)
                 .withElitism(true)
-                .withCrossoverRate(0.95)
-                .withMutationRate(0.05)
-                .withStagnationPatience(25)
-                .withHypermutationRate(0.20)
+                .withCrossoverRate(Constants.CROSSOVER_RATE)
+                .withMutationRate(Constants.MUTATION_RATE)
+                .withStagnationPatience(Constants.STAGNATION_PATIENCE)
+                .withHypermutationRate(Constants.HYPERMUTATION_RATE)
                 .build();
     }
 
@@ -152,7 +156,7 @@ public class StudyOptimizerService {
         for (int i = 0; i < numGenerations; i++) {
             population = ga.evolvePopulation(population, context);
 
-            if (i % 5 == 0) {
+            if (i % Constants.GENERATION_PRINT_INTERVAL == 0) {
                 double bestFitness = population.getFittest().getFitness();
                 double averageFitness = population.getAverageFitness();
                 double worstFitness = population.getWorst().getFitness();

@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.api.dto;
 
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Data Transfer Object for a StudyPlan.
@@ -11,4 +12,13 @@ import java.util.Map;
  */
 public record StudyPlanDto(
         Map<String, Integer> daysPerSubject
-) {}
+) {
+    public StudyPlanDto(Map<String, Integer> daysPerSubject) {
+        this.daysPerSubject = new HashMap<>(daysPerSubject);
+    }
+
+    @Override
+    public Map<String, Integer> daysPerSubject() {
+        return new HashMap<>(this.daysPerSubject);
+    }
+}

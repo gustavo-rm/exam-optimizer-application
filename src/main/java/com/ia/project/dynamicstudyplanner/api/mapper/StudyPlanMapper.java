@@ -2,7 +2,6 @@ package com.ia.project.dynamicstudyplanner.api.mapper;
 
 import com.ia.project.dynamicstudyplanner.api.dto.StudyPlanDto;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;

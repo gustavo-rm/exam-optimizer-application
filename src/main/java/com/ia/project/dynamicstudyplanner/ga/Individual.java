@@ -120,6 +120,24 @@ public final class Individual implements Comparable<Individual> {
         return Double.compare(other.getFitness(), this.getFitness());
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Individual that = (Individual) o;
+        return Double.compare(that.fitness, fitness) == 0 &&
+                java.util.Objects.equals(plan, that.plan);
+    }
+
+    @Override
+    public int hashCode() {
+        return java.util.Objects.hash(plan, fitness);
+    }
+
     // --- Standard Getters and Setters ---
 
     public StudyPlan getPlan() {

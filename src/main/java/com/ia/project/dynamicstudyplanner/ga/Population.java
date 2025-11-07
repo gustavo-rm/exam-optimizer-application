@@ -30,7 +30,7 @@ public class Population {
      * @param individuals The list of individuals to comprise the population.
      */
     public Population(List<Individual> individuals) {
-        this.individuals = individuals;
+        this.individuals = new ArrayList<>(individuals);
     }
 
     /**
@@ -57,7 +57,9 @@ public class Population {
      * @return The individual with the highest fitness score.
      */
     public Individual getFittest() {
-        if (individuals.isEmpty()) return null;
+        if (individuals.isEmpty()) {
+            return null;
+        }
         return individuals.stream()
                 .max(Comparator.comparingDouble(Individual::getFitness))
                 .orElse(null);
@@ -68,7 +70,9 @@ public class Population {
      * @return The individual with the lowest fitness score.
      */
     public Individual getWorst() {
-        if (individuals.isEmpty()) return null;
+        if (individuals.isEmpty()) {
+            return null;
+        }
         return individuals.stream()
                 .min(Comparator.comparingDouble(Individual::getFitness))
                 .orElse(null);

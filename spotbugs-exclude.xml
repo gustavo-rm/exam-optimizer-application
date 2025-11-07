@@ -1,0 +1,6 @@
+<FindBugsFilter>
+    <Match>
+        <Class name="com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection"/>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
+</FindBugsFilter>

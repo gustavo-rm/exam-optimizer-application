@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.ArrayList;
 
 /**
  * Represents the entire exam structure as defined in the official announcement ('edital').
@@ -24,6 +25,24 @@ public record Exam(
         List<Subject> generalKnowledgeSubjects,
         List<ThematicAxis> specificKnowledgeAxes
 ) {
+    public Exam(String name, LocalDate examDate, double generalKnowledgeTotalScore, List<Subject> generalKnowledgeSubjects, List<ThematicAxis> specificKnowledgeAxes) {
+        this.name = name;
+        this.examDate = examDate;
+        this.generalKnowledgeTotalScore = generalKnowledgeTotalScore;
+        this.generalKnowledgeSubjects = new ArrayList<>(generalKnowledgeSubjects);
+        this.specificKnowledgeAxes = new ArrayList<>(specificKnowledgeAxes);
+    }
+
+    @Override
+    public List<Subject> generalKnowledgeSubjects() {
+        return new ArrayList<>(this.generalKnowledgeSubjects);
+    }
+
+    @Override
+    public List<ThematicAxis> specificKnowledgeAxes() {
+        return new ArrayList<>(this.specificKnowledgeAxes);
+    }
+
     /**
      * Helper method to get the total number of questions in the General Knowledge exam.
      * @return The total question count for the General Knowledge part.

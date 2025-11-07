@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 
 import java.time.DayOfWeek;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Represents the profile of the student using the optimizer.
@@ -21,6 +22,22 @@ public record StudentProfile(
         Map<Subject, Double> knowledgeGaps,
         Map<DayOfWeek, Integer> weeklyAvailability
 ) {
+    public StudentProfile(String name, Map<Subject, Double> knowledgeGaps, Map<DayOfWeek, Integer> weeklyAvailability) {
+        this.name = name;
+        this.knowledgeGaps = new HashMap<>(knowledgeGaps);
+        this.weeklyAvailability = new HashMap<>(weeklyAvailability);
+    }
+
+    @Override
+    public Map<Subject, Double> knowledgeGaps() {
+        return new HashMap<>(this.knowledgeGaps);
+    }
+
+    @Override
+    public Map<DayOfWeek, Integer> weeklyAvailability() {
+        return new HashMap<>(this.weeklyAvailability);
+    }
+
     /**
      * Calculates the total number of study hours available per week.
      * @return The sum of all available hours for the week.
