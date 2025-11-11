@@ -18,6 +18,11 @@ public final class BaselineCalculator {
 
     private static final int MAX_MINIMUM_DAYS = 15; // The most difficult subject will be assigned this many days.
     private static final int MIN_REQUIRED_DAYS = 1;  // Every subject will have at least this many days.
+    private final ImportanceCalculator importanceCalculator;
+
+    public BaselineCalculator(ImportanceCalculator importanceCalculator) {
+        this.importanceCalculator = importanceCalculator;
+    }
 
     /**
      * Calculates the minimum required study days for all subjects in an exam for a given student.
@@ -55,7 +60,7 @@ public final class BaselineCalculator {
      */
     private double calculatePerceivedDifficulty(Subject subject, Exam exam, StudentProfile profile) {
         // The same logic from ImportanceCalculator's 'calculateBaseImportance' can be reused here.
-        double objectiveWeight = new ImportanceCalculator().calculatePersonalizedImportance(exam, profile).get(subject) / profile.knowledgeGaps().getOrDefault(subject, 1.0);
+        double objectiveWeight = importanceCalculator.calculatePersonalizedImportance(exam, profile).get(subject) / profile.knowledgeGaps().getOrDefault(subject, 1.0);
         double knowledgeGapFactor = profile.knowledgeGaps().getOrDefault(subject, 1.0);
 
         // A subject is perceived as difficult if it is important for the exam AND the student is weak in it.

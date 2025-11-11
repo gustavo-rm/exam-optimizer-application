@@ -85,10 +85,10 @@ public class StudyOptimizerService {
      * @return An EvolutionContext object containing all prepared data.
      */
     private EvolutionContext prepareContext(Exam exam, StudentProfile profile) {
-        BaselineCalculator baselineCalculator = new BaselineCalculator();
+        ImportanceCalculator importanceCalculator = new ImportanceCalculator();
+        BaselineCalculator baselineCalculator = new BaselineCalculator(importanceCalculator);
         Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
 
-        ImportanceCalculator importanceCalculator = new ImportanceCalculator();
         Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
 
         return new EvolutionContext(importanceScores, minimumDaysPerSubject);

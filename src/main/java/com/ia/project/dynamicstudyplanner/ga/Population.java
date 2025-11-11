@@ -10,6 +10,9 @@ import java.util.List;
  */
 public class Population {
     private final List<Individual> individuals;
+    private Individual fittest;
+    private Individual worst;
+    private double averageFitness;
 
     /**
      * Constructs a new, empty population with a predefined initial capacity.
@@ -57,12 +60,7 @@ public class Population {
      * @return The individual with the highest fitness score.
      */
     public Individual getFittest() {
-        if (individuals.isEmpty()) {
-            return null;
-        }
-        return individuals.stream()
-                .max(Comparator.comparingDouble(Individual::getFitness))
-                .orElse(null);
+        return fittest;
     }
 
     /**
@@ -70,12 +68,7 @@ public class Population {
      * @return The individual with the lowest fitness score.
      */
     public Individual getWorst() {
-        if (individuals.isEmpty()) {
-            return null;
-        }
-        return individuals.stream()
-                .min(Comparator.comparingDouble(Individual::getFitness))
-                .orElse(null);
+        return worst;
     }
 
     /**
@@ -84,14 +77,7 @@ public class Population {
      * @return The average fitness score as a double.
      */
     public double getAverageFitness() {
-        if (individuals.isEmpty()) {
-            return 0.0;
-        }
-
-        return individuals.stream()
-                .mapToDouble(Individual::getFitness)
-                .average()
-                .orElse(0.0);
+        return averageFitness;
     }
 
     /**
@@ -117,5 +103,26 @@ public class Population {
             double score = individual.calculateFitness(context);
             individual.setFitness(score);
         });
+        updateStats();
+    }
+
+    private void updateStats() {
+        if (individuals.isEmpty()) {
+            fittest = null;
+            worst = null;
+            averageFitness = 0.0;
+            return;
+        }
+
+        fittest = individuals.stream()
+                .max(Comparator.comparingDouble(Individual::getFitness))
+                .orElse(null);
+        worst = individuals.stream()
+                .min(Comparator.comparingDouble(Individual::getFitness))
+                .orElse(null);
+        averageFitness = individuals.stream()
+                .mapToDouble(Individual::getFitness)
+                .average()
+                .orElse(0.0);
     }
 }
