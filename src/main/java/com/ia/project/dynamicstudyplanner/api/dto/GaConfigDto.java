@@ -1,8 +1,7 @@
 package com.ia.project.dynamicstudyplanner.api.dto;
-
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-
 /**
  * DTO for the Genetic Algorithm's configuration. Includes validation rules to prevent
  * excessively large values that could cause CPU exhaustion (Denial of Service).
@@ -11,15 +10,17 @@ import jakarta.validation.constraints.Min;
  * @param numGenerations Number of generations to run. Must be between 10 and 1000.
  * @param populationSize Size of the population. Must be between 10 and 500.
  */
+@Schema(description = "Configuration settings for the Genetic Algorithm.")
 public record GaConfigDto(
+        @Schema(description = "The target number of study days to allocate across all subjects.", example = "100")
         @Min(value = 1, message = "Total study days must be at least 1.")
         @Max(value = 365, message = "Total study days cannot exceed 365 days (1 year).")
         int totalStudyDays,
-
+        @Schema(description = "The number of evolutionary cycles the algorithm will run. Higher yields better results but takes longer.", example = "100")
         @Min(value = 10, message = "Number of generations must be at least 10.")
         @Max(value = 1000, message = "Number of generations cannot exceed 1000 to prevent CPU exhaustion.")
         int numGenerations,
-
+        @Schema(description = "The number of potential solutions evolving per generation.", example = "50")
         @Min(value = 10, message = "Population size must be at least 10.")
         @Max(value = 500, message = "Population size cannot exceed 500 to prevent CPU exhaustion.")
         int populationSize

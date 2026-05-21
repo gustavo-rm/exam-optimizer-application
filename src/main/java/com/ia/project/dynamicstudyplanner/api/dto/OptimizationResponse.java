@@ -1,5 +1,5 @@
 package com.ia.project.dynamicstudyplanner.api.dto;
-
+import io.swagger.v3.oas.annotations.media.Schema;
 /**
  * The top-level Data Transfer Object for the API's response after a successful optimization.
  * It provides a status message and the detailed optimization result.

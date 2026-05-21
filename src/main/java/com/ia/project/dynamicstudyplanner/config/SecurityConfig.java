@@ -34,6 +34,8 @@ public class SecurityConfig {
 
                 // 2. Configure authorization rules for HTTP requests.
                 .authorizeHttpRequests(auth -> auth
+                        // Allow OpenAPI and Swagger UI to be accessed without authentication.
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Allow all requests to endpoints under "/api/v1/**" to be accessed without authentication.
                         .requestMatchers("/api/v1/**").permitAll()
                         // You can add other rules here, for example:
