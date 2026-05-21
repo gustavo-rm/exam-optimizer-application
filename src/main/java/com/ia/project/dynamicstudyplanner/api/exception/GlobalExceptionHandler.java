@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import com.ia.project.dynamicstudyplanner.domain.exception.RateLimitExceededException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
@@ -153,6 +154,24 @@ public class GlobalExceptionHandler {
         problemDetail.setProperty(TIMESTAMP_PROPERTY, Instant.now());
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
+    }
+
+    /**
+     * Handles API Rate Limit Exceeded Exceptions (Bucket4j).
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimitExceededException(
+            RateLimitExceededException ex, HttpServletRequest request) {
+
+        log.warn("Rate limit exceeded on path {}: {}", request.getRequestURI(), ex.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+        problemDetail.setTitle("Too Many Requests");
+        problemDetail.setType(URI.create("https://api.dynamicstudyplanner.com/errors/rate-limit-exceeded"));
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+        problemDetail.setProperty(TIMESTAMP_PROPERTY, Instant.now());
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(problemDetail);
     }
 
     /**
