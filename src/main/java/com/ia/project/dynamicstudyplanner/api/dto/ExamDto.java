@@ -1,10 +1,12 @@
 package com.ia.project.dynamicstudyplanner.api.dto;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -19,6 +21,7 @@ import java.util.List;
  */
 public record ExamDto(
         @NotBlank(message = "Exam name cannot be blank.")
+        @Size(max = 200, message = "Exam name cannot exceed 200 characters.")
         String name,
 
         @NotNull(message = "Exam date cannot be null.")
@@ -26,13 +29,16 @@ public record ExamDto(
         LocalDate examDate,
 
         @Min(value = 0, message = "Total score cannot be negative.")
+        @DecimalMax(value = "1000.0", message = "Total score cannot exceed 1000.0.")
         double generalKnowledgeTotalScore,
 
         @NotNull(message = "General knowledge subjects list cannot be null (can be empty).")
+        @Size(max = 50, message = "Cannot have more than 50 general knowledge subjects.")
         @Valid
-        List<SubjectDto> generalKnowledgeSubjects,
+        List<@NotNull @Valid SubjectDto> generalKnowledgeSubjects,
 
         @NotNull(message = "Specific knowledge axes list cannot be null (can be empty).")
+        @Size(max = 50, message = "Cannot have more than 50 specific knowledge axes.")
         @Valid
-        List<ThematicAxisDto> specificKnowledgeAxes
+        List<@NotNull @Valid ThematicAxisDto> specificKnowledgeAxes
 ) {}

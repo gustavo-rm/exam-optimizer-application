@@ -3,18 +3,22 @@ package com.ia.project.dynamicstudyplanner.api.dto;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * DTO for a Subject. Includes validation rules for API requests.
  *
- * @param name The name of the subject. Must not be null or blank.
- * @param questionCount The number of questions. Must be at least 1.
+ * @param name The name of the subject. Must not be null or blank, max 100 characters.
+ * @param questionCount The number of questions. Must be between 1 and 500.
+ * @param cognitiveLoad Intrinsic difficulty (1-5 scale).
  */
 public record SubjectDto(
         @NotBlank(message = "Subject name cannot be blank.")
+        @Size(max = 100, message = "Subject name cannot exceed 100 characters.")
         String name,
 
         @Min(value = 1, message = "Question count must be at least 1.")
+        @Max(value = 500, message = "Question count cannot exceed 500.")
         int questionCount,
 
         @Min(value = 1, message = "Cognitive load must be at least 1.")
