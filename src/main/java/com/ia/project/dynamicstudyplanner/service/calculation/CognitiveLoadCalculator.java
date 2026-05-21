@@ -52,10 +52,10 @@ public final class CognitiveLoadCalculator {
      * @return A multiplier between approximately 0.8 and 1.1.
      */
     private double calculateFatigueFactor(StudentProfile profile) {
-        double averageGap = profile.knowledgeGaps().values().stream()
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(3.0); // Assume an average gap if the map is empty.
+        double averageGap = profile.getAverageKnowledgeGap();
+        if (averageGap == 1.0 && profile.getWeeklyAvailability().isEmpty()) { // Workaround if empty (as original code was orElse(3.0))
+           averageGap = 3.0; // Assume an average gap if the map is truly empty or uninitialized
+        }
 
         // Linearly maps the gap (1-5 scale) to a factor (1.1 - 0.8).
         // 1.1 -> Very confident, can handle more | 0.8 -> Not confident, can handle less.

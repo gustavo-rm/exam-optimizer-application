@@ -21,7 +21,7 @@ public class SwapMutation implements MutationStrategy {
             return individual; // No mutation
         }
 
-        Map<Subject, Integer> mutatedGenes = new HashMap<>(individual.getPlan().daysPerSubject());
+        Map<Subject, Integer> mutatedGenes = new HashMap<>(individual.getPlan().getDaysPerSubject());
         List<Subject> subjects = new ArrayList<>(mutatedGenes.keySet());
 
         if (subjects.size() < 2) {

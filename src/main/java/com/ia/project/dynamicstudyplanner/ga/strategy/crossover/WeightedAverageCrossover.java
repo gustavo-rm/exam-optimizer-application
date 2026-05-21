@@ -51,8 +51,8 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
      * @return A map representing the newly created, unrepaired child genes.
      */
     private Map<Subject, Integer> createWeightedAverageGenes(Individual parent1, Individual parent2) {
-        Map<Subject, Integer> parent1Genes = parent1.getPlan().daysPerSubject();
-        Map<Subject, Integer> parent2Genes = parent2.getPlan().daysPerSubject();
+        Map<Subject, Integer> parent1Genes = parent1.getPlan().getDaysPerSubject();
+        Map<Subject, Integer> parent2Genes = parent2.getPlan().getDaysPerSubject();
         Map<Subject, Integer> childGenes = new HashMap<>();
 
         double weight1 = parent1.getFitness();

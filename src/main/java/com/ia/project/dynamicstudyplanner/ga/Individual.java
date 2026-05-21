@@ -47,10 +47,11 @@ public final class Individual implements Comparable<Individual> {
         double baseScore = calculateBaseScore(context.importanceScores());
 
         // Step 2: Check if the plan violates any minimum day constraints.
-        boolean constraintsViolated = violatesConstraints(context.minimumDaysPerSubject());
+        // We now delegate to the domain object rather than calculating here.
+        boolean meetsConstraints = plan.meetsMinimumConstraints(context.minimumDaysPerSubject());
 
         // Step 3: Apply a penalty to the score if constraints were violated.
-        return applyPenalty(baseScore, constraintsViolated);
+        return applyPenalty(baseScore, !meetsConstraints);
     }
 
     /**
@@ -62,7 +63,7 @@ public final class Individual implements Comparable<Individual> {
      */
     private double calculateBaseScore(Map<Subject, Double> importanceScores) {
         double score = 0.0;
-        for (Map.Entry<Subject, Integer> entry : plan.daysPerSubject().entrySet()) {
+        for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
             Subject subject = entry.getKey();
             int days = entry.getValue();
 
@@ -76,23 +77,6 @@ public final class Individual implements Comparable<Individual> {
             score += knowledge * importance;
         }
         return score;
-    }
-
-    /**
-     * Checks if the individual's study plan violates any of the minimum day constraints.
-     *
-     * @param minimumDaysPerSubject The map of constraints.
-     * @return {@code true} if at least one constraint is violated, {@code false} otherwise.
-     */
-    private boolean violatesConstraints(Map<Subject, Integer> minimumDaysPerSubject) {
-        for (Map.Entry<Subject, Integer> entry : plan.daysPerSubject().entrySet()) {
-            int allocatedDays = entry.getValue();
-            int minimumDays = minimumDaysPerSubject.getOrDefault(entry.getKey(), 1);
-            if (allocatedDays < minimumDays) {
-                return true; // Found a violation.
-            }
-        }
-        return false; // No violations found.
     }
 
     /**

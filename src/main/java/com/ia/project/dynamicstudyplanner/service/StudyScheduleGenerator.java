@@ -49,10 +49,10 @@ public class StudyScheduleGenerator {
         int hoursPerStudyDay = Math.max(1, (int) Math.ceil(averageDailyHours));
 
         // --- 1. VIABILITY ANALYSIS & PLAN ADJUSTMENT ---
-        ScheduleContext context = prepareScheduleContext(plan, profile, startDate, exam.examDate(), hoursPerStudyDay);
+        ScheduleContext context = prepareScheduleContext(plan, profile, startDate, exam.getExamDate(), hoursPerStudyDay);
 
         // --- 2. DAILY SCHEDULE GENERATION LOOP ---
-        Map<LocalDate, List<StudyBlock>> schedule = buildSchedule(profile, exam.examDate(), startDate, context, allocationStrategy);
+        Map<LocalDate, List<StudyBlock>> schedule = buildSchedule(profile, exam.getExamDate(), startDate, context, allocationStrategy);
 
         // --- 3. RETURN FINAL RESULT ---
         return new ScheduleResult(schedule, context.status(), context.requiredHours(), context.availableHours());
@@ -79,7 +79,7 @@ public class StudyScheduleGenerator {
             StudyPlan plan, StudentProfile profile, LocalDate startDate, LocalDate examDate, int hoursPerStudyDay
     ) {
         double availableHours = calculateTotalAvailableHours(profile, startDate, examDate);
-        double requiredHours = plan.daysPerSubject().values().stream()
+        double requiredHours = plan.getDaysPerSubject().values().stream()
                 .mapToDouble(days -> days * hoursPerStudyDay)
                 .sum();
 
@@ -89,12 +89,12 @@ public class StudyScheduleGenerator {
         if (availableHours >= requiredHours) {
             status = (availableHours > requiredHours) ?
                     ScheduleStatus.SUCCESS_WITH_SURPLUS_TIME : ScheduleStatus.SUCCESS_IDEAL_PLAN;
-            hoursToSchedulePerSubject = plan.daysPerSubject().entrySet().stream()
+            hoursToSchedulePerSubject = plan.getDaysPerSubject().entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, e -> (double) (e.getValue() * hoursPerStudyDay)));
         } else {
             status = ScheduleStatus.WARNING_TIME_DEFICIT;
             double reductionFactor = availableHours / requiredHours;
-            hoursToSchedulePerSubject = plan.daysPerSubject().entrySet().stream()
+            hoursToSchedulePerSubject = plan.getDaysPerSubject().entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, e -> (e.getValue() * hoursPerStudyDay) * reductionFactor));
         }
         return new ScheduleContext(hoursToSchedulePerSubject, status, requiredHours, availableHours);
@@ -118,7 +118,7 @@ public class StudyScheduleGenerator {
         Map<Subject, LocalDate> lastStudiedDateMap = new HashMap<>();
 
         while (currentDate.isBefore(examDate) && context.hoursToSchedule().values().stream().anyMatch(h -> h > 0.5)) {
-            int availableHoursToday = profile.weeklyAvailability().getOrDefault(currentDate.getDayOfWeek(), 0);
+            int availableHoursToday = profile.getWeeklyAvailability().getOrDefault(currentDate.getDayOfWeek(), 0);
 
             if (availableHoursToday > 0) {
                 // Delegate the allocation logic to the chosen strategy
@@ -168,7 +168,7 @@ public class StudyScheduleGenerator {
         double totalHours = 0;
         for (long i = 0; i < totalDays; i++) {
             LocalDate currentDate = start.plusDays(i);
-            totalHours += profile.weeklyAvailability().getOrDefault(currentDate.getDayOfWeek(), 0);
+            totalHours += profile.getWeeklyAvailability().getOrDefault(currentDate.getDayOfWeek(), 0);
         }
         return totalHours;
     }

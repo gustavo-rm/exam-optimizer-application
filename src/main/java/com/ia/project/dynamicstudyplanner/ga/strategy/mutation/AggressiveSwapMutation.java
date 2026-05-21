@@ -40,7 +40,7 @@ public class AggressiveSwapMutation implements MutationStrategy {
         }
 
         // Create a mutable copy of the individual's genes
-        Map<Subject, Integer> mutatedGenes = new HashMap<>(individual.getPlan().daysPerSubject());
+        Map<Subject, Integer> mutatedGenes = new HashMap<>(individual.getPlan().getDaysPerSubject());
         List<Subject> subjects = new ArrayList<>(mutatedGenes.keySet());
 
         if (subjects.size() < 2) {

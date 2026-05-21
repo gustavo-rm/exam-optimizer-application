@@ -65,7 +65,7 @@ public class BaselineCalculator {
      * @return A numeric score representing the perceived difficulty for this specific student.
      */
     private double calculatePerceivedDifficulty(Subject subject, Map<Subject, Double> importanceScores, StudentProfile profile) {
-        double knowledgeGapFactor = profile.knowledgeGaps().getOrDefault(subject, 1.0);
+        double knowledgeGapFactor = profile.getKnowledgeGapFactor(subject);
         double objectiveWeight = importanceScores.getOrDefault(subject, 0.0) / knowledgeGapFactor;
 
         // A subject is perceived as difficult if it is important for the exam AND the student is weak in it.

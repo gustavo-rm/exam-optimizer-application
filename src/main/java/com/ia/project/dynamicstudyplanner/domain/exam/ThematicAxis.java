@@ -11,12 +11,20 @@ import java.util.List;
  * @param weight The weight of this entire axis in the final score calculation.
  * @param subjects The list of subjects that belong to this axis.
  */
+import java.util.Collections;
+
 public record ThematicAxis(
         int id,
         String name,
         double weight,
         List<Subject> subjects
 ) {
+
+    public ThematicAxis {
+        // Defensive copy to ensure immutability and fix EI_EXPOSE_REP vulnerability
+        subjects = subjects == null ? List.of() : Collections.unmodifiableList(subjects);
+    }
+
     /**
      * Calculates the total number of questions within this axis.
      * @return The sum of question counts from all subjects in this axis.

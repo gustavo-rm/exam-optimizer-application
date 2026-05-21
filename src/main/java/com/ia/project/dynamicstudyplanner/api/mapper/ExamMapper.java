@@ -32,11 +32,11 @@ public class ExamMapper implements Mapper<ExamDto, Exam> {
             return null;
         }
         return new ExamDto(
-                exam.name(),
-                exam.examDate(),
-                exam.generalKnowledgeTotalScore(),
-                exam.generalKnowledgeSubjects().stream().map(subjectMapper::toDto).toList(),
-                exam.specificKnowledgeAxes().stream().map(thematicAxisMapper::toDto).toList()
+                exam.getName(),
+                exam.getExamDate(),
+                exam.getGeneralKnowledgeTotalScore(),
+                exam.getGeneralKnowledgeSubjects().stream().map(subjectMapper::toDto).toList(),
+                exam.getSpecificKnowledgeAxes().stream().map(thematicAxisMapper::toDto).toList()
         );
     }
 

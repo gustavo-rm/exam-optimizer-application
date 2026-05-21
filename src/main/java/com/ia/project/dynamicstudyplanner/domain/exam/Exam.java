@@ -1,6 +1,11 @@
 package com.ia.project.dynamicstudyplanner.domain.exam;
 
+import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -9,21 +14,48 @@ import java.util.stream.Stream;
 
 /**
  * Represents the entire exam structure as defined in the official announcement ('edital').
- * This class encapsulates all parts of the exam, including general and specific knowledge sections,
- * thematic axes, and all subjects.
- *
- * @param name The official name of the exam.
- * @param examDate The final date for the exam (the deadline).
- * @param generalKnowledgeSubjects The list of subjects for the General Knowledge part.
- * @param specificKnowledgeAxes The list of thematic axes for the Specific Knowledge part.
+ * This class is the Aggregate Root for the Exam bounded context. It encapsulates the rules
+ * for calculating objective importance scores for its subjects.
  */
-public record Exam(
-        String name,
-        LocalDate examDate,
-        double generalKnowledgeTotalScore, // <-- The new attribute
-        List<Subject> generalKnowledgeSubjects,
-        List<ThematicAxis> specificKnowledgeAxes
-) {
+public class Exam {
+
+    private static final Logger log = LoggerFactory.getLogger(Exam.class);
+
+    private final String name;
+    private final LocalDate examDate;
+    private final double generalKnowledgeTotalScore;
+    private final List<Subject> generalKnowledgeSubjects;
+    private final List<ThematicAxis> specificKnowledgeAxes;
+
+    public Exam(String name, LocalDate examDate, double generalKnowledgeTotalScore,
+                List<Subject> generalKnowledgeSubjects, List<ThematicAxis> specificKnowledgeAxes) {
+        this.name = name;
+        this.examDate = examDate;
+        this.generalKnowledgeTotalScore = generalKnowledgeTotalScore;
+        // Defensive copying to prevent external modification
+        this.generalKnowledgeSubjects = generalKnowledgeSubjects == null ? List.of() : Collections.unmodifiableList(generalKnowledgeSubjects);
+        this.specificKnowledgeAxes = specificKnowledgeAxes == null ? List.of() : Collections.unmodifiableList(specificKnowledgeAxes);
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public LocalDate getExamDate() {
+        return examDate;
+    }
+
+    public double getGeneralKnowledgeTotalScore() {
+        return generalKnowledgeTotalScore;
+    }
+
+    public List<Subject> getGeneralKnowledgeSubjects() {
+        return generalKnowledgeSubjects;
+    }
+
+    public List<ThematicAxis> getSpecificKnowledgeAxes() {
+        return specificKnowledgeAxes;
+    }
     /**
      * Helper method to get the total number of questions in the General Knowledge exam.
      * @return The total question count for the General Knowledge part.
@@ -66,5 +98,31 @@ public record Exam(
         return specificKnowledgeAxes.stream()
                 .filter(axis -> axis.subjects().contains(subject))
                 .findFirst();
+    }
+
+    /**
+     * Calculates the objective base importance of a subject based purely on the exam's scoring rules.
+     * This logic belongs in the Exam entity because it dictates its own structure and grading.
+     *
+     * @param subject The subject to calculate importance for.
+     * @return The calculated objective weight.
+     */
+    public double calculateBaseImportance(Subject subject) {
+        if (generalKnowledgeSubjects.contains(subject)) {
+            int totalGKQuestions = getGeneralKnowledgeTotalQuestions();
+            if (totalGKQuestions <= 0) {
+                throw new DomainException("General Knowledge total questions must be positive to calculate importance.");
+            }
+            double valuePerQuestion = generalKnowledgeTotalScore / totalGKQuestions;
+            return subject.questionCount() * valuePerQuestion;
+        } else {
+            Optional<ThematicAxis> parentAxis = findAxisForSubject(subject);
+            if (parentAxis.isPresent()) {
+                double axisWeight = parentAxis.get().weight();
+                return subject.questionCount() * axisWeight;
+            }
+            log.warn("Subject '{}' was not found in any Specific Knowledge axis. Base importance set to 0.", subject.name());
+            return 0.0;
+        }
     }
 }
