@@ -2,7 +2,6 @@ package com.ia.project.dynamicstudyplanner.api.controller;
 
 import com.ia.project.dynamicstudyplanner.api.dto.OptimizationRequest;
 import com.ia.project.dynamicstudyplanner.api.dto.PlannerResponseDto;
-import com.ia.project.dynamicstudyplanner.api.exception.ApiErrorResponse;
 import com.ia.project.dynamicstudyplanner.api.mapper.ExamMapper;
 import com.ia.project.dynamicstudyplanner.api.mapper.FullPlannerResultMapper;
 import com.ia.project.dynamicstudyplanner.api.mapper.StudentProfileMapper;
@@ -17,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -55,13 +55,13 @@ public class OptimizerController {
                     @Content(mediaType = "application/json", schema = @Schema(implementation = PlannerResponseDto.class))
             }),
             @ApiResponse(responseCode = "400", description = "Bad Request. Validation failed for the input payload.", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class))
+                    @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
             }),
             @ApiResponse(responseCode = "422", description = "Unprocessable Entity. The business logic failed (e.g., impossible constraints).", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class))
+                    @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
             }),
             @ApiResponse(responseCode = "500", description = "Internal Server Error. An unexpected exception occurred.", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = ApiErrorResponse.class))
+                    @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
             })
     })
     public ResponseEntity<PlannerResponseDto> generateFullStudyPlan(@Valid @RequestBody OptimizationRequest request) {
