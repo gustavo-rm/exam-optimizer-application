@@ -5,15 +5,8 @@ import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.*;
-import com.ia.project.dynamicstudyplanner.ga.factory.StudyPlanFactory;
-import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.CrossoverStrategy;
-import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.HybridCrossover;
-import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.RepairingCrossover;
-import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.WeightedAverageCrossover;
-import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.CreepMutation;
-import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.MutationStrategy;
-import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrategy;
-import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
+import com.ia.project.dynamicstudyplanner.ga.config.GeneticAlgorithmFactory;
+import com.ia.project.dynamicstudyplanner.ga.generator.PopulationGenerator;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
 import org.slf4j.Logger;
@@ -31,6 +24,21 @@ import java.util.Map;
 public class StudyOptimizerService {
 
     private static final Logger log = LoggerFactory.getLogger(StudyOptimizerService.class);
+
+    private final BaselineCalculator baselineCalculator;
+    private final ImportanceCalculator importanceCalculator;
+    private final GeneticAlgorithmFactory gaFactory;
+    private final PopulationGenerator populationGenerator;
+
+    public StudyOptimizerService(BaselineCalculator baselineCalculator,
+                                 ImportanceCalculator importanceCalculator,
+                                 GeneticAlgorithmFactory gaFactory,
+                                 PopulationGenerator populationGenerator) {
+        this.baselineCalculator = baselineCalculator;
+        this.importanceCalculator = importanceCalculator;
+        this.gaFactory = gaFactory;
+        this.populationGenerator = populationGenerator;
+    }
 
     /**
      * Runs the genetic algorithm to find an optimal study plan.
@@ -56,11 +64,11 @@ public class StudyOptimizerService {
         // Step 1: Prepare all necessary data for the evolution.
         EvolutionContext context = prepareContext(exam, profile);
 
-        // Step 2: Configure the GA engine with the chosen strategies.
-        GeneticAlgorithm ga = configureGeneticAlgorithm();
+        // Step 2: Configure the GA engine with the chosen strategies via DI.
+        GeneticAlgorithm ga = gaFactory.create();
 
         // Step 3: Create the randomized initial population.
-        Population population = createInitialPopulation(exam, totalDays, populationSize, context);
+        Population population = populationGenerator.generate(exam, totalDays, populationSize, context);
 
         // Step 4: Run the evolution process.
         population = runEvolution(population, ga, numGenerations, context);
@@ -85,61 +93,10 @@ public class StudyOptimizerService {
      * @return An EvolutionContext object containing all prepared data.
      */
     private EvolutionContext prepareContext(Exam exam, StudentProfile profile) {
-        BaselineCalculator baselineCalculator = new BaselineCalculator();
         Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
-
-        ImportanceCalculator importanceCalculator = new ImportanceCalculator();
         Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
 
         return new EvolutionContext(importanceScores, minimumDaysPerSubject);
-    }
-
-    /**
-     * Configures and builds the GeneticAlgorithm engine with a set of pre-defined strategies.
-     *
-     * @return A fully configured GeneticAlgorithm instance.
-     */
-    private GeneticAlgorithm configureGeneticAlgorithm() {
-        CrossoverStrategy weightedAverage = new WeightedAverageCrossover();
-        CrossoverStrategy repairing = new RepairingCrossover();
-        CrossoverStrategy hybridCrossover = new HybridCrossover(weightedAverage, repairing, 0.75);
-        SelectionStrategy selection = new TournamentSelection(3);
-        MutationStrategy mutation = new CreepMutation(3);
-        //MutationStrategy mutation = new SwapMutation();
-
-        return new GeneticAlgorithmBuilder()
-                .withSelectionStrategy(selection)
-                .withCrossoverStrategy(hybridCrossover)
-                .withMutationStrategy(mutation)
-                .withElitism(true)
-                .withCrossoverRate(0.95)
-                .withMutationRate(0.05)
-                .withStagnationPatience(25)
-                .withHypermutationRate(0.20)
-                .build();
-    }
-
-    /**
-     * Creates the initial, randomized population for the genetic algorithm.
-     *
-     * @param exam The exam object, used to get the list of subjects.
-     * @param totalDays The total days to be allocated in each plan.
-     * @param populationSize The number of individuals to create.
-     * @param context The evolution context, containing minimum day constraints.
-     * @return A new Population object with its initial fitness calculated.
-     */
-    private Population createInitialPopulation(Exam exam, int totalDays, int populationSize, EvolutionContext context) {
-        StudyPlanFactory planFactory = new StudyPlanFactory();
-        Population population = new Population(populationSize);
-        var allSubjects = exam.getAllSubjects();
-
-        for (int i = 0; i < populationSize; i++) {
-            population.addIndividual(new Individual(planFactory.createRandomPlan(allSubjects, totalDays, context.minimumDaysPerSubject())));
-        }
-
-        population.calculateFitness(context);
-        log.info("Initial Population created. Best fitness: {}", population.getFittest().getFitness());
-        return population;
     }
 
     /**

@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+
 /**
  * Calculates the importance of subjects by implementing a Weighted Scoring Model.
  * <p>
@@ -19,7 +21,8 @@ import java.util.Optional;
  * exam with the student's subjective need to study it. The final score is used by the
  * genetic algorithm's fitness function.
  */
-public final class ImportanceCalculator {
+@Service
+public class ImportanceCalculator {
 
     private static final Logger log = LoggerFactory.getLogger(ImportanceCalculator.class);
 
