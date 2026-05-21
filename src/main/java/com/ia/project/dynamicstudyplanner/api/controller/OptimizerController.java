@@ -5,7 +5,6 @@ import com.ia.project.dynamicstudyplanner.api.dto.PlannerResponseDto;
 import com.ia.project.dynamicstudyplanner.api.mapper.ExamMapper;
 import com.ia.project.dynamicstudyplanner.api.mapper.FullPlannerResultMapper;
 import com.ia.project.dynamicstudyplanner.api.mapper.StudentProfileMapper;
-import com.ia.project.dynamicstudyplanner.domain.FullPlannerResult;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.service.DynamicStudyPlannerService;
@@ -22,6 +21,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/v1/optimizer")
@@ -57,6 +59,9 @@ public class OptimizerController {
             @ApiResponse(responseCode = "400", description = "Bad Request. Validation failed for the input payload.", content = {
                     @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
             }),
+            @ApiResponse(responseCode = "408", description = "Request Timeout. The algorithm took too long to compute.", content = {
+                    @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
+            }),
             @ApiResponse(responseCode = "422", description = "Unprocessable Entity. The business logic failed (e.g., impossible constraints).", content = {
                     @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
             }),
@@ -64,21 +69,20 @@ public class OptimizerController {
                     @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
             })
     })
-    public ResponseEntity<PlannerResponseDto> generateFullStudyPlan(@Valid @RequestBody OptimizationRequest request) {
+    public CompletableFuture<ResponseEntity<PlannerResponseDto>> generateFullStudyPlan(@Valid @RequestBody OptimizationRequest request) {
         // 1. Map from API DTOs to Domain Objects
         Exam exam = examMapper.toDomain(request.exam());
         StudentProfile profile = studentProfileMapper.toDomain(request.studentProfile(), exam.getAllSubjects());
 
-        // 2. Call the high-level orchestrator service
-        FullPlannerResult result = plannerService.generateFullStudyPlan(
+        // 2. Call the high-level orchestrator service asynchronously
+        return plannerService.generateFullStudyPlan(
                 exam,
                 profile,
                 request.gaConfig().totalStudyDays(),
                 request.gaConfig().numGenerations(),
                 request.gaConfig().populationSize()
-        );
-
-        // 3. Map the full domain result back to a response DTO and return
-        return ResponseEntity.ok(resultMapper.toResponse(result));
+        )
+        .orTimeout(30, TimeUnit.SECONDS) // Hard limit to prevent stuck threads
+        .thenApply(result -> ResponseEntity.ok(resultMapper.toResponse(result))); // 3. Map to DTO
     }
 }

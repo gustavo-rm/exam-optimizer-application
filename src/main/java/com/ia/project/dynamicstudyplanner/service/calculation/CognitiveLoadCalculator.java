@@ -53,7 +53,7 @@ public final class CognitiveLoadCalculator {
      */
     private double calculateFatigueFactor(StudentProfile profile) {
         double averageGap = profile.getAverageKnowledgeGap();
-        if (averageGap == 1.0 && profile.getWeeklyAvailability().isEmpty()) { // Workaround if empty (as original code was orElse(3.0))
+        if (averageGap < 0.0) {
            averageGap = 3.0; // Assume an average gap if the map is truly empty or uninitialized
         }
 

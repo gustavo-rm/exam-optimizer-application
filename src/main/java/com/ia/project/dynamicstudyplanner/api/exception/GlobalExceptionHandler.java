@@ -8,17 +8,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import com.ia.project.dynamicstudyplanner.domain.exception.RateLimitExceededException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Centralized exception handler for all API controllers.
@@ -157,21 +158,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles API Rate Limit Exceeded Exceptions (Bucket4j).
+     * Handles timeouts that occur when the CompletableFuture or Async request exceeds its threshold.
      */
-    @ExceptionHandler(RateLimitExceededException.class)
-    public ResponseEntity<ProblemDetail> handleRateLimitExceededException(
-            RateLimitExceededException ex, HttpServletRequest request) {
+    @ExceptionHandler({TimeoutException.class, AsyncRequestTimeoutException.class})
+    public ResponseEntity<ProblemDetail> handleTimeoutException(
+            Exception ex, HttpServletRequest request) {
 
-        log.warn("Rate limit exceeded on path {}: {}", request.getRequestURI(), ex.getMessage());
+        log.error("Request timed out on path {}", request.getRequestURI(), ex);
 
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
-        problemDetail.setTitle("Too Many Requests");
-        problemDetail.setType(URI.create("https://api.dynamicstudyplanner.com/errors/rate-limit-exceeded"));
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.REQUEST_TIMEOUT, "The computation took too long and timed out.");
+        problemDetail.setTitle("Request Timeout");
+        problemDetail.setType(URI.create("https://api.dynamicstudyplanner.com/errors/request-timeout"));
         problemDetail.setInstance(URI.create(request.getRequestURI()));
         problemDetail.setProperty(TIMESTAMP_PROPERTY, Instant.now());
 
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(problemDetail);
+        return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body(problemDetail);
     }
 
     /**

@@ -55,16 +55,16 @@ public class StudentProfile {
     /**
      * Retrieves the average knowledge gap across all subjects declared by the student.
      *
-     * @return The average gap factor, or 1.0 if empty.
+     * @return The average gap factor, or -1.0 if empty to indicate absence of data.
      */
     public double getAverageKnowledgeGap() {
         if (knowledgeGaps.isEmpty()) {
-            return 1.0;
+            return -1.0;
         }
         return knowledgeGaps.values().stream()
                 .mapToDouble(Double::doubleValue)
                 .average()
-                .orElse(1.0);
+                .orElse(-1.0);
     }
 
     /**
