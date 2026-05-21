@@ -4,6 +4,9 @@ import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.domain.exam.ThematicAxis;
+import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,6 +20,8 @@ import java.util.Optional;
  * genetic algorithm's fitness function.
  */
 public final class ImportanceCalculator {
+
+    private static final Logger log = LoggerFactory.getLogger(ImportanceCalculator.class);
 
     /**
      * Calculates a personalized importance score for every subject in the exam.
@@ -59,7 +64,7 @@ public final class ImportanceCalculator {
     private double calculateGeneralKnowledgeImportance(Subject subject, Exam exam) {
         int totalGKQuestions = exam.getGeneralKnowledgeTotalQuestions();
         if (totalGKQuestions <= 0) {
-            throw new IllegalStateException("General Knowledge total questions must be positive to calculate importance.");
+            throw new DomainException("General Knowledge total questions must be positive to calculate importance.");
         }
         // Each question's value is an equal share of the section's total score.
         double valuePerQuestion = exam.generalKnowledgeTotalScore() / totalGKQuestions;
@@ -76,7 +81,7 @@ public final class ImportanceCalculator {
             double axisWeight = parentAxis.get().weight();
             return subject.questionCount() * axisWeight;
         }
-        System.err.println("Warning: Subject '" + subject.name() + "' was not found in any Specific Knowledge axis. Base importance set to 0.");
+        log.warn("Subject '{}' was not found in any Specific Knowledge axis. Base importance set to 0.", subject.name());
         return 0.0;
     }
 

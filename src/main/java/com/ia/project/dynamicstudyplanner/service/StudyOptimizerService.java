@@ -16,6 +16,8 @@ import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrateg
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -27,6 +29,8 @@ import java.util.Map;
  */
 @Service
 public class StudyOptimizerService {
+
+    private static final Logger log = LoggerFactory.getLogger(StudyOptimizerService.class);
 
     /**
      * Runs the genetic algorithm to find an optimal study plan.
@@ -134,7 +138,7 @@ public class StudyOptimizerService {
         }
 
         population.calculateFitness(context);
-        System.out.println("Initial Population created. Best fitness: " + population.getFittest().getFitness());
+        log.info("Initial Population created. Best fitness: {}", population.getFittest().getFitness());
         return population;
     }
 
@@ -157,13 +161,16 @@ public class StudyOptimizerService {
                 double averageFitness = population.getAverageFitness();
                 double worstFitness = population.getWorst().getFitness();
 
-                System.out.printf(
-                        "Generation %-4d | Best Fitness: %-8.2f | Avg Fitness: %-8.2f | Worst Fitness: %-8.2f%n",
-                        i, bestFitness, averageFitness, worstFitness
+                log.info(
+                        "Generation {} | Best Fitness: {} | Avg Fitness: {} | Worst Fitness: {}",
+                        String.format("%-4d", i),
+                        String.format("%-8.2f", bestFitness),
+                        String.format("%-8.2f", averageFitness),
+                        String.format("%-8.2f", worstFitness)
                 );
             }
         }
-        System.out.println("Evolution complete.");
+        log.info("Evolution complete.");
         return population;
     }
 }

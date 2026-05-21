@@ -2,6 +2,8 @@ package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -14,6 +16,8 @@ import java.util.Map;
  * to allow for easy sorting and selection based on fitness.
  */
 public final class Individual implements Comparable<Individual> {
+
+    private static final Logger log = LoggerFactory.getLogger(Individual.class);
 
     private final StudyPlan plan;
     private double fitness = -1.0; // Cached fitness score. -1.0 indicates it has not been calculated yet.
@@ -64,7 +68,7 @@ public final class Individual implements Comparable<Individual> {
 
             double importance = importanceScores.getOrDefault(subject, 0.0);
             if (importance == 0.0) {
-                System.err.println("Warning: The subject '" + subject.name() + "' does not have an importance score.");
+                log.warn("The subject '{}' does not have an importance score.", subject.name());
             }
 
             // A logarithmic function models the diminishing returns of studying.
