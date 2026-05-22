@@ -118,14 +118,14 @@ public final class GeneticAlgorithm {
             if (inHypermutationMode) {
                 inHypermutationMode = false;
                 hypermutationCounter = 0;
-                log.info("--- Improvement found! Halting hypermutation. ---");
+                log.debug("Improvement found! Halting hypermutation.");
             }
         } else {
             generationsWithoutImprovement++;
         }
 
         if (generationsWithoutImprovement >= stagnationPatience && !inHypermutationMode) {
-            log.info("--- STAGNATION DETECTED! Triggering HYPERMUTATION for 5 generations. ---");
+            log.debug("STAGNATION DETECTED! Triggering HYPERMUTATION for 5 generations.");
             inHypermutationMode = true;
             hypermutationCounter = 5;
             generationsWithoutImprovement = 0;
@@ -143,7 +143,7 @@ public final class GeneticAlgorithm {
         if (inHypermutationMode && hypermutationCounter > 0) {
             hypermutationCounter--;
             if (hypermutationCounter == 0) {
-                log.info("--- Hypermutation finished. Returning to normal mutation rate. ---");
+                log.debug("Hypermutation finished. Returning to normal mutation rate.");
                 inHypermutationMode = false;
             }
             return hypermutationRate;

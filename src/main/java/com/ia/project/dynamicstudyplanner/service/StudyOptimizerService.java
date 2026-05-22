@@ -138,12 +138,12 @@ public class StudyOptimizerService {
         for (int i = 0; i < numGenerations; i++) {
             population = ga.evolvePopulation(population, context);
 
-            if (i % 5 == 0) {
+            if (i % 5 == 0 && log.isTraceEnabled()) {
                 double bestFitness = population.getFittest().getFitness();
                 double averageFitness = population.getAverageFitness();
                 double worstFitness = population.getWorst().getFitness();
 
-                log.info(
+                log.trace(
                         "Generation {} | Best Fitness: {} | Avg Fitness: {} | Worst Fitness: {}",
                         String.format("%-4d", i),
                         String.format("%-8.2f", bestFitness),
@@ -152,7 +152,7 @@ public class StudyOptimizerService {
                 );
             }
         }
-        log.info("Evolution complete.");
+        log.info("Evolution complete after {} generations. Final best fitness: {}", numGenerations, String.format("%.2f", population.getFittest().getFitness()));
         return population;
     }
 }
