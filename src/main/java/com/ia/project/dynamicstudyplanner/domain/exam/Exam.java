@@ -33,8 +33,8 @@ public class Exam {
         this.examDate = examDate;
         this.generalKnowledgeTotalScore = generalKnowledgeTotalScore;
         // Defensive copying to prevent external modification
-        this.generalKnowledgeSubjects = generalKnowledgeSubjects == null ? List.of() : Collections.unmodifiableList(generalKnowledgeSubjects);
-        this.specificKnowledgeAxes = specificKnowledgeAxes == null ? List.of() : Collections.unmodifiableList(specificKnowledgeAxes);
+        this.generalKnowledgeSubjects = generalKnowledgeSubjects == null ? List.of() : List.copyOf(generalKnowledgeSubjects);
+        this.specificKnowledgeAxes = specificKnowledgeAxes == null ? List.of() : List.copyOf(specificKnowledgeAxes);
     }
 
     public String getName() {
