@@ -7,7 +7,7 @@ import com.ia.project.dynamicstudyplanner.api.mapper.FullPlannerResultMapper;
 import com.ia.project.dynamicstudyplanner.api.mapper.StudentProfileMapper;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
-import com.ia.project.dynamicstudyplanner.service.DynamicStudyPlannerService;
+import com.ia.project.dynamicstudyplanner.usecase.GenerateStudyPlanUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -30,14 +30,14 @@ import java.util.concurrent.TimeUnit;
 @Tag(name = "Study Plan Optimizer", description = "Endpoints for generating computationally optimized study plans using AI.")
 public class OptimizerController {
 
-    private final DynamicStudyPlannerService plannerService;
+    private final GenerateStudyPlanUseCase plannerUseCase;
     private final ExamMapper examMapper;
     private final StudentProfileMapper studentProfileMapper;
     private final FullPlannerResultMapper resultMapper;
 
-    public OptimizerController(DynamicStudyPlannerService plannerService, ExamMapper examMapper,
+    public OptimizerController(GenerateStudyPlanUseCase plannerUseCase, ExamMapper examMapper,
                                StudentProfileMapper studentProfileMapper, FullPlannerResultMapper resultMapper) {
-        this.plannerService = plannerService;
+        this.plannerUseCase = plannerUseCase;
         this.examMapper = examMapper;
         this.studentProfileMapper = studentProfileMapper;
         this.resultMapper = resultMapper;
@@ -74,8 +74,8 @@ public class OptimizerController {
         Exam exam = examMapper.toDomain(request.exam());
         StudentProfile profile = studentProfileMapper.toDomain(request.studentProfile(), exam.getAllSubjects());
 
-        // 2. Call the high-level orchestrator service asynchronously
-        return plannerService.generateFullStudyPlan(
+        // 2. Call the high-level use case asynchronously
+        return plannerUseCase.generateFullStudyPlan(
                 exam,
                 profile,
                 request.gaConfig().totalStudyDays(),

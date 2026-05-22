@@ -1,21 +1,19 @@
 package com.ia.project.dynamicstudyplanner.ga.strategy.crossover;
-
+import org.springframework.stereotype.Component;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
-
 import java.util.*;
-
 /**
  * Implements a single-point crossover strategy followed by a repair mechanism.
  * This explorative crossover method is effective at creating new genetic combinations.
  * The repair step is crucial to ensure the child's study plan remains valid by
  * respecting the total number of available days.
  */
+@Component
 public class RepairingCrossover implements CrossoverStrategy {
     private final Random random = new Random();
-
     /**
      * Creates a new child by performing a single-point crossover on two parents and then
      * repairing the child's gene sum to ensure its validity.
@@ -32,16 +30,12 @@ public class RepairingCrossover implements CrossoverStrategy {
             // If no crossover occurs, return a clone of the fitter parent to maintain population quality.
             return parent1.getFitness() > parent2.getFitness() ? new Individual(parent1.getPlan()) : new Individual(parent2.getPlan());
         }
-
         // Step 1: Perform the single-point crossover to create the initial child genes.
         Map<Subject, Integer> childGenes = performSinglePointCrossover(parent1, parent2);
-
         // Step 2: Repair the child's genes to ensure the total day sum is correct.
         repairChildGenes(childGenes, parent1.getPlan().getTotalDays(), context.minimumDaysPerSubject());
-
         return new Individual(new StudyPlan(childGenes));
     }
-
     /**
      * Performs a classic single-point crossover. It selects a random point in the chromosome
      * and combines the first part of parent1's genes with the second part of parent2's genes.
@@ -55,9 +49,7 @@ public class RepairingCrossover implements CrossoverStrategy {
         Map<Subject, Integer> parent2Genes = parent2.getPlan().getDaysPerSubject();
         List<Subject> subjects = new ArrayList<>(parent1Genes.keySet());
         Map<Subject, Integer> childGenes = new HashMap<>();
-
         int crossoverPoint = subjects.size() > 1 ? random.nextInt(subjects.size() - 1) + 1 : 1;
-
         for (int i = 0; i < subjects.size(); i++) {
             Subject subject = subjects.get(i);
             if (i < crossoverPoint) {
@@ -68,7 +60,6 @@ public class RepairingCrossover implements CrossoverStrategy {
         }
         return childGenes;
     }
-
     /**
      * Adjusts the child's genes by randomly adding or removing days until the sum of
      * days equals the target total. This ensures the study plan is valid.
@@ -81,11 +72,9 @@ public class RepairingCrossover implements CrossoverStrategy {
         int currentDaySum = childGenes.values().stream().mapToInt(Integer::intValue).sum();
         int difference = targetDaySum - currentDaySum;
         List<Subject> subjects = new ArrayList<>(childGenes.keySet());
-
         while (difference != 0 && !subjects.isEmpty()) {
             Subject randomSubject = subjects.get(random.nextInt(subjects.size()));
             int currentDays = childGenes.get(randomSubject);
-
             if (difference > 0) { // Need to add days
                 childGenes.put(randomSubject, currentDays + 1);
                 difference--;

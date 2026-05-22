@@ -8,6 +8,7 @@ import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationS
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.CognitiveLoadBalancingStrategy;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.InterleavedCriticalStrategy;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.ReviewFocusedStrategy;
+import com.ia.project.dynamicstudyplanner.usecase.GenerateStudyPlanUseCase;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
  * This service is the main entry point for generating a complete study plan.
  */
 @Service
-public class DynamicStudyPlannerService {
+public class DynamicStudyPlannerService implements GenerateStudyPlanUseCase {
 
     private final StudyOptimizerService optimizerService;
     private final StudyScheduleGenerator scheduleGenerator;
