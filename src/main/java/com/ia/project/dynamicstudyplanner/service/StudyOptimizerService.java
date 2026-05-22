@@ -9,11 +9,15 @@ import com.ia.project.dynamicstudyplanner.ga.config.GeneticAlgorithmFactory;
 import com.ia.project.dynamicstudyplanner.ga.generator.PopulationGenerator;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Service layer that orchestrates the entire optimization process.
@@ -30,14 +34,27 @@ public class StudyOptimizerService {
     private final GeneticAlgorithmFactory gaFactory;
     private final PopulationGenerator populationGenerator;
 
+    // Custom Micrometer Metrics
+    private final Counter optimizationRunsCounter;
+    private final Timer optimizationTimer;
+
     public StudyOptimizerService(BaselineCalculator baselineCalculator,
                                  ImportanceCalculator importanceCalculator,
                                  GeneticAlgorithmFactory gaFactory,
-                                 PopulationGenerator populationGenerator) {
+                                 PopulationGenerator populationGenerator,
+                                 MeterRegistry meterRegistry) {
         this.baselineCalculator = baselineCalculator;
         this.importanceCalculator = importanceCalculator;
         this.gaFactory = gaFactory;
         this.populationGenerator = populationGenerator;
+
+        this.optimizationRunsCounter = Counter.builder("dynamicstudyplanner.optimization.runs")
+                .description("Total number of study plan optimization runs executed")
+                .register(meterRegistry);
+
+        this.optimizationTimer = Timer.builder("dynamicstudyplanner.optimization.duration")
+                .description("Time taken to execute the full genetic algorithm optimization")
+                .register(meterRegistry);
     }
 
     /**
@@ -59,29 +76,37 @@ public class StudyOptimizerService {
             int numGenerations,
             int populationSize
     ) {
-        long startTime = System.currentTimeMillis();
+        optimizationRunsCounter.increment();
+        long startTime = System.nanoTime(); // Use nanoTime for more accurate metric duration
 
-        // Step 1: Prepare all necessary data for the evolution.
-        EvolutionContext context = prepareContext(exam, profile);
+        try {
+            // Step 1: Prepare all necessary data for the evolution.
+            EvolutionContext context = prepareContext(exam, profile);
 
-        // Step 2: Configure the GA engine with the chosen strategies via DI.
-        GeneticAlgorithm ga = gaFactory.create();
+            // Step 2: Configure the GA engine with the chosen strategies via DI.
+            GeneticAlgorithm ga = gaFactory.create();
 
-        // Step 3: Create the randomized initial population.
-        Population population = populationGenerator.generate(exam, totalDays, populationSize, context);
+            // Step 3: Create the randomized initial population.
+            Population population = populationGenerator.generate(exam, totalDays, populationSize, context);
 
-        // Step 4: Run the evolution process.
-        population = runEvolution(population, ga, numGenerations, context);
+            // Step 4: Run the evolution process.
+            population = runEvolution(population, ga, numGenerations, context);
 
-        // Step 5: Package and return the final, optimized result.
-        long endTime = System.currentTimeMillis();
-        Individual bestIndividual = population.getFittest();
-        return new OptimizationResult(
-                bestIndividual.getPlan(),
-                bestIndividual.getFitness(),
-                numGenerations,
-                (endTime - startTime)
-        );
+            // Step 5: Package and return the final, optimized result.
+            long endTime = System.nanoTime();
+            long executionTimeMs = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+
+            Individual bestIndividual = population.getFittest();
+            return new OptimizationResult(
+                    bestIndividual.getPlan(),
+                    bestIndividual.getFitness(),
+                    numGenerations,
+                    executionTimeMs
+            );
+        } finally {
+            // Record the metric regardless of success or failure
+            optimizationTimer.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+        }
     }
 
     /**

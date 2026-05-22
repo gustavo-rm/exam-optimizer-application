@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.config;
 
+import com.ia.project.dynamicstudyplanner.config.logging.MdcTaskDecorator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +38,10 @@ public class AsyncConfig {
         // preventing memory exhaustion and endless waiting.
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("Optimizer-Async-");
+
+        // Ensure correlation IDs (traceId) are copied from the HTTP thread to the Async thread
+        executor.setTaskDecorator(new MdcTaskDecorator());
+
         executor.initialize();
         return executor;
     }
