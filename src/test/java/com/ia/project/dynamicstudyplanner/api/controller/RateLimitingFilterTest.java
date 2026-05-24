@@ -36,7 +36,35 @@ class RateLimitingFilterTest {
     }
 
     @Test
-    void doFilterInternal_ShouldAllowRequestsUnderLimit() throws ServletException, IOException {
+    void doFilterInternal_ShouldAllowRequestsUnderLimit_WithApiKey() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/optimizer/generate");
+        request.addHeader("X-API-Key", "my-secret-key");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilterInternal(request, response, filterChain);
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain, times(2)).doFilter(request, response);
+        verifyNoInteractions(handlerExceptionResolver);
+    }
+
+    @Test
+    void doFilterInternal_ShouldAllowRequestsUnderLimit_WithPrincipal() throws ServletException, IOException {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/optimizer/generate");
+        request.setUserPrincipal(() -> "test-user");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilterInternal(request, response, filterChain);
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain, times(2)).doFilter(request, response);
+        verifyNoInteractions(handlerExceptionResolver);
+    }
+
+    @Test
+    void doFilterInternal_ShouldAllowRequestsUnderLimit_FallbackIP() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/v1/optimizer/generate");
         request.setRemoteAddr("127.0.0.1");

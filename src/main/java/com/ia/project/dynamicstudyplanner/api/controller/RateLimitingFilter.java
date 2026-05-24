@@ -61,13 +61,13 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         // Only rate limit the optimizer endpoints
         if (request.getRequestURI().startsWith("/api/v1/optimizer/")) {
-            String clientIp = getClientIP(request);
-            Bucket bucket = cache.get(clientIp, this::createNewBucket);
+            String rateLimitKey = resolveRateLimitKey(request);
+            Bucket bucket = cache.get(rateLimitKey, this::createNewBucket);
 
             if (!bucket.tryConsume(1)) {
                 // If bucket is empty, pass to the exception resolver
                 handlerExceptionResolver.resolveException(request, response, null,
-                        new RateLimitExceededException("Rate limit exceeded for IP: " + clientIp));
+                        new RateLimitExceededException("Rate limit exceeded for key: " + rateLimitKey));
                 return;
             }
         }
@@ -83,11 +83,36 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return Bucket.builder().addLimit(limit).build();
     }
 
-    private String getClientIP(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        if (xfHeader == null || xfHeader.isEmpty()) {
-            return request.getRemoteAddr();
+    /**
+     * Resolves the key to use for rate limiting.
+     * Uses a tiered approach:
+     * 1. Authenticated User Principal Name (if available)
+     * 2. Custom API Key Header (X-API-Key)
+     * 3. Fallback: Client IP via request.getRemoteAddr()
+     *
+     * We strictly rely on request.getRemoteAddr() for the IP fallback because
+     * Spring Boot's Tomcat RemoteIpValve handles X-Forwarded-For securely
+     * when configured with trusted internal proxies. Manual header parsing
+     * is highly susceptible to spoofing attacks.
+     */
+    private String resolveRateLimitKey(HttpServletRequest request) {
+        // Tier 1: User Principal (if Spring Security authentication is implemented)
+        if (request.getUserPrincipal() != null && request.getUserPrincipal().getName() != null) {
+            return "user:" + request.getUserPrincipal().getName();
         }
-        return xfHeader.split(",")[0].trim();
+
+        // Tier 2: Custom API Key Header
+        String apiKey = request.getHeader("X-API-Key");
+        if (apiKey != null && !apiKey.isBlank()) {
+            return "apikey:" + apiKey.trim();
+        }
+
+        // Tier 3: IP Fallback
+        // Securely provided by Tomcat RemoteIpValve when configured correctly
+        String ipAddress = request.getRemoteAddr();
+        if (ipAddress == null || ipAddress.isBlank()) {
+            ipAddress = "unknown";
+        }
+        return "ip:" + ipAddress;
     }
 }
