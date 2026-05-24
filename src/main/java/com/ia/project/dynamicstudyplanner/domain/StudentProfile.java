@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.domain;
 
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import lombok.Getter;
 
 import java.time.DayOfWeek;
 import java.util.Collections;
@@ -13,8 +14,10 @@ import java.util.Map;
  */
 public class StudentProfile {
 
+    @Getter
     private final String name;
     private final Map<Subject, Double> knowledgeGaps;
+    @Getter
     private final Map<DayOfWeek, Integer> weeklyAvailability;
 
     public StudentProfile(String name, Map<Subject, Double> knowledgeGaps, Map<DayOfWeek, Integer> weeklyAvailability) {
@@ -23,13 +26,6 @@ public class StudentProfile {
         this.weeklyAvailability = weeklyAvailability == null ? Map.of() : Collections.unmodifiableMap(weeklyAvailability);
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public Map<DayOfWeek, Integer> getWeeklyAvailability() {
-        return weeklyAvailability;
-    }
     /**
      * Calculates the total number of study hours available per week.
      * @return The sum of all available hours for the week.

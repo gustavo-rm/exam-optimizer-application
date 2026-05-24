@@ -2,6 +2,8 @@ package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import lombok.Getter;
+import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,11 +17,13 @@ import java.util.Map;
  * all genetic operators (selection, crossover, mutation) act. It implements {@link Comparable}
  * to allow for easy sorting and selection based on fitness.
  */
+@Getter
 public final class Individual implements Comparable<Individual> {
 
     private static final Logger log = LoggerFactory.getLogger(Individual.class);
 
     private final StudyPlan plan;
+    @Setter
     private double fitness = -1.0; // Cached fitness score. -1.0 indicates it has not been calculated yet.
 
     /**
@@ -110,15 +114,4 @@ public final class Individual implements Comparable<Individual> {
 
     // --- Standard Getters and Setters ---
 
-    public StudyPlan getPlan() {
-        return plan;
-    }
-
-    public double getFitness() {
-        return this.fitness;
-    }
-
-    public void setFitness(double fitness) {
-        this.fitness = fitness;
-    }
 }

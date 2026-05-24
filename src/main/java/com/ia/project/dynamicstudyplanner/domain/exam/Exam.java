@@ -1,11 +1,11 @@
 package com.ia.project.dynamicstudyplanner.domain.exam;
 
 import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,6 +17,8 @@ import java.util.stream.Stream;
  * This class is the Aggregate Root for the Exam bounded context. It encapsulates the rules
  * for calculating objective importance scores for its subjects.
  */
+@SuppressWarnings("ClassCanBeRecord")
+@Getter
 public class Exam {
 
     private static final Logger log = LoggerFactory.getLogger(Exam.class);
@@ -37,25 +39,6 @@ public class Exam {
         this.specificKnowledgeAxes = specificKnowledgeAxes == null ? List.of() : List.copyOf(specificKnowledgeAxes);
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public LocalDate getExamDate() {
-        return examDate;
-    }
-
-    public double getGeneralKnowledgeTotalScore() {
-        return generalKnowledgeTotalScore;
-    }
-
-    public List<Subject> getGeneralKnowledgeSubjects() {
-        return generalKnowledgeSubjects;
-    }
-
-    public List<ThematicAxis> getSpecificKnowledgeAxes() {
-        return specificKnowledgeAxes;
-    }
     /**
      * Helper method to get the total number of questions in the General Knowledge exam.
      * @return The total question count for the General Knowledge part.

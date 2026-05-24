@@ -3,14 +3,11 @@ package com.ia.project.dynamicstudyplanner.service.calculation;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
-import com.ia.project.dynamicstudyplanner.domain.exam.ThematicAxis;
-import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 

@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.domain;
 
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import lombok.Getter;
 
 import java.util.Collections;
 import java.util.Map;
@@ -10,6 +11,8 @@ import java.util.Map;
  * This class is an immutable value object. Once a StudyPlan is created, it cannot be changed,
  * which ensures the integrity of the genetic algorithm's solutions.
  */
+@SuppressWarnings("ClassCanBeRecord")
+@Getter
 public class StudyPlan {
 
     private final Map<Subject, Integer> daysPerSubject;
@@ -24,10 +27,6 @@ public class StudyPlan {
     public StudyPlan(Map<Subject, Integer> daysPerSubject) {
         // We wrap the map to make it unmodifiable, ensuring the object is deeply immutable.
         this.daysPerSubject = daysPerSubject == null ? Map.of() : Collections.unmodifiableMap(daysPerSubject);
-    }
-
-    public Map<Subject, Integer> getDaysPerSubject() {
-        return daysPerSubject;
     }
 
     /**

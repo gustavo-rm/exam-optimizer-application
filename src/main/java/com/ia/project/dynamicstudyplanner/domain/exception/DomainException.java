@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.domain.exception;
 
 /**
- * Base exception for all business rule violations in the domain layer.
+ * Base exception to all business rule violations in the domain layer.
  */
 public class DomainException extends RuntimeException {
 

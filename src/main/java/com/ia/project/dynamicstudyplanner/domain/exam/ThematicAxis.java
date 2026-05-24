@@ -1,5 +1,5 @@
 package com.ia.project.dynamicstudyplanner.domain.exam;
-
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -11,8 +11,6 @@ import java.util.List;
  * @param weight The weight of this entire axis in the final score calculation.
  * @param subjects The list of subjects that belong to this axis.
  */
-import java.util.Collections;
-
 public record ThematicAxis(
         int id,
         String name,
