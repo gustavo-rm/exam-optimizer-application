@@ -1,5 +1,5 @@
 package com.ia.project.dynamicstudyplanner.domain.exam;
-
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -17,6 +17,12 @@ public record ThematicAxis(
         double weight,
         List<Subject> subjects
 ) {
+
+    public ThematicAxis {
+        // Defensive copy to ensure immutability and fix EI_EXPOSE_REP vulnerability
+        subjects = subjects == null ? List.of() : Collections.unmodifiableList(subjects);
+    }
+
     /**
      * Calculates the total number of questions within this axis.
      * @return The sum of question counts from all subjects in this axis.

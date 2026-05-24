@@ -2,6 +2,10 @@ package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import lombok.Getter;
+import lombok.Setter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
@@ -13,9 +17,13 @@ import java.util.Map;
  * all genetic operators (selection, crossover, mutation) act. It implements {@link Comparable}
  * to allow for easy sorting and selection based on fitness.
  */
+@Getter
 public final class Individual implements Comparable<Individual> {
 
+    private static final Logger log = LoggerFactory.getLogger(Individual.class);
+
     private final StudyPlan plan;
+    @Setter
     private double fitness = -1.0; // Cached fitness score. -1.0 indicates it has not been calculated yet.
 
     /**
@@ -43,10 +51,11 @@ public final class Individual implements Comparable<Individual> {
         double baseScore = calculateBaseScore(context.importanceScores());
 
         // Step 2: Check if the plan violates any minimum day constraints.
-        boolean constraintsViolated = violatesConstraints(context.minimumDaysPerSubject());
+        // We now delegate to the domain object rather than calculating here.
+        boolean meetsConstraints = plan.meetsMinimumConstraints(context.minimumDaysPerSubject());
 
         // Step 3: Apply a penalty to the score if constraints were violated.
-        return applyPenalty(baseScore, constraintsViolated);
+        return applyPenalty(baseScore, !meetsConstraints);
     }
 
     /**
@@ -58,13 +67,13 @@ public final class Individual implements Comparable<Individual> {
      */
     private double calculateBaseScore(Map<Subject, Double> importanceScores) {
         double score = 0.0;
-        for (Map.Entry<Subject, Integer> entry : plan.daysPerSubject().entrySet()) {
+        for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
             Subject subject = entry.getKey();
             int days = entry.getValue();
 
             double importance = importanceScores.getOrDefault(subject, 0.0);
             if (importance == 0.0) {
-                System.err.println("Warning: The subject '" + subject.name() + "' does not have an importance score.");
+                log.warn("The subject '{}' does not have an importance score.", subject.name());
             }
 
             // A logarithmic function models the diminishing returns of studying.
@@ -72,23 +81,6 @@ public final class Individual implements Comparable<Individual> {
             score += knowledge * importance;
         }
         return score;
-    }
-
-    /**
-     * Checks if the individual's study plan violates any of the minimum day constraints.
-     *
-     * @param minimumDaysPerSubject The map of constraints.
-     * @return {@code true} if at least one constraint is violated, {@code false} otherwise.
-     */
-    private boolean violatesConstraints(Map<Subject, Integer> minimumDaysPerSubject) {
-        for (Map.Entry<Subject, Integer> entry : plan.daysPerSubject().entrySet()) {
-            int allocatedDays = entry.getValue();
-            int minimumDays = minimumDaysPerSubject.getOrDefault(entry.getKey(), 1);
-            if (allocatedDays < minimumDays) {
-                return true; // Found a violation.
-            }
-        }
-        return false; // No violations found.
     }
 
     /**
@@ -122,15 +114,4 @@ public final class Individual implements Comparable<Individual> {
 
     // --- Standard Getters and Setters ---
 
-    public StudyPlan getPlan() {
-        return plan;
-    }
-
-    public double getFitness() {
-        return this.fitness;
-    }
-
-    public void setFitness(double fitness) {
-        this.fitness = fitness;
-    }
 }

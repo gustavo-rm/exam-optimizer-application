@@ -3,6 +3,7 @@ package com.ia.project.dynamicstudyplanner.service.calculation;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -14,7 +15,14 @@ import java.util.stream.Collectors;
  * It uses a normalization technique to ensure the calculated days are always within a reasonable
  * and practical range, preventing impossibly large study plans.
  */
-public final class BaselineCalculator {
+@Service
+public class BaselineCalculator {
+
+    private final ImportanceCalculator importanceCalculator;
+
+    public BaselineCalculator(ImportanceCalculator importanceCalculator) {
+        this.importanceCalculator = importanceCalculator;
+    }
 
     private static final int MAX_MINIMUM_DAYS = 15; // The most difficult subject will be assigned this many days.
     private static final int MIN_REQUIRED_DAYS = 1;  // Every subject will have at least this many days.
@@ -27,11 +35,14 @@ public final class BaselineCalculator {
      * @return A map associating each Subject with its calculated minimum study days.
      */
     public Map<Subject, Integer> calculateMinimumDays(Exam exam, StudentProfile profile) {
+        // Pre-calculate all importance scores once to avoid O(N^2) complexity
+        Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
+
         // Step 1: Calculate a raw "perceived difficulty" score for every subject.
         Map<Subject, Double> perceivedDifficultyScores = exam.getAllSubjects().stream()
                 .collect(Collectors.toMap(
                         subject -> subject,
-                        subject -> calculatePerceivedDifficulty(subject, exam, profile)
+                        subject -> calculatePerceivedDifficulty(subject, importanceScores, profile)
                 ));
 
         // Step 2: Find the maximum difficulty score to use for normalization.
@@ -53,10 +64,9 @@ public final class BaselineCalculator {
      *
      * @return A numeric score representing the perceived difficulty for this specific student.
      */
-    private double calculatePerceivedDifficulty(Subject subject, Exam exam, StudentProfile profile) {
-        // The same logic from ImportanceCalculator's 'calculateBaseImportance' can be reused here.
-        double objectiveWeight = new ImportanceCalculator().calculatePersonalizedImportance(exam, profile).get(subject) / profile.knowledgeGaps().getOrDefault(subject, 1.0);
-        double knowledgeGapFactor = profile.knowledgeGaps().getOrDefault(subject, 1.0);
+    private double calculatePerceivedDifficulty(Subject subject, Map<Subject, Double> importanceScores, StudentProfile profile) {
+        double knowledgeGapFactor = profile.getKnowledgeGapFactor(subject);
+        double objectiveWeight = importanceScores.getOrDefault(subject, 0.0) / knowledgeGapFactor;
 
         // A subject is perceived as difficult if it is important for the exam AND the student is weak in it.
         return objectiveWeight * knowledgeGapFactor;

@@ -3,6 +3,8 @@ package com.ia.project.dynamicstudyplanner.ga;
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.CrossoverStrategy;
 import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.MutationStrategy;
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The main engine for the Genetic Algorithm, featuring adaptive logic to detect and react to population stagnation.
@@ -12,6 +14,8 @@ import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrateg
  * and intelligently adapts its strategy when it detects that the population is no longer improving.
  */
 public final class GeneticAlgorithm {
+
+    private static final Logger log = LoggerFactory.getLogger(GeneticAlgorithm.class);
 
     // --- Core Strategy Dependencies ---
     private final SelectionStrategy selectionStrategy;
@@ -114,14 +118,14 @@ public final class GeneticAlgorithm {
             if (inHypermutationMode) {
                 inHypermutationMode = false;
                 hypermutationCounter = 0;
-                System.out.println("--- Improvement found! Halting hypermutation. ---");
+                log.debug("Improvement found! Halting hypermutation.");
             }
         } else {
             generationsWithoutImprovement++;
         }
 
         if (generationsWithoutImprovement >= stagnationPatience && !inHypermutationMode) {
-            System.out.printf("--- STAGNATION DETECTED! Triggering HYPERMUTATION for 5 generations. ---%n");
+            log.debug("STAGNATION DETECTED! Triggering HYPERMUTATION for 5 generations.");
             inHypermutationMode = true;
             hypermutationCounter = 5;
             generationsWithoutImprovement = 0;
@@ -139,7 +143,7 @@ public final class GeneticAlgorithm {
         if (inHypermutationMode && hypermutationCounter > 0) {
             hypermutationCounter--;
             if (hypermutationCounter == 0) {
-                System.out.println("--- Hypermutation finished. Returning to normal mutation rate. ---");
+                log.debug("Hypermutation finished. Returning to normal mutation rate.");
                 inHypermutationMode = false;
             }
             return hypermutationRate;

@@ -5,20 +5,19 @@ import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.*;
-import com.ia.project.dynamicstudyplanner.ga.factory.StudyPlanFactory;
-import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.CrossoverStrategy;
-import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.HybridCrossover;
-import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.RepairingCrossover;
-import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.WeightedAverageCrossover;
-import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.CreepMutation;
-import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.MutationStrategy;
-import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrategy;
-import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
+import com.ia.project.dynamicstudyplanner.ga.config.GeneticAlgorithmFactory;
+import com.ia.project.dynamicstudyplanner.ga.generator.PopulationGenerator;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Service layer that orchestrates the entire optimization process.
@@ -27,6 +26,36 @@ import java.util.Map;
  */
 @Service
 public class StudyOptimizerService {
+
+    private static final Logger log = LoggerFactory.getLogger(StudyOptimizerService.class);
+
+    private final BaselineCalculator baselineCalculator;
+    private final ImportanceCalculator importanceCalculator;
+    private final GeneticAlgorithmFactory gaFactory;
+    private final PopulationGenerator populationGenerator;
+
+    // Custom Micrometer Metrics
+    private final Counter optimizationRunsCounter;
+    private final Timer optimizationTimer;
+
+    public StudyOptimizerService(BaselineCalculator baselineCalculator,
+                                 ImportanceCalculator importanceCalculator,
+                                 GeneticAlgorithmFactory gaFactory,
+                                 PopulationGenerator populationGenerator,
+                                 MeterRegistry meterRegistry) {
+        this.baselineCalculator = baselineCalculator;
+        this.importanceCalculator = importanceCalculator;
+        this.gaFactory = gaFactory;
+        this.populationGenerator = populationGenerator;
+
+        this.optimizationRunsCounter = Counter.builder("dynamicstudyplanner.optimization.runs")
+                .description("Total number of study plan optimization runs executed")
+                .register(meterRegistry);
+
+        this.optimizationTimer = Timer.builder("dynamicstudyplanner.optimization.duration")
+                .description("Time taken to execute the full genetic algorithm optimization")
+                .register(meterRegistry);
+    }
 
     /**
      * Runs the genetic algorithm to find an optimal study plan.
@@ -47,29 +76,37 @@ public class StudyOptimizerService {
             int numGenerations,
             int populationSize
     ) {
-        long startTime = System.currentTimeMillis();
+        optimizationRunsCounter.increment();
+        long startTime = System.nanoTime(); // Use nanoTime for more accurate metric duration
 
-        // Step 1: Prepare all necessary data for the evolution.
-        EvolutionContext context = prepareContext(exam, profile);
+        try {
+            // Step 1: Prepare all necessary data for the evolution.
+            EvolutionContext context = prepareContext(exam, profile);
 
-        // Step 2: Configure the GA engine with the chosen strategies.
-        GeneticAlgorithm ga = configureGeneticAlgorithm();
+            // Step 2: Configure the GA engine with the chosen strategies via DI.
+            GeneticAlgorithm ga = gaFactory.create();
 
-        // Step 3: Create the randomized initial population.
-        Population population = createInitialPopulation(exam, totalDays, populationSize, context);
+            // Step 3: Create the randomized initial population.
+            Population population = populationGenerator.generate(exam, totalDays, populationSize, context);
 
-        // Step 4: Run the evolution process.
-        population = runEvolution(population, ga, numGenerations, context);
+            // Step 4: Run the evolution process.
+            population = runEvolution(population, ga, numGenerations, context);
 
-        // Step 5: Package and return the final, optimized result.
-        long endTime = System.currentTimeMillis();
-        Individual bestIndividual = population.getFittest();
-        return new OptimizationResult(
-                bestIndividual.getPlan(),
-                bestIndividual.getFitness(),
-                numGenerations,
-                (endTime - startTime)
-        );
+            // Step 5: Package and return the final, optimized result.
+            long endTime = System.nanoTime();
+            long executionTimeMs = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+
+            Individual bestIndividual = population.getFittest();
+            return new OptimizationResult(
+                    bestIndividual.getPlan(),
+                    bestIndividual.getFitness(),
+                    numGenerations,
+                    executionTimeMs
+            );
+        } finally {
+            // Record the metric regardless of success or failure
+            optimizationTimer.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+        }
     }
 
     /**
@@ -81,61 +118,10 @@ public class StudyOptimizerService {
      * @return An EvolutionContext object containing all prepared data.
      */
     private EvolutionContext prepareContext(Exam exam, StudentProfile profile) {
-        BaselineCalculator baselineCalculator = new BaselineCalculator();
         Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
-
-        ImportanceCalculator importanceCalculator = new ImportanceCalculator();
         Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
 
         return new EvolutionContext(importanceScores, minimumDaysPerSubject);
-    }
-
-    /**
-     * Configures and builds the GeneticAlgorithm engine with a set of pre-defined strategies.
-     *
-     * @return A fully configured GeneticAlgorithm instance.
-     */
-    private GeneticAlgorithm configureGeneticAlgorithm() {
-        CrossoverStrategy weightedAverage = new WeightedAverageCrossover();
-        CrossoverStrategy repairing = new RepairingCrossover();
-        CrossoverStrategy hybridCrossover = new HybridCrossover(weightedAverage, repairing, 0.75);
-        SelectionStrategy selection = new TournamentSelection(3);
-        MutationStrategy mutation = new CreepMutation(3);
-        //MutationStrategy mutation = new SwapMutation();
-
-        return new GeneticAlgorithmBuilder()
-                .withSelectionStrategy(selection)
-                .withCrossoverStrategy(hybridCrossover)
-                .withMutationStrategy(mutation)
-                .withElitism(true)
-                .withCrossoverRate(0.95)
-                .withMutationRate(0.05)
-                .withStagnationPatience(25)
-                .withHypermutationRate(0.20)
-                .build();
-    }
-
-    /**
-     * Creates the initial, randomized population for the genetic algorithm.
-     *
-     * @param exam The exam object, used to get the list of subjects.
-     * @param totalDays The total days to be allocated in each plan.
-     * @param populationSize The number of individuals to create.
-     * @param context The evolution context, containing minimum day constraints.
-     * @return A new Population object with its initial fitness calculated.
-     */
-    private Population createInitialPopulation(Exam exam, int totalDays, int populationSize, EvolutionContext context) {
-        StudyPlanFactory planFactory = new StudyPlanFactory();
-        Population population = new Population(populationSize);
-        var allSubjects = exam.getAllSubjects();
-
-        for (int i = 0; i < populationSize; i++) {
-            population.addIndividual(new Individual(planFactory.createRandomPlan(allSubjects, totalDays, context.minimumDaysPerSubject())));
-        }
-
-        population.calculateFitness(context);
-        System.out.println("Initial Population created. Best fitness: " + population.getFittest().getFitness());
-        return population;
     }
 
     /**
@@ -152,18 +138,21 @@ public class StudyOptimizerService {
         for (int i = 0; i < numGenerations; i++) {
             population = ga.evolvePopulation(population, context);
 
-            if (i % 5 == 0) {
+            if (i % 5 == 0 && log.isTraceEnabled()) {
                 double bestFitness = population.getFittest().getFitness();
                 double averageFitness = population.getAverageFitness();
                 double worstFitness = population.getWorst().getFitness();
 
-                System.out.printf(
-                        "Generation %-4d | Best Fitness: %-8.2f | Avg Fitness: %-8.2f | Worst Fitness: %-8.2f%n",
-                        i, bestFitness, averageFitness, worstFitness
+                log.trace(
+                        "Generation {} | Best Fitness: {} | Avg Fitness: {} | Worst Fitness: {}",
+                        String.format("%-4d", i),
+                        String.format("%-8.2f", bestFitness),
+                        String.format("%-8.2f", averageFitness),
+                        String.format("%-8.2f", worstFitness)
                 );
             }
         }
-        System.out.println("Evolution complete.");
+        log.info("Evolution complete after {} generations. Final best fitness: {}", numGenerations, String.format("%.2f", population.getFittest().getFitness()));
         return population;
     }
 }

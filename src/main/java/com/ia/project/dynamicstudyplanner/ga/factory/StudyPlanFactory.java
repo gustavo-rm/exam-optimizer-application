@@ -62,7 +62,7 @@ public final class StudyPlanFactory {
         int remainingDays = totalDays - totalMinimumDays;
         for (int i = 0; i < remainingDays; i++) {
             Subject randomSubject = subjects.get(random.nextInt(subjects.size()));
-            daysPerSubject.computeIfPresent(randomSubject, (_, currentDays) -> currentDays + 1);
+            daysPerSubject.computeIfPresent(randomSubject, (k, currentDays) -> currentDays + 1);
         }
 
         return new StudyPlan(daysPerSubject);

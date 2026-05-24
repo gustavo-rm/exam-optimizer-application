@@ -8,16 +8,19 @@ import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationS
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.CognitiveLoadBalancingStrategy;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.InterleavedCriticalStrategy;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.ReviewFocusedStrategy;
+import com.ia.project.dynamicstudyplanner.usecase.GenerateStudyPlanUseCase;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * A high-level orchestrator service that acts as the primary facade for the application's core logic.
  * This service is the main entry point for generating a complete study plan.
  */
 @Service
-public final class DynamicStudyPlannerService {
+public class DynamicStudyPlannerService implements GenerateStudyPlanUseCase {
 
     private final StudyOptimizerService optimizerService;
     private final StudyScheduleGenerator scheduleGenerator;
@@ -30,16 +33,18 @@ public final class DynamicStudyPlannerService {
     }
 
     /**
-     * Generates a full, end-to-end study plan, from strategic optimization to a tactical daily schedule.
+     * Generates a full, end-to-end study plan asynchronously, from strategic optimization to a tactical daily schedule.
+     * Executes entirely on a background thread pool specifically tuned for CPU-bound tasks.
      *
      * @param exam The complete {@link Exam} object defining the test structure.
      * @param profile The {@link StudentProfile} object containing the student's personal data.
      * @param totalStudyDays The total number of "ideal" days for the GA to allocate.
      * @param numGenerations The number of generations for the GA to run.
      * @param populationSize The population size for the GA.
-     * @return A {@code FullPlannerResult} containing both the strategic and tactical planning results.
+     * @return A {@code CompletableFuture} wrapping the {@code FullPlannerResult}.
      */
-    public FullPlannerResult generateFullStudyPlan(
+    @Async("optimizerTaskExecutor")
+    public CompletableFuture<FullPlannerResult> generateFullStudyPlan(
             Exam exam,
             StudentProfile profile,
             int totalStudyDays,
@@ -67,6 +72,6 @@ public final class DynamicStudyPlannerService {
                 optimizationResult.plan(), profile, exam, LocalDate.now(), finalStrategy
         );
 
-        return new FullPlannerResult(optimizationResult, scheduleResult);
+        return CompletableFuture.completedFuture(new FullPlannerResult(optimizationResult, scheduleResult));
     }
 }

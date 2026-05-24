@@ -30,7 +30,7 @@ public class StudyPlanMapper implements Mapper<StudyPlanDto, StudyPlan> {
         if (plan == null) {
             return null;
         }
-        Map<String, Integer> daysPerSubjectName = plan.daysPerSubject().entrySet().stream()
+        Map<String, Integer> daysPerSubjectName = plan.getDaysPerSubject().entrySet().stream()
                 .collect(Collectors.toMap(
                         entry -> entry.getKey().name(),
                         Map.Entry::getValue,
