@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.ia.project</groupId>
     <artifactId>DynamicStudyPlanner</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>2.0.1</version>
     <name>Dynamic Study Planner</name>
     <description>Dynamic Study Planner</description>
     <url/>
