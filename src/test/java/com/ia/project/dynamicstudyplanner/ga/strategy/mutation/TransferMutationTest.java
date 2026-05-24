@@ -10,9 +10,9 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SwapMutationTest {
+class TransferMutationTest {
 
-    private final SwapMutation mutation = new SwapMutation();
+    private final TransferMutation mutation = new TransferMutation();
 
     @Test
     void shouldSwapDaysBetweenSubjectsMaintainingTotalDays() {
