@@ -158,6 +158,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles RateLimitExceededException thrown by the RateLimitingFilter.
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimitExceededException(
+            RateLimitExceededException ex, HttpServletRequest request) {
+
+        log.warn("Rate limit exceeded on path {}: {}", request.getRequestURI(), ex.getMessage());
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, "You have exceeded the allowed number of requests. Please try again later.");
+        problemDetail.setTitle("Too Many Requests");
+        problemDetail.setType(URI.create("https://api.dynamicstudyplanner.com/errors/too-many-requests"));
+        problemDetail.setInstance(URI.create(request.getRequestURI()));
+        problemDetail.setProperty(TIMESTAMP_PROPERTY, Instant.now());
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(problemDetail);
+    }
+
+    /**
      * Handles timeouts that occur when the CompletableFuture or Async request exceeds its threshold.
      */
     @ExceptionHandler({TimeoutException.class, AsyncRequestTimeoutException.class})
