@@ -91,7 +91,7 @@ The application can be configured via `application.properties` or environment va
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/gustavo-rm/exam-optimizer-application.git
    cd DynamicStudyPlanner
    ```
 
@@ -107,7 +107,7 @@ The application can be configured via `application.properties` or environment va
 
    Alternatively, you can run the generated `.jar` file:
    ```bash
-   java -jar target/DynamicStudyPlanner-0.0.1-SNAPSHOT.jar
+   java -jar target/DynamicStudyPlanner-2.0.1.jar
    ```
 
 The application will start on port `8080` by default.
@@ -189,7 +189,10 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 👨‍💻 Author
 
-Engineering Team - dynamic-study-planner
+Gustavo Malacarne (Software Engineer) - dynamic-study-planner
+* Software Engineer focused on building scalable applications, backend architectures and AI-driven solutions. 
+* Master’s degree in Computer Science with specialization in Artificial Intelligence, Machine Learning and software engineering practices. 
+* Passionate about technology, research and developing innovative systems that combine performance, maintainability and intelligent decision-making.
 
 ## 🧹 Code Quality
 
@@ -202,6 +205,6 @@ The project prioritizes clean code and standard enterprise practices:
 
 Currently, the application runs via Maven wrapper locally. For production deployment:
 1. Package the application: `./mvnw clean package`
-2. Run the generated artifact: `java -jar target/DynamicStudyPlanner-0.0.1-SNAPSHOT.jar`
+2. Run the generated artifact: `java -jar target/DynamicStudyPlanner-2.0.1.jar`
 
 (Future state: Dockerfile generation to deploy to container orchestrators like Kubernetes or AWS ECS).
