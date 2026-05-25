@@ -21,7 +21,7 @@ class TransferMutationTest {
         Subject history = new Subject("History", 10, 3);
         StudyPlan plan = new StudyPlan(Map.of(math, 10, history, 5));
         Individual individual = new Individual(plan);
-        EvolutionContext context = new EvolutionContext(Map.of(), Map.of(), null, null);
+        EvolutionContext context = new EvolutionContext(Map.of(), Map.of(), null, null, null, null);
 
         // Act - Force mutation with 1.0 rate
         Individual mutated = mutation.mutate(individual, 1.0, context);

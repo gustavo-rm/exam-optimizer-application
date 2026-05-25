@@ -124,7 +124,10 @@ public class StudyOptimizerService {
         Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
         Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
 
-        return new EvolutionContext(importanceScores, minimumDaysPerSubject, profile.getState(), fitnessEvaluator);
+        // Dummy retention profile for macro-GA evaluation (will be properly hydrated in the tactical layer)
+        com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile retentionProfile = new com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile(java.util.Map.of());
+
+        return new EvolutionContext(importanceScores, minimumDaysPerSubject, profile.getState(), fitnessEvaluator, retentionProfile, java.time.LocalDate.now());
     }
 
     /**

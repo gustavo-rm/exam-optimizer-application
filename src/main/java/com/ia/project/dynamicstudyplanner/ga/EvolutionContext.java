@@ -12,5 +12,7 @@ public record EvolutionContext(
         Map<Subject, Double> importanceScores,
         Map<Subject, Integer> minimumDaysPerSubject,
         com.ia.project.dynamicstudyplanner.domain.StudentState studentState,
-        com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator
+        com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator,
+        com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile retentionProfile,
+        java.time.LocalDate planStartDate
 ) {}
