@@ -11,5 +11,6 @@ import java.util.Map;
 public record EvolutionContext(
         Map<Subject, Double> importanceScores,
         Map<Subject, Integer> minimumDaysPerSubject,
-        com.ia.project.dynamicstudyplanner.domain.StudentState studentState
+        com.ia.project.dynamicstudyplanner.domain.StudentState studentState,
+        com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator
 ) {}

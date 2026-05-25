@@ -19,7 +19,12 @@ class IndividualTest {
 
         Map<Subject, Double> importance = Map.of(math, 10.0);
         Map<Subject, Integer> constraints = Map.of(math, 2);
-        EvolutionContext context = new EvolutionContext(importance, constraints, null);
+        com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator evaluator = new com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator(
+                java.util.List.of(new com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective()),
+                java.util.List.of(new com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty()),
+                java.util.List.of(new com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint())
+        );
+        EvolutionContext context = new EvolutionContext(importance, constraints, null, evaluator);
 
         // Act
         // knowledge = ln(1 + 5) = 1.7917. fitness = 10 * 1.7917 = 17.917
@@ -38,7 +43,12 @@ class IndividualTest {
 
         Map<Subject, Double> importance = Map.of(math, 10.0);
         Map<Subject, Integer> constraints = Map.of(math, 5); // Requires 5
-        EvolutionContext context = new EvolutionContext(importance, constraints, null);
+        com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator evaluator = new com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator(
+                java.util.List.of(new com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective()),
+                java.util.List.of(new com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty()),
+                java.util.List.of(new com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint())
+        );
+        EvolutionContext context = new EvolutionContext(importance, constraints, null, evaluator);
 
         // Act
         // knowledge = ln(1 + 1) = 0.693. Base = 6.93. Penalty (0.5) = 3.465
