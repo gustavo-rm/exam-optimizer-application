@@ -30,5 +30,9 @@ public record StudentProfileDto(
         @Schema(description = "A mapping of the days of the week to the number of hours the student is available to study on that day.", example = "{\"MONDAY\": 4, \"SATURDAY\": 8}")
         @NotEmpty(message = "Weekly availability map cannot be empty.")
         @Size(max = 7, message = "Weekly availability cannot have more than 7 days.")
-        Map<@NotNull DayOfWeek, @NotNull @Min(0) @Max(24) Integer> weeklyAvailability
+        Map<@NotNull DayOfWeek, @NotNull @Min(0) @Max(24) Integer> weeklyAvailability,
+
+        @Schema(description = "The psychological, physical, and emotional state of the student.")
+        @jakarta.validation.Valid
+        StudentStateDto state
 ) {}

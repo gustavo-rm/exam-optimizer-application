@@ -121,7 +121,7 @@ public class StudyOptimizerService {
         Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
         Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
 
-        return new EvolutionContext(importanceScores, minimumDaysPerSubject);
+        return new EvolutionContext(importanceScores, minimumDaysPerSubject, profile.getState());
     }
 
     /**

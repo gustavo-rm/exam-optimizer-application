@@ -23,6 +23,15 @@ public class StudentProfileMapper {
                         Map.Entry::getValue
                 ));
 
-        return new StudentProfile(dto.name(), knowledgeGaps, dto.weeklyAvailability());
+        com.ia.project.dynamicstudyplanner.domain.StudentState state = null;
+        if (dto.state() != null) {
+            state = new com.ia.project.dynamicstudyplanner.domain.StudentState(
+                    dto.state().stressLevel(),
+                    dto.state().fatigueLevel(),
+                    dto.state().motivationLevel()
+            );
+        }
+
+        return new StudentProfile(dto.name(), knowledgeGaps, dto.weeklyAvailability(), state);
     }
 }

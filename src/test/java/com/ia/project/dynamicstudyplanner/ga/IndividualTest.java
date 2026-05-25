@@ -19,7 +19,7 @@ class IndividualTest {
 
         Map<Subject, Double> importance = Map.of(math, 10.0);
         Map<Subject, Integer> constraints = Map.of(math, 2);
-        EvolutionContext context = new EvolutionContext(importance, constraints);
+        EvolutionContext context = new EvolutionContext(importance, constraints, null);
 
         // Act
         // knowledge = ln(1 + 5) = 1.7917. fitness = 10 * 1.7917 = 17.917
@@ -38,7 +38,7 @@ class IndividualTest {
 
         Map<Subject, Double> importance = Map.of(math, 10.0);
         Map<Subject, Integer> constraints = Map.of(math, 5); // Requires 5
-        EvolutionContext context = new EvolutionContext(importance, constraints);
+        EvolutionContext context = new EvolutionContext(importance, constraints, null);
 
         // Act
         // knowledge = ln(1 + 1) = 0.693. Base = 6.93. Penalty (0.5) = 3.465
