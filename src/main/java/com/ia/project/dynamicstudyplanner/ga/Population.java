@@ -58,9 +58,14 @@ public class Population {
      */
     public Individual getFittest() {
         if (individuals.isEmpty()) return null;
-        return individuals.stream()
-                .max(Comparator.comparingDouble(Individual::getFitness))
-                .orElse(null);
+        Individual fittest = individuals.get(0);
+        for (int i = 1; i < individuals.size(); i++) {
+            Individual ind = individuals.get(i);
+            if (ind.getFitness() > fittest.getFitness()) {
+                fittest = ind;
+            }
+        }
+        return fittest;
     }
 
     /**
@@ -69,9 +74,14 @@ public class Population {
      */
     public Individual getWorst() {
         if (individuals.isEmpty()) return null;
-        return individuals.stream()
-                .min(Comparator.comparingDouble(Individual::getFitness))
-                .orElse(null);
+        Individual worst = individuals.get(0);
+        for (int i = 1; i < individuals.size(); i++) {
+            Individual ind = individuals.get(i);
+            if (ind.getFitness() < worst.getFitness()) {
+                worst = ind;
+            }
+        }
+        return worst;
     }
 
     /**
@@ -83,11 +93,11 @@ public class Population {
         if (individuals.isEmpty()) {
             return 0.0;
         }
-
-        return individuals.stream()
-                .mapToDouble(Individual::getFitness)
-                .average()
-                .orElse(0.0);
+        double sum = 0;
+        for (Individual individual : individuals) {
+            sum += individual.getFitness();
+        }
+        return sum / individuals.size();
     }
 
     /**
@@ -108,10 +118,14 @@ public class Population {
      * - Minimum day constraints for crossover repair logic.
      */
     public void calculateFitness(EvolutionContext context) {
-        // Run parallel stream to improve performance
-        individuals.parallelStream().forEach(individual -> {
+        // Parallel streams have too much overhead for fast, simple inner loop math,
+        // leading to excessive GC allocations (Spliterators, ForkJoinTasks) and thread contention
+        // when already running inside an Async Executor.
+        // Reverting to traditional fast iterative loop.
+        for (int i = 0; i < individuals.size(); i++) {
+            Individual individual = individuals.get(i);
             double score = individual.calculateFitness(context);
             individual.setFitness(score);
-        });
+        }
     }
 }

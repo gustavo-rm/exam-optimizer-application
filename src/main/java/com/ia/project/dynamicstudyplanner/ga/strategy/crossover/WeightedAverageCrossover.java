@@ -70,11 +70,15 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
      * @param minimumDaysPerSubject A map of constraints to avoid violating minimums.
      */
     private void repairChildGenes(Map<Subject, Integer> childGenes, int targetDaySum, Map<Subject, Integer> minimumDaysPerSubject) {
-        int currentDaySum = childGenes.values().stream().mapToInt(Integer::intValue).sum();
+        int currentDaySum = 0;
+        for (Integer days : childGenes.values()) {
+            currentDaySum += days;
+        }
         int difference = targetDaySum - currentDaySum;
         List<Subject> subjects = new ArrayList<>(childGenes.keySet());
         while (difference != 0 && !subjects.isEmpty()) {
-            Subject randomSubject = subjects.get(random.nextInt(subjects.size()));
+            int randomIndex = random.nextInt(subjects.size());
+            Subject randomSubject = subjects.get(randomIndex);
             int currentDays = childGenes.get(randomSubject);
             if (difference > 0) {
                 childGenes.put(randomSubject, currentDays + 1);
@@ -85,7 +89,10 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
                     childGenes.put(randomSubject, currentDays - 1);
                     difference++;
                 } else {
-                    subjects.remove(randomSubject);
+                    // Fast removal from ArrayList by swapping with last element
+                    int lastIndex = subjects.size() - 1;
+                    subjects.set(randomIndex, subjects.get(lastIndex));
+                    subjects.remove(lastIndex);
                 }
             }
         }

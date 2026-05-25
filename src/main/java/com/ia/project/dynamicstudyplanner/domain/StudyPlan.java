@@ -45,9 +45,11 @@ public class StudyPlan {
      * @return The sum of all allocated days across all subjects.
      */
     public int getTotalDays() {
-        return this.daysPerSubject.values().stream()
-                .mapToInt(Integer::intValue)
-                .sum();
+        int total = 0;
+        for (Integer days : this.daysPerSubject.values()) {
+            total += days;
+        }
+        return total;
     }
 
     /**

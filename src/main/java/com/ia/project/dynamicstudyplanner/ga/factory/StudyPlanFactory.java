@@ -42,9 +42,10 @@ public final class StudyPlanFactory {
             int totalDays,
             Map<Subject, Integer> minimumDaysPerSubject
     ) {
-        int totalMinimumDays = minimumDaysPerSubject.values().stream()
-                .mapToInt(Integer::intValue)
-                .sum();
+        int totalMinimumDays = 0;
+        for (Integer minDays : minimumDaysPerSubject.values()) {
+            totalMinimumDays += minDays;
+        }
 
         if (totalMinimumDays > totalDays) {
             throw new IllegalArgumentException(
