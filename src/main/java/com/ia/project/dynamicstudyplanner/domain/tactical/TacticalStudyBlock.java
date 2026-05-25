@@ -14,4 +14,15 @@ public record TacticalStudyBlock(
         Subject subject,
         StudyMethodology methodology,
         long durationMinutes
-) {}
+) {
+    public double calculateRequiredEnergy() {
+        // The block's energy requirement scales slightly with its duration, but is primarily driven by methodology.
+        double baseEnergy = methodology.getRequiredEnergyLevel();
+        double durationFactor = Math.log10(durationMinutes + 10) / 2.0; // Dampened scaling
+        return baseEnergy * durationFactor;
+    }
+
+    public double calculateEmotionalLoad() {
+        return methodology.getEmotionalLoadMultiplier() * subject.cognitiveLoad();
+    }
+}
