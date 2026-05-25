@@ -7,5 +7,6 @@ package com.ia.project.dynamicstudyplanner.domain;
 public record StudentState(
         double stressLevel,
         double fatigueLevel,
-        double motivationLevel
+        double motivationLevel,
+        Chronotype chronotype
 ) {}

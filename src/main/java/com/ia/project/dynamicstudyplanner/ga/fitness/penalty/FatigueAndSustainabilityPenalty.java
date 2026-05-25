@@ -1,14 +1,23 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.penalty;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.service.calculation.fatigue.FatigueAndEnergyModel;
 import org.springframework.stereotype.Component;
 
 /**
  * Penalizes plans that are unsustainable given the student's psychological and physical state.
+ * It integrates the advanced FatigueAndEnergyModel to determine burnout risks.
  */
 @Component
 public class FatigueAndSustainabilityPenalty implements FitnessPenalty {
+
+    private final FatigueAndEnergyModel fatigueModel;
+
+    public FatigueAndSustainabilityPenalty(FatigueAndEnergyModel fatigueModel) {
+        this.fatigueModel = fatigueModel;
+    }
 
     @Override
     public double calculatePenaltyFactor(StudyPlan plan, EvolutionContext context) {
@@ -17,6 +26,15 @@ public class FatigueAndSustainabilityPenalty implements FitnessPenalty {
             return 1.0; // No penalty if state is unknown
         }
 
+        // Note: For full integration, the GA must be evolved to operate on TacticalStudyPlan.
+        // This is a bridge implementation. If the context contains a tactical plan, we evaluate it accurately.
+        // If not, we fall back to a generic baseline penalty derived from state.
+
+        if (plan instanceof TacticalStudyPlan tacticalPlan) {
+            return fatigueModel.calculateBurnoutRisk(tacticalPlan, state);
+        }
+
+        // --- Fallback for Macro (Days-based) Plans ---
         int totalDays = plan.getTotalDays();
 
         // Calculate a basic "sustainability factor".

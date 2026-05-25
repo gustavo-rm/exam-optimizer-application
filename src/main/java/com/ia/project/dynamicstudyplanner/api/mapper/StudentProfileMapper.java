@@ -25,10 +25,15 @@ public class StudentProfileMapper {
 
         com.ia.project.dynamicstudyplanner.domain.StudentState state = null;
         if (dto.state() != null) {
+            com.ia.project.dynamicstudyplanner.domain.Chronotype chronotype = dto.state().chronotype() != null
+                    ? dto.state().chronotype()
+                    : com.ia.project.dynamicstudyplanner.domain.Chronotype.INTERMEDIATE;
+
             state = new com.ia.project.dynamicstudyplanner.domain.StudentState(
                     dto.state().stressLevel(),
                     dto.state().fatigueLevel(),
-                    dto.state().motivationLevel()
+                    dto.state().motivationLevel(),
+                    chronotype
             );
         }
 

@@ -30,5 +30,8 @@ public record StudentStateDto(
         @NotNull(message = "Motivation level cannot be null.")
         @DecimalMin(value = "1.0", message = "Motivation level must be at least 1.0.")
         @DecimalMax(value = "5.0", message = "Motivation level must be at most 5.0.")
-        Double motivationLevel
+        Double motivationLevel,
+
+        @Schema(description = "The student's natural circadian rhythm.", example = "INTERMEDIATE")
+        com.ia.project.dynamicstudyplanner.domain.Chronotype chronotype
 ) {}

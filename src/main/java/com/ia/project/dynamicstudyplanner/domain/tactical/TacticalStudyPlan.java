@@ -11,11 +11,12 @@ import java.util.Map;
  * By using TimeSlots as the keys (loci), we guarantee that blocks cannot overlap,
  * fundamentally enforcing a constraint-preserving architecture at the base level.
  */
-public class TacticalStudyPlan {
+public class TacticalStudyPlan extends com.ia.project.dynamicstudyplanner.domain.StudyPlan {
 
     private final Map<TimeSlot, TacticalStudyBlock> schedule;
 
     public TacticalStudyPlan(Map<TimeSlot, TacticalStudyBlock> schedule) {
+        super(Map.of()); // Call super with empty map, as Tactical overrides behavior
         this.schedule = schedule == null ? Map.of() : Collections.unmodifiableMap(schedule);
     }
 
