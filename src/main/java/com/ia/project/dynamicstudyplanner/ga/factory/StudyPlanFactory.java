@@ -17,7 +17,7 @@ import java.util.Random;
  * randomization used here is the most effective way to achieve that goal.
  */
 public final class StudyPlanFactory {
-    private final Random random = new Random();
+    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
 
     /**
      * Creates a random {@code StudyPlan} ensuring that all minimum day constraints are met.

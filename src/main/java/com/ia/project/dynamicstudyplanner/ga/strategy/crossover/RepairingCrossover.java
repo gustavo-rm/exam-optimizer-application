@@ -13,7 +13,7 @@ import java.util.*;
  */
 @Component
 public class RepairingCrossover implements CrossoverStrategy {
-    private final Random random = new Random();
+    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
     /**
      * Creates a new child by performing a single-point crossover on two parents and then
      * repairing the child's gene sum to ensure its validity.

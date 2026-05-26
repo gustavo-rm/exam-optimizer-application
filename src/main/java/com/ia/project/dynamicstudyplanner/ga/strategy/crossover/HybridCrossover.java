@@ -14,7 +14,7 @@ public class HybridCrossover implements CrossoverStrategy {
     private final CrossoverStrategy exploitationStrategy; // Para refinar (ex: Média Ponderada)
     private final CrossoverStrategy explorationStrategy;  // Para explorar (ex: Reparo)
     private final double exploitationChance;
-    private final Random random = new Random();
+    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
     public HybridCrossover(WeightedAverageCrossover exploitationStrategy, RepairingCrossover explorationStrategy) {
         this.exploitationStrategy = exploitationStrategy;
         this.explorationStrategy = explorationStrategy;

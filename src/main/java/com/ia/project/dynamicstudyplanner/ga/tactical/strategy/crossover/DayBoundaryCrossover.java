@@ -16,7 +16,7 @@ import java.util.Random;
  */
 public class DayBoundaryCrossover implements TacticalCrossoverStrategy {
 
-    private final Random random = new Random();
+    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
 
     @Override
     public TacticalStudyPlan crossover(TacticalStudyPlan parent1, TacticalStudyPlan parent2, double crossoverRate, EvolutionContext context) {

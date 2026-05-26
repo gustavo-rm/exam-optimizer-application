@@ -16,7 +16,7 @@ import java.util.Random;
  */
 public class MethodologyMutation implements TacticalMutationStrategy {
 
-    private final Random random = new Random();
+    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
 
     @Override
     public TacticalStudyPlan mutate(TacticalStudyPlan plan, double mutationRate, EvolutionContext context) {
