@@ -27,13 +27,18 @@ public class DayBoundaryCrossover implements TacticalCrossoverStrategy {
         Map<TimeSlot, TacticalStudyBlock> childSchedule = new HashMap<>();
 
         // Pick a random cutoff day (simplified for illustration - assumes blocks are within a known week range)
-        int cutoffDayOfYear = -1;
+        int minDay = Integer.MAX_VALUE;
+        int maxDay = Integer.MIN_VALUE;
+
         for (TimeSlot slot : parent1.getSchedule().keySet()) {
-            if (cutoffDayOfYear == -1) {
-                // Just grab a day somewhere in the middle
-                cutoffDayOfYear = slot.startTime().getDayOfYear() + random.nextInt(3);
-            }
-            break;
+            int day = slot.startTime().getDayOfYear();
+            if (day < minDay) minDay = day;
+            if (day > maxDay) maxDay = day;
+        }
+
+        int cutoffDayOfYear = minDay;
+        if (maxDay > minDay) {
+            cutoffDayOfYear = minDay + random.nextInt(maxDay - minDay + 1);
         }
 
         // Inherit from parent 1 before cutoff, parent 2 after cutoff

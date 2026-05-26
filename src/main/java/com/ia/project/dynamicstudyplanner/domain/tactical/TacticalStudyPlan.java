@@ -16,8 +16,26 @@ public class TacticalStudyPlan extends com.ia.project.dynamicstudyplanner.domain
     private final Map<TimeSlot, TacticalStudyBlock> schedule;
 
     public TacticalStudyPlan(Map<TimeSlot, TacticalStudyBlock> schedule) {
-        super(Map.of()); // Call super with empty map, as Tactical overrides behavior
+        super(extractDaysPerSubject(schedule));
         this.schedule = schedule == null ? Map.of() : Collections.unmodifiableMap(schedule);
+    }
+
+    private static Map<com.ia.project.dynamicstudyplanner.domain.exam.Subject, Integer> extractDaysPerSubject(Map<TimeSlot, TacticalStudyBlock> schedule) {
+        if (schedule == null) return Map.of();
+
+        // Count how many unique days each subject is studied
+        Map<com.ia.project.dynamicstudyplanner.domain.exam.Subject, java.util.Set<Integer>> subjectDays = new java.util.HashMap<>();
+
+        for (Map.Entry<TimeSlot, TacticalStudyBlock> entry : schedule.entrySet()) {
+            subjectDays.computeIfAbsent(entry.getValue().subject(), k -> new java.util.HashSet<>())
+                       .add(entry.getKey().startTime().getDayOfYear());
+        }
+
+        Map<com.ia.project.dynamicstudyplanner.domain.exam.Subject, Integer> daysPerSubject = new java.util.HashMap<>();
+        for (Map.Entry<com.ia.project.dynamicstudyplanner.domain.exam.Subject, java.util.Set<Integer>> entry : subjectDays.entrySet()) {
+            daysPerSubject.put(entry.getKey(), entry.getValue().size());
+        }
+        return daysPerSubject;
     }
 
     public Map<TimeSlot, TacticalStudyBlock> getSchedule() {

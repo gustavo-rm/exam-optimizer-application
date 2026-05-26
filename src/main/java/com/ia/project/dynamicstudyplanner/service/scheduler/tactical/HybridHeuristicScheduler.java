@@ -39,22 +39,20 @@ public class HybridHeuristicScheduler implements TacticalScheduler {
             long usableCapacity = (long) (windowCapacity * (1.0 - BUFFER_ZONE_PERCENTAGE)); // Enforce buffer zone
 
             long currentFilled = 0;
+            java.time.LocalDateTime currentSlotStart = window.startTime();
 
-            // Note: In a full implementation, we would split windows into smaller specific TimeSlots.
-            // For this skeleton, we represent the entire usable chunk as a single slot for demonstration.
-            TimeSlot slot = new TimeSlot(window.startTime(), window.startTime().plusMinutes(usableCapacity));
-
-            for (int i = 0; i < pendingBlocks.size(); i++) {
+            // Iterate backwards so we can safely remove from the list
+            for (int i = pendingBlocks.size() - 1; i >= 0; i--) {
                 TacticalStudyBlock block = pendingBlocks.get(i);
 
                 if (currentFilled + block.durationMinutes() <= usableCapacity) {
-                    // Fits!
-                    // In a true bin-packing implementation, we would slice the window into multiple TimeSlots
-                    // and assign blocks. Here we just assign the first block that fits to represent the logic.
+                    // Fits! Slice the window to create a specific TimeSlot for this block
+                    TimeSlot slot = new TimeSlot(currentSlotStart, currentSlotStart.plusMinutes(block.durationMinutes()));
                     schedule.put(slot, block);
+
                     currentFilled += block.durationMinutes();
+                    currentSlotStart = currentSlotStart.plusMinutes(block.durationMinutes());
                     pendingBlocks.remove(i);
-                    break; // Move to next window (skeleton logic - normally we'd keep packing this window)
                 }
             }
         }
