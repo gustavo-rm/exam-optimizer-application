@@ -16,7 +16,7 @@ import java.util.Random;
 @Component
 public class TournamentSelection implements SelectionStrategy {
     private final int tournamentSize;
-    private final Random random = new Random();
+    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
     /**
      * Constructs a TournamentSelection strategy with a default tournament size.
      * The size is set to 3 to provide balanced selection pressure for standard configurations.

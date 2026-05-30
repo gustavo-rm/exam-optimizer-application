@@ -45,11 +45,11 @@ public final class CognitiveLoadCalculator {
     }
 
     /**
-     * Calculates a multiplier that represents the student's fatigue.
-     * Students who feel less prepared (higher average gap) will tire more quickly (factor < 1.0).
+     * Calculates a multiplier that represents the student's fatigue and psychological state.
+     * Combines self-assessed gap with explicit stress, fatigue, and motivation metrics if available.
      *
      * @param profile The student's profile.
-     * @return A multiplier between approximately 0.8 and 1.1.
+     * @return A multiplier between approximately 0.5 and 1.2.
      */
     private double calculateFatigueFactor(StudentProfile profile) {
         double averageGap = profile.getAverageKnowledgeGap();
@@ -57,9 +57,21 @@ public final class CognitiveLoadCalculator {
            averageGap = 3.0; // Assume an average gap if the map is truly empty or uninitialized
         }
 
-        // Linearly maps the gap (1-5 scale) to a factor (1.1 - 0.8).
-        // 1.1 -> Very confident, can handle more | 0.8 -> Not confident, can handle less.
-        return 1.1 - ((averageGap - 1) / 4.0) * 0.3;
+        // Base gap factor: 1.1 -> Very confident, can handle more | 0.8 -> Not confident, can handle less.
+        double baseGapFactor = 1.1 - ((averageGap - 1) / 4.0) * 0.3;
+
+        com.ia.project.dynamicstudyplanner.domain.StudentState state = profile.getState();
+        if (state != null) {
+            // Adjust factor based on psychological state.
+            // High stress/fatigue decreases factor, high motivation increases factor.
+            double stressModifier = 1.0 - ((state.stressLevel() - 1.0) / 4.0) * 0.2;     // 1.0 -> 1.0, 5.0 -> 0.8
+            double fatigueModifier = 1.0 - ((state.fatigueLevel() - 1.0) / 4.0) * 0.3;   // 1.0 -> 1.0, 5.0 -> 0.7
+            double motivationModifier = 1.0 + ((state.motivationLevel() - 1.0) / 4.0) * 0.2; // 1.0 -> 1.0, 5.0 -> 1.2
+
+            return baseGapFactor * stressModifier * fatigueModifier * motivationModifier;
+        }
+
+        return baseGapFactor;
     }
 
     /**

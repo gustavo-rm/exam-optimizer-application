@@ -33,6 +33,7 @@ public class StudyOptimizerService {
     private final ImportanceCalculator importanceCalculator;
     private final GeneticAlgorithmFactory gaFactory;
     private final PopulationGenerator populationGenerator;
+    private final com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator;
 
     // Custom Micrometer Metrics
     private final Counter optimizationRunsCounter;
@@ -42,11 +43,13 @@ public class StudyOptimizerService {
                                  ImportanceCalculator importanceCalculator,
                                  GeneticAlgorithmFactory gaFactory,
                                  PopulationGenerator populationGenerator,
+                                 com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator,
                                  MeterRegistry meterRegistry) {
         this.baselineCalculator = baselineCalculator;
         this.importanceCalculator = importanceCalculator;
         this.gaFactory = gaFactory;
         this.populationGenerator = populationGenerator;
+        this.fitnessEvaluator = fitnessEvaluator;
 
         this.optimizationRunsCounter = Counter.builder("dynamicstudyplanner.optimization.runs")
                 .description("Total number of study plan optimization runs executed")
@@ -121,7 +124,13 @@ public class StudyOptimizerService {
         Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
         Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
 
-        return new EvolutionContext(importanceScores, minimumDaysPerSubject);
+        // Dummy retention profile for macro-GA evaluation (will be properly hydrated in the tactical layer)
+        com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile retentionProfile = new com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile(java.util.Map.of());
+
+        // Dummy engagement profile for macro-GA evaluation (will be properly hydrated in the tactical layer)
+        com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile engagementProfile = com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile.baseline();
+
+        return new EvolutionContext(importanceScores, minimumDaysPerSubject, profile.getState(), fitnessEvaluator, retentionProfile, java.time.LocalDate.now(), engagementProfile);
     }
 
     /**

@@ -12,7 +12,7 @@ import java.util.*;
  */
 @Component
 public class WeightedAverageCrossover implements CrossoverStrategy {
-    private final Random random = new Random();
+    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
     /**
      * Creates a new child by calculating the weighted average of two parents' genes and then
      * repairing the child's gene sum to ensure its validity.

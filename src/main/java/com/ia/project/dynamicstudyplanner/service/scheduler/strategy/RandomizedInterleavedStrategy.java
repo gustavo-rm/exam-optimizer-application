@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
  * which can be a powerful learning technique.
  */
 public class RandomizedInterleavedStrategy implements AllocationStrategy {
-    private final Random random = new Random();
+    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
 
     @Override
     public List<StudyBlock> allocateHours(AllocationContext context) {
