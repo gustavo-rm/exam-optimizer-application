@@ -68,9 +68,11 @@ public class CreepMutation extends AbstractMutationStrategy {
                         subjectToMutate
                 );
 
+        // RandomProvider rather than ThreadLocalRandom: the latter cannot be seeded, which made
+        // the evolution irreproducible even with a fixed seed.
         int creepValue =
-                java.util.concurrent.ThreadLocalRandom
-                        .current()
+                com.ia.project.dynamicstudyplanner.util.RandomProvider
+                        .getInstance()
                         .nextInt(-maxCreepDistance,
                                 maxCreepDistance + 1);
 

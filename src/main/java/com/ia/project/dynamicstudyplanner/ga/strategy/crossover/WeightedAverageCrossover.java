@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import java.util.*;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 /**
  * Implements a Weighted Average Crossover strategy.
  * This exploitative method creates a child whose genes are a weighted average of its parents'
@@ -12,7 +13,6 @@ import java.util.*;
  */
 @Component
 public class WeightedAverageCrossover implements CrossoverStrategy {
-    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
     /**
      * Creates a new child by calculating the weighted average of two parents' genes and then
      * repairing the child's gene sum to ensure its validity.
@@ -25,7 +25,7 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
      */
     @Override
     public Individual crossover(Individual parent1, Individual parent2, double crossoverRate, EvolutionContext context) {
-        if (random.nextDouble() > crossoverRate) {
+        if (RandomProvider.getInstance().nextDouble() > crossoverRate) {
             return parent1.getFitness() > parent2.getFitness() ? new Individual(parent1.getPlan()) : new Individual(parent2.getPlan());
         }
         // Step 1: Create the initial child genes using a weighted average.
@@ -74,7 +74,7 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
         int difference = targetDaySum - currentDaySum;
         List<Subject> subjects = new ArrayList<>(childGenes.keySet());
         while (difference != 0 && !subjects.isEmpty()) {
-            Subject randomSubject = subjects.get(random.nextInt(subjects.size()));
+            Subject randomSubject = subjects.get(RandomProvider.getInstance().nextInt(subjects.size()));
             int currentDays = childGenes.get(randomSubject);
             if (difference > 0) {
                 childGenes.put(randomSubject, currentDays + 1);

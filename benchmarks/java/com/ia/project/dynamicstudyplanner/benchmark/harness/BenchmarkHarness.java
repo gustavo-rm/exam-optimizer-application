@@ -149,6 +149,10 @@ public final class BenchmarkHarness {
      * §2.4.4), and a benchmark that quietly supplied richer profiles would not be measuring
      * production behaviour.
      */
+    public EvolutionContext contextFor(BenchmarkInstance instance) {
+        return buildContext(instance);
+    }
+
     private EvolutionContext buildContext(BenchmarkInstance instance) {
         Map<Subject, Integer> minimumDays =
                 baselineCalculator.calculateMinimumDays(instance.exam(), instance.profile());

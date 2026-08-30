@@ -28,12 +28,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code docs/revisao-ag/03-validacao.md}, not chosen a priori:
  *
  * <ul>
- *   <li><b>Noise floor.</b> The GA is not reproducible — its mutation operator draws from
- *       {@code Math.random()} and {@code ThreadLocalRandom}, which no seed reaches
- *       (docs/revisao-ag/00-diagnostico.md §7.4, R18). Over 7 repetitions the worst run-to-run
- *       spread on the instances covered by this assertion was <b>0.111%</b> of the mean. A 2%
- *       threshold sits roughly 18x above that, so this test does not flake.</li>
- *   <li><b>Detection power.</b> The one real deficit the benchmark found is <b>5.42%</b>
+ *   <li><b>Noise floor.</b> Each repetition uses a different seed, and the GA is genuinely
+ *       stochastic, so outcomes still spread across repetitions even though the algorithm became
+ *       reproducible per seed in docs/revisao-ag/04-robustez.md. Over 7 repetitions the worst
+ *       seed-to-seed spread on the instances covered by this assertion is <b>0.286%</b> of the
+ *       mean. A 2% threshold sits roughly 7x above that, so this test does not flake.</li>
+ *   <li><b>Detection power.</b> The one real deficit the benchmark found is <b>6.18%</b>
  *       (instance {@code I4-pesos-extremos}). A 2% threshold is comfortably below that, so a
  *       regression of that magnitude appearing on any other instance would be caught.</li>
  *   <li><b>Why not tighter.</b> Below roughly 0.5% the assertion would start tracking RNG noise on
@@ -63,7 +63,7 @@ class GeneticAlgorithmVsBaselinesTest {
     /**
      * Instances where the GA is known to lose to the greedy baseline today.
      * <p>
-     * Measured deficit at the time of writing: {@code I4-pesos-extremos}, -5.42%. Root cause in
+     * Measured deficit at the time of writing: {@code I4-pesos-extremos}, -6.18%. Root cause in
      * docs/revisao-ag/03-validacao.md §4: the optimum concentrates ~81% of the budget on a single
      * subject, and {@code CreepMutation}'s +/-3 day steps cannot cross that distance from a diffuse
      * random start within the configured 100 generations.

@@ -8,7 +8,7 @@ import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 
 /**
  * Splices parents at midnight boundaries to preserve intraday fatigue and constraint integrity.
@@ -16,11 +16,10 @@ import java.util.Random;
  */
 public class DayBoundaryCrossover implements TacticalCrossoverStrategy {
 
-    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
 
     @Override
     public TacticalStudyPlan crossover(TacticalStudyPlan parent1, TacticalStudyPlan parent2, double crossoverRate, EvolutionContext context) {
-        if (random.nextDouble() > crossoverRate) {
+        if (RandomProvider.getInstance().nextDouble() > crossoverRate) {
             return parent1; // Return clone of parent1 if no crossover
         }
 
@@ -38,7 +37,7 @@ public class DayBoundaryCrossover implements TacticalCrossoverStrategy {
 
         int cutoffDayOfYear = minDay;
         if (maxDay > minDay) {
-            cutoffDayOfYear = minDay + random.nextInt(maxDay - minDay + 1);
+            cutoffDayOfYear = minDay + RandomProvider.getInstance().nextInt(maxDay - minDay + 1);
         }
 
         // Inherit from parent 1 before cutoff, parent 2 after cutoff

@@ -38,6 +38,21 @@ java -cp "target/classes:target/test-classes:$(cat /tmp/cp.txt)" \
 Roda as 8 instâncias com 7 repetições (~4 s), escreve `benchmarks/results/resultados.csv` e imprime
 as tabelas Markdown usadas no relatório.
 
+### Estudo de robustez
+
+```bash
+java -cp "target/classes:target/test-classes:$(cat /tmp/cp.txt)" \
+     com.ia.project.dynamicstudyplanner.benchmark.robustness.RobustnessMain
+```
+
+Determinismo (mesma seed, duas execuções), variância entre 12 seeds e varredura de hiperparâmetros.
+Escreve `benchmarks/results/robustez.csv`. Alimenta
+[`docs/revisao-ag/04-robustez.md`](../docs/revisao-ag/04-robustez.md).
+
+Os testes de casos de borda correspondentes ficam em
+`src/test/java/…/ga/GaEdgeCasesTest.java` — são testes unitários de classes de produção, não
+benchmarks, e por isso vivem junto com a suíte normal.
+
 ## Estrutura
 
 | Pacote | Conteúdo |

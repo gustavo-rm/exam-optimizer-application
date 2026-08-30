@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 
 import java.util.*;
 
@@ -46,7 +47,9 @@ public abstract class AbstractMutationStrategy implements MutationStrategy {
             EvolutionContext context
     ) {
 
-        if (Math.random() > mutationRate) {
+        // Routed through RandomProvider so a fixed seed makes the whole evolution reproducible.
+        // Previously Math.random(), whose internal generator no seed can reach.
+        if (RandomProvider.getInstance().nextDouble() > mutationRate) {
             return individual;
         }
 
@@ -91,29 +94,38 @@ public abstract class AbstractMutationStrategy implements MutationStrategy {
 
     /**
      * Selects a random subject from the provided list.
+     * <p>
+     * Draws from {@link RandomProvider} rather than {@code ThreadLocalRandom}, which cannot be
+     * seeded and therefore made the whole optimizer irreproducible. Mutation runs single-threaded
+     * inside the evolution loop, so the shared generator carries no contention cost here.
      *
      * @param subjects Available subjects.
      * @return A randomly selected subject.
      */
     protected Subject randomSubject(List<Subject> subjects) {
-        return subjects.get(
-                java.util.concurrent.ThreadLocalRandom
-                        .current()
-                        .nextInt(subjects.size())
-        );
+        return subjects.get(RandomProvider.getInstance().nextInt(subjects.size()));
     }
 
     /**
      * Selects a random subject excluding a specific subject.
      *
-     * @param subjects Available subjects.
+     * @param subjects Available subjects. Must contain at least one subject other than
+     *                 {@code excluded}.
      * @param excluded Subject that cannot be selected.
      * @return A randomly selected subject different from the excluded one.
+     * @throws IllegalArgumentException if no other subject is available, which would otherwise spin
+     *                                  forever in the rejection loop below.
      */
     protected Subject randomSubjectExcluding(
             List<Subject> subjects,
             Subject excluded
     ) {
+
+        if (subjects.size() < 2) {
+            throw new IllegalArgumentException(
+                    "Cannot pick a subject other than '" + excluded.name()
+                            + "': the plan has fewer than two subjects.");
+        }
 
         Subject selected;
 

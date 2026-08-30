@@ -28,6 +28,30 @@ public class StudentProfile {
         this.knowledgeGaps = knowledgeGaps == null ? Map.of() : Collections.unmodifiableMap(knowledgeGaps);
         this.weeklyAvailability = weeklyAvailability == null ? Map.of() : Collections.unmodifiableMap(weeklyAvailability);
         this.state = state;
+        rejectNegativeAvailability(this.weeklyAvailability);
+    }
+
+    /**
+     * Rejects negative study hours.
+     * <p>
+     * A negative availability has no meaning, and letting it through produced nonsense silently:
+     * the total weekly hours went negative, which drove the schedule generator's reduction factor
+     * below zero and yielded an empty schedule labelled merely as a time deficit — with nothing
+     * pointing at the malformed input. {@code StudentProfileDto} already enforces this at the API
+     * boundary; this guard closes the same hole for every other caller.
+     *
+     * @throws IllegalArgumentException naming the offending day.
+     */
+    private static void rejectNegativeAvailability(Map<DayOfWeek, Integer> availability) {
+        for (Map.Entry<DayOfWeek, Integer> entry : availability.entrySet()) {
+            Integer hours = entry.getValue();
+            if (hours != null && hours < 0) {
+                throw new IllegalArgumentException(
+                        "Weekly availability cannot be negative: " + entry.getKey()
+                                + " was given " + hours + " hours."
+                );
+            }
+        }
     }
 
     public StudentProfile(String name, Map<Subject, Double> knowledgeGaps, Map<DayOfWeek, Integer> weeklyAvailability) {

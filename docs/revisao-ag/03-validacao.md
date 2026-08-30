@@ -10,6 +10,13 @@
 O `00-diagnostico.md` §5.2 registrou explicitamente *"comparação empírica contra alternativa mais
 simples: nenhum encontrado"*. Este documento fecha essa lacuna.
 
+> **Nota posterior (etapa 04).** As tabelas abaixo descrevem o estado **antes** das correções de
+> reprodutibilidade de [`04-robustez.md`](./04-robustez.md). Depois delas os números se deslocam
+> ligeiramente — a fonte de aleatoriedade mudou —, sem alterar nenhuma conclusão: o déficit de
+> `I4-pesos-extremos` vai de −5,42% para −6,18%, e o pior ruído entre repetições nas instâncias
+> cobertas pelo teste vai de 0,111% para 0,286%. O limiar de 2% do teste segue válido, com 7× de
+> margem. Os valores pós-correção estão em `04-robustez.md` §6.
+
 ---
 
 ## 1. Veredito
