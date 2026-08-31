@@ -24,6 +24,9 @@ import java.util.Map;
  *                                it; the fitness itself uses {@link #normalizedImportance}.
  * @param normalizedImportance    Importance projected onto the simplex, so the values sum to 1.
  *                                See {@link #normalize}.
+ * @param retentionWeights        Importance tempered by {@link #RETENTION_TEMPERING} and
+ *                                renormalised. Flatter than {@link #normalizedImportance}; see
+ *                                {@link #temper} for why retention is not weighted by exam value.
  * @param minimumDaysPerSubject   Coverage floor per subject, from {@code BaselineCalculator}.
  * @param studentState            Self-reported stress, fatigue and motivation. Enters the fitness
  *                                indirectly, through the daily cognitive-load budget.
@@ -41,6 +44,7 @@ import java.util.Map;
 public record EvolutionContext(
         Map<Subject, Double> importanceScores,
         Map<Subject, Double> normalizedImportance,
+        Map<Subject, Double> retentionWeights,
         Map<Subject, Integer> minimumDaysPerSubject,
         StudentState studentState,
         FitnessEvaluator fitnessEvaluator,
@@ -68,9 +72,11 @@ public record EvolutionContext(
             int hoursPerStudyDay,
             int maxDailyCognitiveLoad
     ) {
+        Map<Subject, Double> normalized = normalize(importanceScores);
         return new EvolutionContext(
                 importanceScores,
-                normalize(importanceScores),
+                normalized,
+                temper(normalized),
                 minimumDaysPerSubject,
                 studentState,
                 fitnessEvaluator,
@@ -125,4 +131,55 @@ public record EvolutionContext(
         }
         return Collections.unmodifiableMap(normalized);
     }
+
+    /**
+     * Exponent applied to the normalised importance to obtain the retention weights.
+     * <p>
+     * {@code 0.5} is the tempered midpoint between uniform weighting ({@code 0}) and full
+     * exam-value weighting ({@code 1}). Under it, a subject worth 100x another on the exam is
+     * weighted 10x for retention purposes.
+     */
+    public static final double RETENTION_TEMPERING = 0.5;
+
+    /**
+     * Flattens the importance distribution for the retention objective.
+     * <p>
+     * <b>Why retention is not weighted by exam value.</b> O1 asks "how many exam points can this plan
+     * earn?", which is correctly weighted by what each subject is worth. O3 asks a different
+     * question: "how much of what was studied survives to exam day?" The cost of forgetting is not
+     * proportional to exam value — forgetting a low-weight subject wastes the study days already
+     * spent on it, and those days cost the student the same regardless of the subject's weight. So
+     * the natural weighting for retention is flatter than the weighting for score.
+     * <p>
+     * <b>What it fixes.</b> While both objectives used the identical weight, they agreed to starve
+     * the same subjects, and nothing in the fitness pushed back. The controlled sweep in
+     * {@code docs/revisao-ag/06-regime-alta-carga.md} showed the consequence: above an effective
+     * importance dispersion of roughly 30:1, the correlation between fitness and predicted retention
+     * turns negative and deepens with dispersion — maximising the fitness made retention worse.
+     * Tempering gives the retention term a weighting of its own, so it can dissent.
+     */
+    public static Map<Subject, Double> temper(Map<Subject, Double> normalized) {
+        if (normalized == null || normalized.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Subject, Double> tempered = new HashMap<>(normalized.size());
+        double total = 0.0;
+        for (Map.Entry<Subject, Double> entry : normalized.entrySet()) {
+            double value = Math.pow(Math.max(0.0, entry.getValue()), RETENTION_TEMPERING);
+            tempered.put(entry.getKey(), value);
+            total += value;
+        }
+
+        if (total <= 0.0) {
+            double uniform = 1.0 / normalized.size();
+            normalized.keySet().forEach(s -> tempered.put(s, uniform));
+            return Collections.unmodifiableMap(tempered);
+        }
+
+        final double sum = total;
+        tempered.replaceAll((subject, value) -> value / sum);
+        return Collections.unmodifiableMap(tempered);
+    }
+
 }

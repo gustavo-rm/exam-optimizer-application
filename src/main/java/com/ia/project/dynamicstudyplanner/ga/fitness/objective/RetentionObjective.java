@@ -12,13 +12,19 @@ import java.util.Map;
  * O3 — how much of the syllabus is still remembered on exam day (Ebbinghaus).
  *
  * <pre>
- *   O3(plan)   = SUM_s  normalizedImportance(s) * coverage(s)
+ *   O3(plan)   = SUM_s  retentionWeight(s) * coverage(s)
  *   coverage(s)= min(1, days_s / requiredSessions(s))
  *   requiredSessions(s) = planningHorizonDays / tau(s)
  * </pre>
  *
- * Bounded in [0,1] because the normalised importances sum to 1 and every coverage term is capped at
- * 1. Full rationale, weight and citations: {@code docs/revisao-ag/05-fitness-function.md}.
+ * Bounded in [0,1] because the retention weights sum to 1 and every coverage term is capped at 1.
+ * Full rationale, weight and citations: {@code docs/revisao-ag/05-fitness-function.md}.
+ * <p>
+ * The weights are <b>tempered</b> rather than equal to the exam-value weights O1 uses — see
+ * {@code EvolutionContext.temper}. While both objectives shared one weighting they agreed to starve
+ * the same subjects, which is what made the fitness anti-correlated with retention above an
+ * effective importance dispersion of about 30:1
+ * ({@code docs/revisao-ag/06-regime-alta-carga.md}).
  *
  * <h2>What it models</h2>
  *
@@ -56,7 +62,7 @@ public class RetentionObjective implements FitnessObjective {
 
     @Override
     public double calculateReward(StudyPlan plan, EvolutionContext context) {
-        Map<Subject, Double> importance = context.normalizedImportance();
+        Map<Subject, Double> importance = context.retentionWeights();
         int horizon = context.planningHorizonDays();
 
         double score = 0.0;
