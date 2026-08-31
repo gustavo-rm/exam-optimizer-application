@@ -13,6 +13,29 @@ linha de pesquisa e não está aqui, por decisão registrada em [`02-formulacao.
 > acoplados de propósito: cada classe da fitness aponta para cá no Javadoc, e `FitnessEvaluator`
 > falha na subida se os pesos deixarem de somar 1.
 
+> ## ⚠ Nota de correção — 2026-08-31 (etapa 07)
+>
+> **A versão da etapa 05 deste documento afirmava, na §6.4, que "o sinal agregado inverteu", de
+> −0,654 para +0,161. Essa afirmação era falsa**, e a evidência que a sustentava era uma estatística
+> inválida: o agregado empilhava as 48 observações (8 instâncias × 6 planejadores) num único
+> Spearman, ranqueando valores de fitness que `PlanMetrics.java` documenta como **não comparáveis
+> entre instâncias**.
+>
+> O número `+0,161` já havia sido removido da §6.4 na reescrita da etapa 06, mas **sem que a
+> afirmação que dele dependia fosse revista** — corrigido agora. Pelo método canônico
+> (transformada z de Fisher sobre as correlações por instância,
+> `benchmarks/…/metric/CorrelationAggregate.java`), a trajetória real é:
+>
+> | Estado | Agregado empilhado (publicado, **inválido**) | Fisher z por instância (**canônico**) |
+> |---|---|---|
+> | Etapa 03 | −0,654 | **−0,909** [IC95% −0,971; −0,734] |
+> | Etapa 05 | **+0,161** | **−0,460** [IC95% −0,793; +0,085] |
+> | Etapa 06 | +0,196 | **−0,106** [IC95% −0,597; +0,443] |
+>
+> **A etapa 05 reduziu a anti-correlação, não a inverteu.** A §6.4 abaixo já traz a tabela por
+> instância, que sempre esteve correta, agora com a linha de agregado canônico. Racional completo em
+> [`07-correcao-metrica-e-ausubel.md`](./07-correcao-metrica-e-ausubel.md).
+
 ---
 
 ## 1. A fórmula
@@ -348,12 +371,21 @@ de 75,6% para 25,2%.
 O achado central de `03` §5 era que maximizar a fitness **piorava** a retenção. Correlação de
 Spearman entre fitness e % na janela de retenção, sobre as 6 estratégias de cada instância:
 
-| Instância | `03` | `05` | **`06`** |
+| Instância | `03` (média de 10 exec.) | `05` | **`06`** |
 |---|---|---|---|
-| `I3-grande-apertado` | −0,941 | −0,029 | **+0,257** |
-| `I4-pesos-extremos` | −0,941 | −0,525 | **−0,093** |
-| `I7-horizonte-longo` | −0,833 | +0,000 | **+0,655** |
-| `I8-escala` | −0,880 | −0,880 | **−0,880** |
+| `I3-grande-apertado` | −0,937 ± 0,013 | −0,029 | **+0,257** |
+| `I4-pesos-extremos` | −0,941 ± 0,000 | −0,525 | **−0,093** |
+| `I7-horizonte-longo` | −0,847 ± 0,022 | +0,000 | **+0,655** |
+| `I8-escala` | −0,880 ± 0,000 | −0,880 | **−0,880** |
+| I1, I2, I5, I6 | indefinida | indefinida | indefinida |
+| **Agregado (Fisher z, n = 4)** | **−0,909** | **−0,460** | **−0,106** |
+
+O agregado vem de `CorrelationAggregate`, o **único** método sancionado — a §7 exige rodá-lo depois
+de qualquer mudança na fitness. As quatro instâncias saturadas ficam de fora em vez de entrarem como
+zero: elas não foram medidas como "sem correlação", foram medidas como "indefinida". Com n = 4, os
+intervalos de confiança são largos (o de `06` cruza o zero), então **a direção da trajetória é
+sólida e o valor pontual de cada etapa não é preciso** — dizer "converge para zero" é defensável,
+dizer "é exatamente −0,106" não.
 
 **A causa foi identificada na etapa 06 e não era a que `05` supunha.** A limitação registrada aqui
 atribuía a anti-correlação ao aperto do orçamento. Três varreduras controladas

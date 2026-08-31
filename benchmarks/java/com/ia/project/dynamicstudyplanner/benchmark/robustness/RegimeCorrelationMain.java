@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.benchmark.harness.StrategyOutcome;
 import com.ia.project.dynamicstudyplanner.benchmark.instance.BenchmarkInstance;
 import com.ia.project.dynamicstudyplanner.benchmark.instance.HighLoadInstanceLibrary;
 import com.ia.project.dynamicstudyplanner.benchmark.instance.InstanceLibrary;
+import com.ia.project.dynamicstudyplanner.benchmark.metric.CorrelationAggregate;
 import com.ia.project.dynamicstudyplanner.benchmark.metric.Spearman;
 
 import java.io.IOException;
@@ -33,7 +34,19 @@ import java.util.Locale;
  */
 public final class RegimeCorrelationMain {
 
+    /**
+     * Repetitions per instance for the stochastic planners.
+     * <p>
+     * <b>Deliberately 5, while {@code BenchmarkMain} uses 7.</b> This class runs three sweeps over
+     * ~30 instances and the extra repetitions bought nothing measurable, so the cheaper setting was
+     * kept. The consequence is that the same instance can be quoted at 76.8% here and 76.6% in the
+     * baselines report - sampling noise, not disagreement. Any document quoting both has to say
+     * which is which (gap G10, docs/revisao-ag/07-correcao-metrica-e-ausubel.md §6).
+     */
     private static final int REPETITIONS = 5;
+
+    /** Planners correlated per instance, and therefore the sample size behind each coefficient. */
+    private static final int STRATEGIES_PER_INSTANCE = 6;
 
     /** One measured point: an instance, its demand ratio, and how fitness relates to retention there. */
     private record RegimePoint(
@@ -85,6 +98,9 @@ public final class RegimeCorrelationMain {
                     p.retentionSpreadPp(), p.bestRetention(), p.gaRetention());
         }
 
+        System.out.printf(Locale.ROOT, "%nAgregado da varredura 2: %s%n",
+                aggregateOf(byCountPoints).format());
+
         List<BenchmarkInstance> byDispersion = HighLoadInstanceLibrary.byWeightDispersion();
         List<RegimePoint> byDispersionPoints = measure(harness, byDispersion);
         System.out.println("\n## Varredura 3 — dispersao dos pesos do edital (n = 20, razao ~2.0 fixas)\n");
@@ -98,6 +114,9 @@ public final class RegimeCorrelationMain {
                     p.importanceDispersion(), rho,
                     p.retentionSpreadPp(), p.bestRetention(), p.gaRetention());
         }
+
+        System.out.printf(Locale.ROOT, "%nAgregado da varredura 3: %s%n",
+                aggregateOf(byDispersionPoints).format());
 
         List<RegimePoint> all = new ArrayList<>(byRatio);
         all.addAll(byCountPoints);
@@ -166,6 +185,25 @@ public final class RegimeCorrelationMain {
         System.out.printf(Locale.ROOT,
                 "A partir de qual razao a correlacao permanece negativa: **%.2f**%n",
                 firstPersistentlyNegative);
+
+        System.out.printf(Locale.ROOT, "%nAgregado das instancias originais: %s%n",
+                aggregateOf(points).format());
+    }
+
+    /**
+     * Summarises a set of measured points into one coefficient, through the only sanctioned method.
+     * <p>
+     * Pooling the observations into a single Spearman - what etapas 03 and 05 published - is invalid
+     * here and reverses the sign of the conclusion; see {@link CorrelationAggregate} and
+     * docs/revisao-ag/07-correcao-metrica-e-ausubel.md.
+     */
+    private static CorrelationAggregate.Result aggregateOf(List<RegimePoint> points) {
+        List<CorrelationAggregate.InstanceCorrelation> entries = new ArrayList<>(points.size());
+        for (RegimePoint p : points) {
+            entries.add(new CorrelationAggregate.InstanceCorrelation(
+                    p.instanceId(), p.correlation(), STRATEGIES_PER_INSTANCE));
+        }
+        return CorrelationAggregate.aggregate(entries);
     }
 
     private static void writeCsv(List<RegimePoint> points) throws IOException {

@@ -649,9 +649,18 @@ O cromossomo é `Map<Subject, Integer>`: quantidade, sem posição no calendári
   `t` não existe no genótipo. Nenhum termo adicionado a `Σ f(d_s)·I_s` pode representar
   esquecimento.
 - **Ausubel / pré-requisitos** é uma restrição de **ordem** (o pré-requisito precede o
-  dependente). Um mapa não tem ordem. Inexpressável por construção.
+  dependente). Um mapa não tem ordem. Inexpressável por construção **neste cromossomo**.
 - **Sweller** é uma restrição sobre uma **janela curta** (o dia). O plano macro não sabe o que
   acontece em cada dia. Só aproximável por agregados.
+
+> **Precisão acrescentada em 2026-08-31 (etapa 07, gap G9).** As três afirmações acima valem para o
+> cromossomo **macro**, que é o único que produção executa — e não para o repositório inteiro. Existe
+> um segundo cromossomo, `domain/tactical/TacticalStudyPlan : Map<TimeSlot, TacticalStudyBlock>`,
+> com posição temporal completa, já aceito pelo `FitnessEvaluator` sem mudança de assinatura
+> (`00-diagnostico.md` §1.9 o registra como andaime não cabeado). Ele não é produzido por nenhum AG,
+> então nada aqui muda na prática — mas a frase "inexpressável por construção", lida sem esse
+> qualificador, foi usada em etapas seguintes para justificar decisões, e essa cadeia precisou ser
+> corrigida em [`06-decisao-ausubel.md`](./06-decisao-ausubel.md) §2.3–§2.4.
 
 Esta é a razão pela qual §0 afirma que corrigir a fidelidade teórica e justificar o AG são o
 mesmo trabalho: os três fundamentos exigem uma coordenada temporal, e é exatamente ela que

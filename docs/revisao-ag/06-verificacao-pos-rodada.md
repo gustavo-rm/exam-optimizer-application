@@ -8,6 +8,21 @@ caracterização executados, e reconstrução dos commits `07c99da` (etapa 03) e
 **Nada foi corrigido nesta etapa.** O único código adicionado é um teste de caracterização, que
 documenta comportamento atual e não o altera.
 
+> ## ⚠ Nota de atualização — 2026-08-31 (etapa 07)
+>
+> Os dois achados principais deste relatório (§5.2 e §3.2) foram **corrigidos na etapa 07**, e as
+> pendências G1–G11 da §7 têm agora status consolidado em
+> [`README.md`](./README.md). Duas atualizações de número afetam a leitura deste documento:
+>
+> 1. **A média aritmética simples usada aqui era um substituto ad hoc**, escolhido durante a
+>    verificação para demonstrar que o empilhamento invertia o sinal. O método canônico definido na
+>    etapa 07 é a **transformada z de Fisher** ponderada por `n−3`
+>    (`benchmarks/…/metric/CorrelationAggregate.java`). Os valores mudam de
+>    −0,910 / −0,358 / −0,015 para **−0,909 / −0,460 / −0,106**; a conclusão — o empilhamento
+>    inverte o sinal, a trajetória real converge para zero sem cruzá-lo — é a mesma.
+> 2. **A baseline da etapa 03 foi remedida** em 10 execuções e passa a ser reportada como
+>    média ± desvio-padrão. Ver [`07-correcao-metrica-e-ausubel.md`](./07-correcao-metrica-e-ausubel.md).
+
 ---
 
 ## 0. Resumo executivo
@@ -24,8 +39,9 @@ documenta comportamento atual e não o altera.
 **O achado principal não é sobre Ausubel.** É que a frase da etapa 05 *"o sinal agregado inverteu"* —
 a evidência de manchete de que a correção da fitness funcionou — repousa sobre uma estatística que
 empilha valores de fitness que o próprio código documenta como **não comparáveis entre instâncias**.
-Recalculada corretamente, a mesma medição da etapa 05 dá **−0,358**, não **+0,161**. A conclusão de
-fundo sobrevive; a evidência apresentada, não (§5.2).
+Recalculada corretamente, a mesma medição da etapa 05 dá **−0,460** (Fisher z; −0,358 pela média
+simples usada ad hoc aqui), não **+0,161**. A conclusão de fundo sobrevive; a evidência apresentada,
+não (§5.2).
 
 ---
 
@@ -264,22 +280,25 @@ um plano seja melhor. O ranqueamento conjunto mede sobretudo *qual instância é
 Recalculando com a estatística correta — **média das correlações por instância**, onde a comparação é
 legítima — sobre os mesmos dados, dos mesmos commits:
 
-| Estado | Agregado empilhado (citado nos relatórios) | Média das correlações definidas (correto) |
-|---|---|---|
-| Etapa 03 — fitness original | −0,654 | **−0,910** |
-| Etapa 05 — após correções | **+0,161** | **−0,358** |
-| Etapa 06 — após temperagem | +0,196 | **−0,015** |
+| Estado | Agregado empilhado (citado nos relatórios) | Média simples (ad hoc, aqui) | **Fisher z (canônico, etapa 07)** |
+|---|---|---|---|
+| Etapa 03 — fitness original | −0,654 | −0,910 | **−0,909** [IC95% −0,971; −0,734] |
+| Etapa 05 — após correções | **+0,161** | −0,358 | **−0,460** [IC95% −0,793; +0,085] |
+| Etapa 06 — após temperagem | +0,196 | −0,015 | **−0,106** [IC95% −0,597; +0,443] |
+
+*(Coluna Fisher z acrescentada em 2026-08-31. A média simples foi o substituto ad hoc desta
+verificação; o método sancionado é o da coluna à direita.)*
 
 As duas colunas contam histórias opostas para a etapa 05. A frase de manchete de
 `05-fitness-function.md` §6.4 — *"**O sinal agregado inverteu**"* — é verdadeira apenas da coluna
-inválida. Pela coluna correta, a etapa 05 **reduziu** a anti-correlação de −0,910 para −0,358, mas
+inválida. Pela coluna correta, a etapa 05 **reduziu** a anti-correlação de −0,909 para −0,460, mas
 não a inverteu nem chegou perto de zero.
 
-**A conclusão de fundo sobrevive, e sai reforçada:** a progressão −0,910 → −0,358 → **−0,015** é um
+**A conclusão de fundo sobrevive, e sai reforçada:** a progressão −0,909 → −0,460 → **−0,106** é um
 resultado melhor e mais honesto que o alegado, porque atribui à etapa 06 o mérito que a estatística
 empilhada escondia. Mas a frase, como escrita, não se sustenta em auditoria — e o número `+0,161`,
 que a sustentava, **foi silenciosamente removido** de `05-fitness-function.md` na reescrita do §6.4
-na etapa 06, sem que a frase que dele dependia fosse revista. O valor `−0,654` continua vivo em
+na etapa 06, sem que a frase que dele dependia fosse revista. O valor `−0,654` continuava vivo em
 `03-validacao.md` §5, com o mesmo defeito de construção.
 
 ### 5.3 **Achado: os números da etapa 03 não são reprodutíveis**
@@ -329,11 +348,15 @@ mas os dois números circulam nos documentos sem que a diferença de método sej
 Ordenada por severidade. **Nada aqui foi corrigido nesta etapa.** Itens já confirmados corretos e
 testados na §6 não aparecem.
 
+> **Status consolidado (2026-08-31):** esta lista foi movida para
+> [`README.md`](./README.md), que é agora a fonte única de status de G1–G11. As linhas abaixo ficam
+> como o enunciado original de cada gap; **o status atual está no índice**, não aqui.
+
 ### Severidade 1 — evidência que não sustenta a conclusão que apoia
 
 | # | Gap | Evidência | Por que é o mais grave |
 |---|---|---|---|
-| **G1** | **A correlação agregada empilha fitness não comparável entre instâncias.** `05` §6.4 (versão da etapa 05) e `03` §5 apoiam a frase "o sinal agregado inverteu" numa estatística que, recalculada corretamente, dá **−0,358** e não **+0,161** | §5.2; `PlanMetrics.java` documenta a incomparabilidade | É a evidência de manchete de que a correção da fitness funcionou. Um auditor que refaça a conta chega ao sinal oposto |
+| **G1** | **A correlação agregada empilha fitness não comparável entre instâncias.** `05` §6.4 (versão da etapa 05) e `03` §5 apoiam a frase "o sinal agregado inverteu" numa estatística que, recalculada corretamente, dá **−0,460** e não **+0,161** | §5.2; `PlanMetrics.java` documenta a incomparabilidade | É a evidência de manchete de que a correção da fitness funcionou. Um auditor que refaça a conta chega ao sinal oposto |
 | **G2** | **A premissa "ordem é inexprimível por construção" é falsa sobre o repositório**, e `06-decisao-ausubel.md` §2.4 generaliza dela para "qualquer validador topológico escrito hoje seria vacuo" | §3.2, §4.2; `domain/tactical/TacticalStudyPlan.java` | Rótulo teórico sobre premissa incorreta — a mesma classe de defeito que a revisão apontou no multiplicador de lacuna |
 | **G3** | **A estimativa de esforço da opção (i) ignora andaime existente** — encoding temporal, crossover, mutação e reparo já escritos | §3.2; `06-decisao-ausubel.md` §2.1 itens 4-5 e §2.3 | Uma decisão de produto foi tomada sobre um custo estimado a partir de um ponto de partida que não é o real |
 

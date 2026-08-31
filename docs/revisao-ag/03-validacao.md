@@ -7,6 +7,30 @@
 **Dados brutos:** `benchmarks/results/resultados.csv`
 **Data:** 2026-08-30 · **Lógica do AG de produção: não alterada.**
 
+> ## ⚠ Nota de correção — 2026-08-31 (etapa 07)
+>
+> **Duas correções afetam a §5 deste documento. Elas não invalidam a conclusão, mas invalidam dois
+> números.** Detalhamento completo em
+> [`07-correcao-metrica-e-ausubel.md`](./07-correcao-metrica-e-ausubel.md).
+>
+> **1. A linha "Agregado (48 observações) = −0,654" era estatisticamente inválida.** Ela empilhava
+> as 48 observações (8 instâncias × 6 planejadores) num único Spearman, ranqueando valores de
+> fitness entre instâncias que `benchmarks/…/metric/PlanMetrics.java` documenta como **não
+> comparáveis entre si**. O coeficiente resultante mede sobretudo qual instância é fácil. O método
+> canônico passa a ser a transformada z de Fisher sobre as correlações **por instância**
+> (`benchmarks/…/metric/CorrelationAggregate.java`), e por ele o valor correto desta etapa é
+> **−0,909 [IC95% −0,971; −0,734], n = 4 instâncias**. A linha foi substituída abaixo.
+>
+> **2. Os valores por instância são médias de uma medição não reprodutível.** Este documento foi
+> medido antes da correção de determinismo da etapa 04, quando a mutação sorteava de
+> `Math.random()`. Dez reexecuções do commit `07c99da` mostram `I3` = −0,937 ± 0,013 e
+> `I7` = −0,847 ± 0,022 — as três casas decimais originais sugeriam uma precisão que a medição não
+> tinha. A tabela abaixo passa a trazer média ± desvio-padrão sobre 10 execuções, e **esta é a
+> baseline "antes" oficial** para qualquer comparação futura.
+>
+> A conclusão central da §5 — *a fitness estava fortemente anti-correlacionada com a retenção* —
+> **sai reforçada**: pelo método correto o agregado é −0,909, mais negativo que o −0,654 publicado.
+
 O `00-diagnostico.md` §5.2 registrou explicitamente *"comparação empírica contra alternativa mais
 simples: nenhum encontrado"*. Este documento fecha essa lacuna.
 
@@ -238,14 +262,22 @@ Em I1, I2, I5 e I6 a retenção satura em 100% para todos os métodos — não d
 Correlação de Spearman entre fitness e % na janela de retenção, sobre as 6 estratégias de cada
 instância:
 
-| Instância | ρ (fitness × retenção) | Amplitude da retenção |
-|---|---|---|
-| `I3-grande-apertado` | **−0,941** | 8,6 pp |
-| `I4-pesos-extremos` | **−0,941** | 50,0 pp |
-| `I7-horizonte-longo` | **−0,833** | 7,6 pp |
-| `I8-escala` | **−0,880** | 2,5 pp |
-| I1, I2, I5, I6 | indefinida | 0,0 pp (saturada em 100%) |
-| **Agregado (48 observações)** | **−0,654** | — |
+*(Tabela corrigida em 2026-08-31 — ver nota no topo. Média ± desvio-padrão sobre **10 execuções**
+do commit `07c99da`, porque naquele commit o AG ainda não era reprodutível. Os valores originalmente
+publicados — `I3` −0,941, `I7` −0,833 — estão dentro da faixa observada, mas eram pontos de uma única
+execução.)*
+
+| Instância | ρ (fitness × retenção) | Desvio-padrão | Faixa observada | Amplitude da retenção |
+|---|---|---|---|---|
+| `I3-grande-apertado` | **−0,937** | 0,013 | −0,941 a −0,899 | 8,6 pp |
+| `I4-pesos-extremos` | **−0,941** | 0,000 | −0,941 | 50,0 pp |
+| `I7-horizonte-longo` | **−0,847** | 0,022 | −0,878 a −0,833 | 7,6 pp |
+| `I8-escala` | **−0,880** | 0,000 | −0,880 | 2,5 pp |
+| I1, I2, I5, I6 | indefinida | — | — | 0,0 pp (saturada em 100%) |
+| **Agregado (Fisher z, n = 4 instâncias)** | **−0,909** | — | IC95% −0,971 a −0,734 | — |
+
+~~| **Agregado (48 observações)** | **−0,654** | — |~~ — **linha retirada: método inválido**, ver
+nota de correção no topo.
 
 **Nas quatro instâncias em que a métrica de negócio consegue discriminar, a correlação é fortemente
 negativa. Em I4 a inversão é quase perfeita e monotônica:** o método com a maior fitness
