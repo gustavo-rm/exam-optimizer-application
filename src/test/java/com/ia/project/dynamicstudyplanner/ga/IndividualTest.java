@@ -31,12 +31,12 @@ class IndividualTest {
         EvolutionContext context = EvolutionContext.of(importance, constraints, null, evaluator, null, null, null, 180, 4, 20);
 
         // Act
-        // A importancia e normalizada para o simplex antes de ponderar (05-fitness-function.md):
-        // com uma unica materia, o peso normalizado e 1.0, entao fitness = ln(1 + 5) = 1.7917.
+        // Peso normalizado 1.0 (materia unica) x maestria com teto: tau(load 3) = 10 dias, entao
+        // mastery(5) = 1 - exp(-5/10) = 0.39347. Ver docs/revisao-ag/05-fitness-function.md.
         double fitness = individual.calculateFitness(context);
 
         // Assert
-        assertThat(fitness).isCloseTo(1.7917, org.assertj.core.data.Offset.offset(0.001));
+        assertThat(fitness).isCloseTo(0.39347, org.assertj.core.data.Offset.offset(0.0001));
     }
 
     @Test
@@ -60,10 +60,10 @@ class IndividualTest {
         EvolutionContext context = EvolutionContext.of(importance, constraints, null, evaluator, null, null, null, 180, 4, 20);
 
         // Act
-        // ln(1 + 1) = 0.6931 com peso normalizado 1.0; a violacao da constraint aplica 0.5.
+        // mastery(1) = 1 - exp(-1/10) = 0.09516 com peso 1.0; a violacao da constraint aplica 0.5.
         double fitness = individual.calculateFitness(context);
 
         // Assert
-        assertThat(fitness).isCloseTo(0.3466, org.assertj.core.data.Offset.offset(0.001));
+        assertThat(fitness).isCloseTo(0.04758, org.assertj.core.data.Offset.offset(0.0001));
     }
 }

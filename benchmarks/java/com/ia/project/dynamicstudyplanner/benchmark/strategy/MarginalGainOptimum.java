@@ -11,27 +11,26 @@ import java.util.Map;
 import java.util.PriorityQueue;
 
 /**
- * Reference solver — the exact optimum of the objective the production fitness actually maximises.
+ * Reference solver — the exact optimum of the syllabus-mastery objective {@code O1} alone.
  * <p>
- * This is not one of the three baselines the task asked for. It is included because the audit
- * (docs/revisao-ag/01-auditoria-fitness.md §1.3, §3.4) derived that, once the inert components are
- * removed, the production fitness reduces to
+ * This is not one of the three baselines the task asked for. It exists to keep an analytical claim
+ * measurable. {@code O1} is
  *
  * <pre>
- *   maximise  sum_s  I_s * ln(1 + d_s)
+ *   maximise  sum_s  normalizedImportance(s) * (1 - exp(-d_s / tau_s))
  *   s.t.      sum_s d_s = D,   d_s &gt;= m_s,   d_s integer
  * </pre>
  *
- * which is a separable concave maximisation under a budget constraint with box lower bounds. For
- * that shape, allocating each remaining day to the subject with the largest marginal gain
- * {@code I_s * (ln(2 + d_s) - ln(1 + d_s))} is provably optimal — the marginal gains are decreasing
- * in {@code d_s}, so the standard exchange argument applies. Cost is O(D log n).
+ * a separable concave maximisation under a budget constraint with box lower bounds. For that shape,
+ * handing each remaining day to the subject with the largest marginal gain is provably optimal — the
+ * gains decrease in {@code d_s}, so the standard exchange argument applies. Cost is O(D log n),
+ * microseconds against the GA's tens of milliseconds.
  * <p>
- * Including it turns an analytical claim into a measurable one. If the GA never beats this solver,
- * the audit's central finding is confirmed empirically: the GA is approximating, stochastically, a
- * problem that has a closed-form answer. If the GA <em>does</em> beat it on some instance, then some
- * component the audit judged inert is in fact active, and the audit needs revising. Either outcome
- * is informative, which is why this column belongs in the report.
+ * <b>It is the optimum of O1, not of the full fitness.</b> While O1 was the only objective, the GA
+ * could at best tie this solver, which is what docs/revisao-ag/03-validacao.md measured and what
+ * made the GA hard to justify. Once objectives that are not separable in {@code d_s} join the
+ * aggregate, this solver stops being an upper bound and the gap between it and the GA becomes the
+ * measurable value of running a search at all.
  */
 public final class MarginalGainOptimum implements PlanningStrategy {
 
@@ -56,7 +55,7 @@ public final class MarginalGainOptimum implements PlanningStrategy {
         Map<Subject, Integer> days = Allocations.atMinimums(subjects, context);
         int remaining = Allocations.remainingBudget(days, instance.totalStudyDays());
 
-        Map<Subject, Double> importance = context.importanceScores();
+        Map<Subject, Double> importance = context.normalizedImportance();
 
         // Max-heap on marginal gain. Ties break on subject name so the result is reproducible.
         record Candidate(Subject subject, double gain) {
@@ -81,9 +80,25 @@ public final class MarginalGainOptimum implements PlanningStrategy {
         return new StudyPlan(days);
     }
 
-    /** Gain from moving subject {@code s} from {@code d} days to {@code d + 1}. */
+    /**
+     * Gain from moving subject {@code s} from {@code d} days to {@code d + 1}, under the syllabus
+     * mastery objective {@code O1}.
+     * <p>
+     * Mirrors {@code ScoreGainObjective}: {@code importance * (1 - exp(-d/tau))}, so the marginal
+     * gain is {@code importance * (exp(-d/tau) - exp(-(d+1)/tau))}. The curve is concave and
+     * separable, so greedy on this quantity is the exact optimum <b>of O1 alone</b>. It stops being
+     * the optimum of the full fitness as soon as non-separable terms join the aggregate — which is
+     * the point at which the GA stops being redundant.
+     */
     private static double marginalGain(Map<Subject, Double> importance, Subject subject, int currentDays) {
         double weight = importance.getOrDefault(subject, 0.0);
-        return weight * (Math.log(2.0 + currentDays) - Math.log(1.0 + currentDays));
+        double tau = TAU_AT_AVERAGE_LOAD * Math.max(1, subject.cognitiveLoad()) / AVERAGE_COGNITIVE_LOAD;
+        return weight * (Math.exp(-currentDays / tau) - Math.exp(-(currentDays + 1) / tau));
     }
+
+    /** Kept in sync with {@code ScoreGainObjective.TAU_AT_AVERAGE_LOAD}. */
+    private static final double TAU_AT_AVERAGE_LOAD = 10.0;
+
+    /** Kept in sync with {@code ScoreGainObjective.AVERAGE_COGNITIVE_LOAD}. */
+    private static final double AVERAGE_COGNITIVE_LOAD = 3.0;
 }

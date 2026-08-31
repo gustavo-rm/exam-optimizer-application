@@ -33,9 +33,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  *       reproducible per seed in docs/revisao-ag/04-robustez.md. Over 7 repetitions the worst
  *       seed-to-seed spread on the instances covered by this assertion is <b>0.286%</b> of the
  *       mean. A 2% threshold sits roughly 7x above that, so this test does not flake.</li>
- *   <li><b>Detection power.</b> The one real deficit the benchmark found is <b>6.18%</b>
- *       (instance {@code I4-pesos-extremos}). A 2% threshold is comfortably below that, so a
- *       regression of that magnitude appearing on any other instance would be caught.</li>
+ *   <li><b>Detection power.</b> The worst deficit this benchmark ever recorded was <b>6.18%</b>
+ *       (instance {@code I4-pesos-extremos}, before the fitness corrections of
+ *       docs/revisao-ag/05-fitness-function.md). A 2% threshold is comfortably below that, so a
+ *       regression of that magnitude would be caught.</li>
  *   <li><b>Why not tighter.</b> Below roughly 0.5% the assertion would start tracking RNG noise on
  *       the harder instances rather than planner quality, and would fail for reasons no code change
  *       could fix.</li>
@@ -43,16 +44,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <h2>The known-deficiency list</h2>
  *
- * {@code I4-pesos-extremos} currently fails the 2% contract by a wide margin, and this stage of the
- * review is explicitly measurement-only — the GA must not be modified to make the test pass. Rather
- * than weaken the threshold to accommodate a real defect, or disable the assertion and lose the
- * signal, the failing instance is pinned in {@link #KNOWN_DEFICIENT_INSTANCES} and asserted
- * <em>exactly</em>. That makes the suite fail in both directions:
+ * {@link #KNOWN_DEFICIENT_INSTANCES} is asserted <em>exactly</em> rather than as an upper bound, so
+ * the suite fails in both directions:
  * <ul>
  *   <li>a new instance dropping below the threshold is an unnoticed regression;</li>
- *   <li>{@code I4} climbing back above it is an unrecorded improvement, and the list should be
+ *   <li>an instance climbing back above it is an unrecorded improvement, and the list should be
  *       updated to lock the gain in.</li>
  * </ul>
+ * The set is empty today. It held {@code I4-pesos-extremos} while the objective was the unbounded
+ * {@code ln(1 + d)}; the second direction of this assertion is what forced the list to be emptied
+ * once the mastery curve fixed it, instead of the improvement going unrecorded.
  */
 @DisplayName("AG de producao versus baselines simples")
 class GeneticAlgorithmVsBaselinesTest {
@@ -63,12 +64,14 @@ class GeneticAlgorithmVsBaselinesTest {
     /**
      * Instances where the GA is known to lose to the greedy baseline today.
      * <p>
-     * Measured deficit at the time of writing: {@code I4-pesos-extremos}, -6.18%. Root cause in
-     * docs/revisao-ag/03-validacao.md §4: the optimum concentrates ~81% of the budget on a single
-     * subject, and {@code CreepMutation}'s +/-3 day steps cannot cross that distance from a diffuse
-     * random start within the configured 100 generations.
+     * <b>Empty since the fitness corrections of docs/revisao-ag/05-fitness-function.md.</b>
+     * {@code I4-pesos-extremos} used to sit here at -6.18%: the old unbounded {@code ln(1 + d)}
+     * objective made the optimum concentrate ~81% of the budget on one subject, a distance
+     * {@code CreepMutation}'s +/-3 day steps could not cross. Replacing it with a saturating mastery
+     * curve removed that concentration, and the GA now leads the greedy baseline on every instance.
+     * Keep this set empty: a name appearing here again is a regression, not a fact to record.
      */
-    private static final Set<String> KNOWN_DEFICIENT_INSTANCES = Set.of("I4-pesos-extremos");
+    private static final Set<String> KNOWN_DEFICIENT_INSTANCES = Set.of();
 
     /**
      * Repetitions for the stochastic planners. Seven matches the report; five keeps the suite under
