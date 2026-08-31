@@ -11,6 +11,14 @@ import java.util.Map;
 
 /**
  * Objective to maximize the expected score gain based on allocated study days.
+ * <p>
+ * Full rationale, formula and weight justification: {@code docs/revisao-ag/05-fitness-function.md}.
+ * <p>
+ * Importance is read from {@link EvolutionContext#normalizedImportance()} rather than the raw
+ * scores. Raw importance carries the exam's own units, and the API's validation limits let two
+ * subjects in the same sum differ by up to 250,000x, which made the allocation winner-take-all
+ * (docs/revisao-ag/01-auditoria-fitness.md §2.1.4). Normalising also makes the objective's scale
+ * independent of the exam, so several objectives can be summed without one drowning the others.
  */
 @Component
 public class ScoreGainObjective implements FitnessObjective {
@@ -20,7 +28,7 @@ public class ScoreGainObjective implements FitnessObjective {
     @Override
     public double calculateReward(StudyPlan plan, EvolutionContext context) {
         double score = 0.0;
-        Map<Subject, Double> importanceScores = context.importanceScores();
+        Map<Subject, Double> importanceScores = context.normalizedImportance();
 
         for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
             Subject subject = entry.getKey();

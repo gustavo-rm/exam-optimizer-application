@@ -25,12 +25,12 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.DropoutRiskPenalty;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FitnessPenalty;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
+import com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.engagement.DropoutRiskPredictor;
 import com.ia.project.dynamicstudyplanner.service.calculation.fatigue.FatigueAndEnergyModel;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -159,14 +159,26 @@ public final class BenchmarkHarness {
         Map<Subject, Double> importance =
                 importanceCalculator.calculatePersonalizedImportance(instance.exam(), instance.profile());
 
-        return new EvolutionContext(
+        // Mirrors StudyOptimizerService.prepareContext field for field, including the planning data
+        // the corrected fitness terms read. The one deliberate difference is planStartDate: the
+        // service reads the wall clock, the harness uses the instance's fixed anchor so that
+        // schedule-derived metrics stay reproducible on any day (pendencia P7 in 04-robustez.md).
+        int horizonDays = Math.max(1, (int) instance.horizonDays());
+        int hoursPerStudyDay = Math.max(1,
+                (int) Math.ceil(instance.profile().getTotalWeeklyHours() / 7.0));
+        int maxDailyLoad = new CognitiveLoadCalculator().calculate(instance.profile(), instance.exam());
+
+        return EvolutionContext.of(
                 importance,
                 minimumDays,
                 instance.profile().getState(),
                 fitnessEvaluator,
                 new RetentionProfile(Map.of()),
-                LocalDate.now(),
-                EngagementProfile.baseline()
+                instance.planStartDate(),
+                EngagementProfile.baseline(),
+                horizonDays,
+                hoursPerStudyDay,
+                maxDailyLoad
         );
     }
 }

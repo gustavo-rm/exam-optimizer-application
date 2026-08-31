@@ -165,8 +165,8 @@ class GaEdgeCasesTest {
             // added in this stage now also throws instead of hanging if it is ever reached.
             Subject only = new Subject("Only", 10, 3);
             Individual individual = new Individual(new StudyPlan(Map.of(only, 40)));
-            EvolutionContext context = new EvolutionContext(
-                    Map.of(only, 5.0), Map.of(only, 1), null, null, null, null, null);
+            EvolutionContext context = EvolutionContext.of(
+                    Map.of(only, 5.0), Map.of(only, 1), null, null, null, null, null, 180, 4, 20);
 
             Individual mutated = new CreepMutation().mutate(individual, 1.0, context);
 

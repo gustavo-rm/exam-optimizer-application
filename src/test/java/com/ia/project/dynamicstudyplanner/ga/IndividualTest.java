@@ -28,14 +28,15 @@ class IndividualTest {
                 ),
                 java.util.List.of(new com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint())
         );
-        EvolutionContext context = new EvolutionContext(importance, constraints, null, evaluator, null, null, null);
+        EvolutionContext context = EvolutionContext.of(importance, constraints, null, evaluator, null, null, null, 180, 4, 20);
 
         // Act
-        // knowledge = ln(1 + 5) = 1.7917. fitness = 10 * 1.7917 = 17.917
+        // A importancia e normalizada para o simplex antes de ponderar (05-fitness-function.md):
+        // com uma unica materia, o peso normalizado e 1.0, entao fitness = ln(1 + 5) = 1.7917.
         double fitness = individual.calculateFitness(context);
 
         // Assert
-        assertThat(fitness).isCloseTo(17.917, org.assertj.core.data.Offset.offset(0.01));
+        assertThat(fitness).isCloseTo(1.7917, org.assertj.core.data.Offset.offset(0.001));
     }
 
     @Test
@@ -56,13 +57,13 @@ class IndividualTest {
                 ),
                 java.util.List.of(new com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint())
         );
-        EvolutionContext context = new EvolutionContext(importance, constraints, null, evaluator, null, null, null);
+        EvolutionContext context = EvolutionContext.of(importance, constraints, null, evaluator, null, null, null, 180, 4, 20);
 
         // Act
-        // knowledge = ln(1 + 1) = 0.693. Base = 6.93. Penalty (0.5) = 3.465
+        // ln(1 + 1) = 0.6931 com peso normalizado 1.0; a violacao da constraint aplica 0.5.
         double fitness = individual.calculateFitness(context);
 
         // Assert
-        assertThat(fitness).isCloseTo(3.465, org.assertj.core.data.Offset.offset(0.01));
+        assertThat(fitness).isCloseTo(0.3466, org.assertj.core.data.Offset.offset(0.001));
     }
 }
