@@ -39,8 +39,16 @@ public final class MetricsCalculator {
      */
     private static final int ASSUMED_RECALL_GRADE = 4;
 
-    /** Production threshold below which {@code HybridRetentionEngine} makes a review mandatory. */
-    private static final double RETENTION_WINDOW_THRESHOLD = 0.85;
+    /**
+     * Production threshold below which {@code HybridRetentionEngine} makes a review mandatory.
+     * <p>
+     * Read from the engine rather than duplicated, so the business metric and the production rule
+     * cannot drift apart. It was a hardcoded 0.85 here while the engine also hardcoded 0.85; the
+     * engine's value has since been corrected to {@code e^-1} for consistency with its SM-2 half
+     * (docs/revisao-ag/01-auditoria-fitness.md Apendice C), and this metric follows it.
+     */
+    private static final double RETENTION_WINDOW_THRESHOLD =
+            HybridRetentionEngine.MANDATORY_REVIEW_THRESHOLD;
 
     private final FitnessEvaluator fitnessEvaluator;
     private final StudyScheduleGenerator scheduleGenerator = new StudyScheduleGenerator();
