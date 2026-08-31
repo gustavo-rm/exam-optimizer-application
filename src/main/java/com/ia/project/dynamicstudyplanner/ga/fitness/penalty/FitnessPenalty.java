@@ -4,8 +4,14 @@ import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 /**
- * Represents a penalty to apply when an individual violates soft constraints
- * or has undesirable traits (e.g., high fatigue).
+ * A multiplicative penalty for plans that are unusable rather than merely worse.
+ * <p>
+ * Reserved for the tactical path: these implementations need a {@code TacticalStudyPlan} to have
+ * anything to measure, so in the macro path they all return 1.0 by design. Scoring that varies by
+ * degree belongs in a {@code FitnessObjective} instead, which is additive and normalised.
+ * <p>
+ * See {@code docs/revisao-ag/05-fitness-function.md} for where penalties sit in the aggregation and
+ * why the graded terms were moved out of here.
  */
 public interface FitnessPenalty {
     /**

@@ -11,6 +11,10 @@ import org.springframework.stereotype.Service;
  * This calculator uses a heuristic model to estimate a student's "mental energy budget,"
  * removing the need for subjective user input and making the system more intelligent
  * and self-calibrating.
+ * <p>
+ * The budget it returns is what {@code CognitiveLoadObjective} scores each plan against, and it
+ * already folds in stress, fatigue and motivation — which is how the student's psychological state
+ * reaches the optimizer at all. See {@code docs/revisao-ag/05-fitness-function.md} §3.4.
  */
 @Service
 public final class CognitiveLoadCalculator {

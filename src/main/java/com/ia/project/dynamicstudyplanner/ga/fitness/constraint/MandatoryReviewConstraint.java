@@ -14,6 +14,11 @@ import java.util.Set;
 
 /**
  * Checks if a generated study plan fails to include mandatory spaced repetition reviews.
+ * <p>
+ * <b>Tactical path only.</b> It short-circuits to valid for a plain {@code StudyPlan}, so it is
+ * neutral in the macro path by design. Retention reaches the macro fitness through
+ * {@code RetentionObjective} instead, which is graded rather than binary. See
+ * {@code docs/revisao-ag/05-fitness-function.md} §2 and §3.3.
  */
 @Component
 public class MandatoryReviewConstraint implements ConstraintValidator {

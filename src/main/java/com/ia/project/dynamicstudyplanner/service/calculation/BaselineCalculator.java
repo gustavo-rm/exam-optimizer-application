@@ -14,6 +14,12 @@ import java.util.stream.Collectors;
  * This class translates the abstract concept of "difficulty" into a concrete number of days.
  * It uses a normalization technique to ensure the calculated days are always within a reasonable
  * and practical range, preventing impossibly large study plans.
+ * <p>
+ * The floor it produces feeds {@code MinimumDaysConstraint}. Two caveats are recorded in the review:
+ * the "perceived difficulty" it computes reduces algebraically to the importance score
+ * (docs/revisao-ag/01-auditoria-fitness.md §2.1.5), and the floor grows as {@code 15 x n} for
+ * equally weighted subjects, which can exceed the budget the API accepts
+ * (docs/revisao-ag/04-robustez.md, pendencia P5).
  */
 @Service
 public class BaselineCalculator {

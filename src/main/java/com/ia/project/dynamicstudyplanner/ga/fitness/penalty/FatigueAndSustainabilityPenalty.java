@@ -9,6 +9,12 @@ import org.springframework.stereotype.Component;
 /**
  * Penalizes plans that are unsustainable given the student's psychological and physical state.
  * It integrates the advanced FatigueAndEnergyModel to determine burnout risks.
+ * <p>
+ * <b>Tactical path only.</b> The macro branch is deliberately neutral: the student's state now
+ * reaches the optimizer through the daily budget that {@code CognitiveLoadObjective} scores against,
+ * where it can actually distinguish one plan from another. See
+ * {@code docs/revisao-ag/05-fitness-function.md} §3.4 and the comment in
+ * {@link #calculatePenaltyFactor}.
  */
 @Component
 public class FatigueAndSustainabilityPenalty implements FitnessPenalty {

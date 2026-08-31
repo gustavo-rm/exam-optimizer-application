@@ -7,6 +7,10 @@ import java.time.LocalDate;
 
 /**
  * Interface defining the cognitive science algorithms for memory retention.
+ * <p>
+ * The macro fitness does not call this interface: its retention term is a mean-field approximation
+ * derived from the same forgetting curve, because the macro chromosome has no calendar. See
+ * {@code docs/revisao-ag/05-fitness-function.md} §3.3 for the derivation and its limits.
  */
 public interface RetentionAlgorithm {
 
