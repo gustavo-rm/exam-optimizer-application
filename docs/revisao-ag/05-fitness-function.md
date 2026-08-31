@@ -181,12 +181,16 @@ A aprendizagem significativa de Ausubel é uma restrição de **ordem** — mate
 subsunçores já presentes, o que implica que o pré-requisito precede o dependente. **O cromossomo
 macro não tem ordem**, então isso é inexprimível por construção, não por omissão (`01` §3.3).
 
-O `README.md` do projeto atribui Ausubel ao multiplicador de lacuna de conhecimento. Essa leitura
-merece escrutínio e **não deve ser repetida em material técnico**: a regra implementada é "quanto
-maior a lacuna, maior a prioridade", monotônica e sem noção de ancoragem. Ausubel implica o oposto
-em um caso importante — material cujos pré-requisitos faltam deveria ser **adiado** até que o
-pré-requisito seja coberto, não promovido. A heurística de triagem é defensável por si; chamá-la de
-Ausubel não é.
+O `README.md` **atribuía** Ausubel ao multiplicador de lacuna de conhecimento. A atribuição estava
+errada e **foi removida** — a regra implementada é "quanto maior a lacuna, maior a prioridade",
+monotônica e sem noção de ancoragem, enquanto Ausubel implica o oposto num caso importante: material
+cujos pré-requisitos faltam deveria ser **adiado** até que o pré-requisito seja coberto, não
+promovido. A heurística de triagem é defensável por si; chamá-la de Ausubel não era.
+
+A decisão de não implementar Ausubel nesta versão, as duas opções consideradas e os gatilhos para
+reabri-la estão em [`06-decisao-ausubel.md`](./06-decisao-ausubel.md). Registro adicional levantado
+lá: **a API não coleta pré-requisitos** — `SubjectDto` e `Subject` não têm o campo —, então o
+bloqueio não é apenas de encoding, é também de dado e de conteúdo editorial por edital.
 
 **O que o produto pode afirmar hoje:** a lacuna de conhecimento declarada pelo aluno personaliza a
 importância de cada disciplina. Nada além disso.
