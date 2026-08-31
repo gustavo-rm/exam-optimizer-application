@@ -20,6 +20,8 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.ConstraintValida
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.FitnessObjective;
+import com.ia.project.dynamicstudyplanner.ga.fitness.objective.CognitiveLoadObjective;
+import com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.DropoutRiskPenalty;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty;
@@ -72,7 +74,11 @@ public final class BenchmarkHarness {
      * comparison, so the lists are spelled out rather than discovered.
      */
     public static FitnessEvaluator productionFitnessEvaluator() {
-        List<FitnessObjective> objectives = List.of(new ScoreGainObjective());
+        List<FitnessObjective> objectives = List.of(
+                new ScoreGainObjective(),
+                new RetentionObjective(),
+                new CognitiveLoadObjective()
+        );
         List<FitnessPenalty> penalties = List.of(
                 new DropoutRiskPenalty(new DropoutRiskPredictor()),
                 new FatigueAndSustainabilityPenalty(new FatigueAndEnergyModel())

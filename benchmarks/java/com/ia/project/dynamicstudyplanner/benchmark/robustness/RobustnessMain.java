@@ -145,7 +145,7 @@ public final class RobustnessMain {
             double maxPct = 100.0 * maxMoved / instance.totalStudyDays();
 
             System.out.printf(Locale.ROOT,
-                    "| `%s` | %.2f | %.3f | %.3f%% | %.3f%% | %d/%d | %.1f | %.1f | %.1f%% |%n",
+                    "| `%s` | %.5f | %.6f | %.3f%% | %.3f%% | %d/%d | %.1f | %.1f | %.1f%% |%n",
                     instance.id(), mean, sd, cv, amplitude, distinct.size(), SEEDS.length,
                     avgMoved, maxMoved, maxPct);
 
@@ -191,7 +191,7 @@ public final class RobustnessMain {
             double best = context.fitnessEvaluator()
                     .evaluate(optimum.plan(instance, context, 0L), context);
 
-            System.out.printf("#### `%s` (otimo exato = %.1f)%n%n", instance.id(), best);
+            System.out.printf("#### `%s` (otimo exato = %.5f)%n%n", instance.id(), best);
             System.out.println("| Eixo | Valor | Qualidade (% do otimo) | Tempo medio (ms) |");
             System.out.println("|---|---|---|---|");
 

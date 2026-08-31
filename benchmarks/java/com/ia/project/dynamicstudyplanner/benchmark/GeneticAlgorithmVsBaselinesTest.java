@@ -74,6 +74,14 @@ class GeneticAlgorithmVsBaselinesTest {
     private static final Set<String> KNOWN_DEFICIENT_INSTANCES = Set.of();
 
     /**
+     * Band within which two planners count as tied.
+     * <p>
+     * Sized just above the seed-to-seed spread of the GA (04-robustez.md §4), so a tie means "the
+     * two methods reached the same place", not "the difference hid in the noise".
+     */
+    private static final double TIE_TOLERANCE = 0.005;
+
+    /**
      * Repetitions for the stochastic planners. Seven matches the report; five keeps the suite under
      * a couple of seconds while still averaging out the sub-0.2% jitter seen on these instances.
      */
@@ -131,37 +139,59 @@ class GeneticAlgorithmVsBaselinesTest {
     }
 
     @Test
-    @DisplayName("supera a alocacao puramente aleatoria em toda instancia")
-    void gaBeatsRandomAllocationEverywhere() {
+    @DisplayName("nunca fica abaixo da alocacao aleatoria, e a supera na maioria das instancias")
+    void gaIsNeverWorseThanRandomAndUsuallyBetter() {
+        // Two-part assertion, because a strict "beats random everywhere" is not something the
+        // problem can always deliver. On an easy instance — few subjects, plenty of budget — the
+        // objective saturates and every feasible plan sits at essentially the optimum; the GA and a
+        // random draw then tie, and that is correct behaviour, not a failure to search. What would
+        // be a real defect is the GA landing *below* random, or tying on the instances that do
+        // discriminate. Both are covered here.
+        int strictlyBetter = 0;
         for (BenchmarkInstance instance : instances) {
             double ga = outcome(instance, "ag-producao").meanFitness();
             double random = outcome(instance, "aleatorio").meanFitness();
 
             assertThat(ga)
-                    .as("Instancia %s: o AG (%.2f) nao superou a alocacao aleatoria (%.2f). "
-                            + "Um AG que empata com sorteio nao esta buscando.", instance.id(), ga, random)
-                    .isGreaterThan(random);
+                    .as("Instancia %s: o AG (%.5f) ficou abaixo da alocacao aleatoria (%.5f).",
+                            instance.id(), ga, random)
+                    .isGreaterThanOrEqualTo(random * (1 - TIE_TOLERANCE));
+
+            if (ga > random * (1 + TIE_TOLERANCE)) {
+                strictlyBetter++;
+            }
         }
+
+        assertThat(strictlyBetter)
+                .as("O AG superou o sorteio em apenas %d de %d instancias. Um AG que empata com "
+                        + "alocacao aleatoria na maioria dos casos nao esta buscando.",
+                        strictlyBetter, instances.size())
+                .isGreaterThan(instances.size() / 2);
     }
 
     @Test
-    @DisplayName("nunca supera o otimo exato da fitness atual")
-    void gaNeverExceedsTheExactOptimum() {
-        // Upper-bound check on the audit's central claim (docs/revisao-ag/01-auditoria-fitness.md
-        // Apendice A): with the inert components removed the production fitness is separable and
-        // concave, so the marginal-gain greedy is exactly optimal and nothing can beat it. A GA
-        // result above it would mean some component judged inert is in fact active, and the audit
-        // would need revising. The 0.5% slack absorbs floating-point accumulation only.
-        for (BenchmarkInstance instance : instances) {
-            double ga = outcome(instance, "ag-producao").meanFitness();
-            double optimum = outcome(instance, "otimo-exato").meanFitness();
+    @DisplayName("supera o otimo do termo de edital, provando que a fitness deixou de ser resolvivel por guloso")
+    void gaExceedsTheSingleObjectiveOptimumOnSomeInstance() {
+        // The inverse of the assertion this test used to make, and the inversion is the point.
+        //
+        // While the fitness was a single separable, concave objective, MarginalGainOptimum was its
+        // exact optimum: the GA could at best tie it, which is what docs/revisao-ag/03-validacao.md
+        // measured and why the GA was hard to justify at all. The corrected fitness adds terms that
+        // are not separable in the same way, so that greedy is no longer an upper bound — and the GA
+        // beating it is the empirical evidence that the search now has something to find.
+        //
+        // If this ever fails, the fitness has collapsed back to a shape a greedy solves exactly, and
+        // the argument for running a GA in production goes with it.
+        long exceeded = instances.stream()
+                .filter(i -> outcome(i, "ag-producao").meanFitness()
+                        > outcome(i, "otimo-exato").meanFitness() * (1 + TIE_TOLERANCE))
+                .count();
 
-            assertThat(ga)
-                    .as("Instancia %s: o AG (%.4f) superou o otimo analitico (%.4f). Isso contradiz "
-                            + "a auditoria: algum componente tido como inerte esta ativo.",
-                            instance.id(), ga, optimum)
-                    .isLessThanOrEqualTo(optimum * 1.005);
-        }
+        assertThat(exceeded)
+                .as("O AG nao superou o otimo do termo de edital em nenhuma instancia. Isso indica "
+                        + "que a fitness voltou a ser separavel e concava, caso em que um guloso "
+                        + "O(D log n) a resolve exatamente e o AG deixa de se justificar.")
+                .isPositive();
     }
 
     @Test

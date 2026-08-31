@@ -14,6 +14,8 @@ import com.ia.project.dynamicstudyplanner.ga.factory.StudyPlanFactory;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
+import com.ia.project.dynamicstudyplanner.ga.fitness.objective.CognitiveLoadObjective;
+import com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.DropoutRiskPenalty;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty;
@@ -362,7 +364,7 @@ class GaEdgeCasesTest {
 
     private static FitnessEvaluator fitnessEvaluator() {
         return new FitnessEvaluator(
-                List.of(new ScoreGainObjective()),
+                List.of(new ScoreGainObjective(), new RetentionObjective(), new CognitiveLoadObjective()),
                 List.of(new DropoutRiskPenalty(new DropoutRiskPredictor()),
                         new FatigueAndSustainabilityPenalty(new FatigueAndEnergyModel())),
                 List.of(new MinimumDaysConstraint(),

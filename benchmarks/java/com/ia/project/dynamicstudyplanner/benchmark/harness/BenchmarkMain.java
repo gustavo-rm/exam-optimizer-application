@@ -93,7 +93,7 @@ public final class BenchmarkMain {
         System.out.println("|---|---|---|---|---|---|---|---|---|");
         for (BenchmarkInstance i : instances) {
             Map<String, StrategyOutcome> byStrategy = index(outcomes, i.id());
-            System.out.printf(Locale.ROOT, "| `%s` | %.1f | %.1f | %.1f | %.1f | %.1f | %.1f | %.0f | %.0f |%n",
+            System.out.printf(Locale.ROOT, "| `%s` | %.5f | %.5f | %.5f | %.5f | %.5f | %.5f | %.0f | %.0f |%n",
                     i.id(),
                     byStrategy.get("ag-producao").meanFitness(),
                     byStrategy.get("guloso-prioridade").meanFitness(),
@@ -158,7 +158,7 @@ public final class BenchmarkMain {
                     : 100.0 * (o.maxFitness() - o.minFitness()) / o.meanFitness();
             worstCv = Math.max(worstCv, o.fitnessCoefficientOfVariationPct());
             worstRange = Math.max(worstRange, rangePct);
-            System.out.printf(Locale.ROOT, "| `%s` | %.1f | %.2f | %.1f | %.1f | %.3f%% | %.3f%% |%n",
+            System.out.printf(Locale.ROOT, "| `%s` | %.5f | %.6f | %.5f | %.5f | %.3f%% | %.3f%% |%n",
                     o.instanceId(), o.meanFitness(), o.stdDevFitness(),
                     o.minFitness(), o.maxFitness(), o.fitnessCoefficientOfVariationPct(), rangePct);
         }
