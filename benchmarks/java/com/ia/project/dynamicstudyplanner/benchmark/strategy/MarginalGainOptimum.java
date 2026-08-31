@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.benchmark.instance.BenchmarkInstance;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.fitness.objective.LearningModel;
 
 import java.util.Comparator;
 import java.util.List;
@@ -92,13 +93,7 @@ public final class MarginalGainOptimum implements PlanningStrategy {
      */
     private static double marginalGain(Map<Subject, Double> importance, Subject subject, int currentDays) {
         double weight = importance.getOrDefault(subject, 0.0);
-        double tau = TAU_AT_AVERAGE_LOAD * Math.max(1, subject.cognitiveLoad()) / AVERAGE_COGNITIVE_LOAD;
-        return weight * (Math.exp(-currentDays / tau) - Math.exp(-(currentDays + 1) / tau));
+        return weight * (LearningModel.mastery(subject, currentDays + 1)
+                - LearningModel.mastery(subject, currentDays));
     }
-
-    /** Kept in sync with {@code ScoreGainObjective.TAU_AT_AVERAGE_LOAD}. */
-    private static final double TAU_AT_AVERAGE_LOAD = 10.0;
-
-    /** Kept in sync with {@code ScoreGainObjective.AVERAGE_COGNITIVE_LOAD}. */
-    private static final double AVERAGE_COGNITIVE_LOAD = 3.0;
 }

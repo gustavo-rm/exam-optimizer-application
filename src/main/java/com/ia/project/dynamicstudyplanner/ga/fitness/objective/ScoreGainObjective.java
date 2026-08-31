@@ -14,8 +14,7 @@ import java.util.Map;
  *
  * <pre>
  *   O1(plan) = SUM_s  normalizedImportance(s) * mastery(s, days_s)
- *   mastery(s, d) = 1 - exp(-d / tau(s))
- *   tau(s) = TAU_AT_AVERAGE_LOAD * cognitiveLoad(s) / AVERAGE_COGNITIVE_LOAD
+ *   mastery(s, d) = 1 - exp(-d / tau(s))          [LearningModel]
  * </pre>
  *
  * Since the normalised importances sum to 1 and every mastery term lies in [0,1), the objective is
@@ -36,29 +35,16 @@ import java.util.Map;
  * <h2>Why tau scales with intrinsic cognitive load</h2>
  *
  * {@code tau} is the number of study days that brings a subject to roughly 63% mastery. Harder
- * material takes longer, so tau grows with {@code Subject.cognitiveLoad}, anchored so that a subject
- * of average difficulty (load 3, the same average {@code CognitiveLoadCalculator} assumes) needs
- * about 10 days. This is the first point at which {@code cognitiveLoad} influences the optimizer at
- * all: before this change, no active fitness component read it (auditoria §2.5.1).
+ * material takes longer, so tau grows with {@code Subject.cognitiveLoad}. It lives in
+ * {@link LearningModel}, shared with the retention objective so that "how long this subject takes
+ * to learn" and "how long its memory survives" cannot drift apart. This is the first point at which
+ * {@code cognitiveLoad} influences the optimizer at all: before this change, no active fitness
+ * component read it (auditoria §2.5.1).
  */
 @Component
 public class ScoreGainObjective implements FitnessObjective {
 
     private static final Logger log = LoggerFactory.getLogger(ScoreGainObjective.class);
-
-    /**
-     * Study days for an average-difficulty subject to reach ~63% mastery (one time constant).
-     * Twice that, about 20 days, reaches ~86%. Chosen to be consistent with the 15-day ceiling
-     * {@code BaselineCalculator} already uses for its hardest-subject floor, so the two components
-     * describe study effort on the same scale.
-     */
-    private static final double TAU_AT_AVERAGE_LOAD = 10.0;
-
-    /**
-     * The cognitive load treated as average. Matches {@code CognitiveLoadCalculator}'s
-     * {@code AVERAGE_LOAD_FACTOR}, so "average difficulty" means the same thing in both places.
-     */
-    private static final double AVERAGE_COGNITIVE_LOAD = 3.0;
 
     @Override
     public double calculateReward(StudyPlan plan, EvolutionContext context) {
@@ -74,27 +60,9 @@ public class ScoreGainObjective implements FitnessObjective {
                 log.warn("The subject '{}' does not have an importance score.", subject.name());
             }
 
-            score += importance * mastery(subject, days);
+            score += importance * LearningModel.mastery(subject, days);
         }
         return score;
-    }
-
-    /**
-     * Fraction of the subject mastered after {@code days} of study, in [0,1).
-     * <p>
-     * Exponential approach to an asymptote: fast early gains, saturating as the subject is learned.
-     */
-    private static double mastery(Subject subject, int days) {
-        if (days <= 0) {
-            return 0.0;
-        }
-        return 1.0 - Math.exp(-days / timeConstant(subject));
-    }
-
-    /** Days to reach ~63% mastery, growing with the subject's intrinsic difficulty. */
-    private static double timeConstant(Subject subject) {
-        int load = Math.max(1, subject.cognitiveLoad());
-        return TAU_AT_AVERAGE_LOAD * load / AVERAGE_COGNITIVE_LOAD;
     }
 
     /**
