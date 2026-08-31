@@ -12,9 +12,15 @@ import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleStatus;
  * @param meanRetentionAtExam Mean predicted recall probability across subjects on the exam date,
  *                           from the production {@code HybridRetentionEngine}. Range 0..1.
  * @param pctInRetentionWindow Fraction of subjects whose predicted recall on the exam date is at or
- *                           above the production {@code MANDATORY_REVIEW_THRESHOLD} of 0.85 — i.e.
- *                           the share of the syllabus still "inside the ideal retention window"
- *                           when the student sits the exam. Range 0..1.
+ *                           above the production {@code MANDATORY_REVIEW_THRESHOLD} — i.e. the share
+ *                           of the syllabus still "inside the ideal retention window" when the
+ *                           student sits the exam. Range 0..1. The threshold was a hardcoded 0.85
+ *                           here and in the engine; both now use {@code e^-1}, read from
+ *                           {@code HybridRetentionEngine} so the two cannot drift
+ *                           (docs/revisao-ag/01-auditoria-fitness.md Apendice C). Note this is a
+ *                           <b>threshold count</b>, so it reacts to the tail of the allocation and
+ *                           not to the weighted average O3 measures — the distinction that
+ *                           docs/revisao-ag/06-limite-troca-pesos.md turns on.
  * @param cognitiveOverloadDays Number of scheduled days whose total cognitive load exceeds the
  *                           budget from the production {@code CognitiveLoadCalculator}, measured on
  *                           a schedule built <b>without</b> the load-balancing pruner so the raw

@@ -29,13 +29,16 @@ import java.util.Random;
  * {@code TournamentSelection} operator set, and the same dummy retention and engagement profiles
  * the service injects. Nothing here is a transcription that could drift from production.
  * <p>
- * <b>On reproducibility.</b> Seeding {@link RandomProvider} pins selection, both crossovers and the
- * initial population, but <em>not</em> mutation: {@code AbstractMutationStrategy} decides whether to
- * mutate with {@code Math.random()} and picks subjects with {@code ThreadLocalRandom}, neither of
- * which is seedable (docs/revisao-ag/00-diagnostico.md §7.4, R18). Fixing that requires changing
- * production code, which this measurement stage must not do. The harness therefore treats the GA as
- * a stochastic method and reports mean, standard deviation and range across repetitions instead of
- * pretending a single run is representative.
+ * <b>On reproducibility.</b> Seeding {@link RandomProvider} now pins the whole evolution. It did not
+ * when this class was written: {@code AbstractMutationStrategy} decided whether to mutate with
+ * {@code Math.random()} and picked subjects with {@code ThreadLocalRandom}, neither of which is
+ * seedable (docs/revisao-ag/00-diagnostico.md §7.4, R18), and only 2 of 8 instances reproduced.
+ * Etapa 04 routed both through {@code RandomProvider} and {@code RobustnessMain} now reports 8 of 8.
+ * <p>
+ * {@link #deterministic()} still answers {@code false}, deliberately. The harness then runs the GA
+ * over several seeds and reports mean, standard deviation and range — which is what calibrates the
+ * regression threshold in {@code GeneticAlgorithmVsBaselinesTest} and what would surface a
+ * reintroduced unseeded draw as spread rather than as a silent single-run number.
  */
 public final class ProductionGeneticAlgorithm implements PlanningStrategy {
 

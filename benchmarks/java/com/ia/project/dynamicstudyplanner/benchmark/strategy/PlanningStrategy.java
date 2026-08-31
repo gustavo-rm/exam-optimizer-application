@@ -23,11 +23,11 @@ public interface PlanningStrategy {
     /**
      * Whether repeated invocations with the same seed produce the same plan.
      * <p>
-     * The production GA reports {@code false}: the audit (docs/revisao-ag/00-diagnostico.md §7.4)
-     * established that its mutation operator draws from {@code Math.random()} and
-     * {@code ThreadLocalRandom}, neither of which is seedable, so seeding {@code RandomProvider}
-     * pins only selection, crossover and initial-population generation. The harness compensates by
-     * running non-deterministic strategies over multiple repetitions.
+     * The production GA reports {@code false} even though etapa 04 made it reproducible under a
+     * fixed seed (docs/revisao-ag/04-robustez.md §1, 8 of 8 instances). Answering {@code false} is
+     * what makes the harness run it over several seeds, which is how the run-to-run spread that
+     * calibrates the regression threshold gets measured at all — and how a reintroduced unseeded
+     * draw would show up instead of hiding inside a single run.
      */
     boolean deterministic();
 

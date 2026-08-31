@@ -5,7 +5,9 @@
 linha de pesquisa e não está aqui, por decisão registrada em [`02-formulacao.md`](./02-formulacao.md).
 **Código:** `src/main/java/…/ga/fitness/` · pesos em `FitnessWeights` · agregação em `FitnessEvaluator`
 **Histórico da revisão:** [`00`](./00-diagnostico.md) · [`01`](./01-auditoria-fitness.md) ·
-[`02`](./02-formulacao.md) · [`03`](./03-validacao.md) · [`04`](./04-robustez.md)
+[`02`](./02-formulacao.md) · [`03`](./03-validacao.md) · [`04`](./04-robustez.md) ·
+[`06-ausubel`](./06-decisao-ausubel.md) · [`06-alta-carga`](./06-regime-alta-carga.md) ·
+[`06-troca-pesos`](./06-limite-troca-pesos.md)
 
 > **Se você vai alterar um peso ou uma fórmula, leia a §7 antes.** Esta página e o código estão
 > acoplados de propósito: cada classe da fitness aponta para cá no Javadoc, e `FitnessEvaluator`
@@ -26,6 +28,9 @@ Com os componentes de hoje:
 fitness = clamp( 0,50 · O₁  +  0,30 · O₃  +  0,20 · O₄  −  0,50 · severidade_piso , 0, 1 ) × 1,0
 ```
 
+`w_o` são os pesos **dos objetivos** e somam 1. Não confundir com os pesos **por disciplina** que O₁
+e O₃ usam internamente: desde a etapa 06 os dois não são mais o mesmo vetor (§3.3).
+
 Três propriedades garantidas por construção:
 
 | Propriedade | Como é garantida | Por que importa |
@@ -41,12 +46,13 @@ Três propriedades garantidas por construção:
 | Termo | Conceito | Fórmula | Peso | Justificativa do peso | Fundamento |
 |---|---|---|---|---|---|
 | **O₁** `ScoreGainObjective` | Domínio do edital ponderado pelo valor de cada disciplina na prova | `Σ_s Î_s · (1 − e^(−d_s/τ_s))` | **0,50** | Maior fatia: a prova é o objetivo do aluno. Um plano que pontua bem em tudo o mais e negligencia o edital não é um plano de estudo | Curvas de prática com assíntota (Newell & Rosenbloom, 1981); pesos de pontuação do próprio edital |
-| **O₃** `RetentionObjective` | Retenção na data da prova / repetição espaçada | `Σ_s Î_s · min(1, d_s / (H/τ_s))` | **0,30** | Segunda maior: conhecimento não retido até a prova vale zero na prova, então é pré-condição para O₁ contar. Fica abaixo de O₁ porque a falha inversa custa mais — um plano estreito e bem retido perde mais pontos que um amplo com algum decaimento | Curva de esquecimento de Ebbinghaus (1885), `R = e^(−t/S)`; limiar derivado de um intervalo de estabilidade |
+| **O₃** `RetentionObjective` | Retenção na data da prova / repetição espaçada | `Σ_s w₃_s · min(1, d_s / (H/τ_s))` | **0,30** | Segunda maior: conhecimento não retido até a prova vale zero na prova, então é pré-condição para O₁ contar. Fica abaixo de O₁ porque a falha inversa custa mais — um plano estreito e bem retido perde mais pontos que um amplo com algum decaimento | Curva de esquecimento de Ebbinghaus (1885), `R = e^(−t/S)`; limiar derivado de um intervalo de estabilidade |
 | **O₄** `CognitiveLoadObjective` | Sustentabilidade da carga mental diária | `1 − clamp((cargaDiária − orçamento)/orçamento, 0, 1)` | **0,20** | Menor das três. É a menos fiel à teoria de origem (só limita carga *esperada*, não por episódio) e é guarda de viabilidade, não meta — uma fatia maior deixaria trocar cobertura do edital por conforto | Teoria da carga cognitiva de Sweller (1988); orçamento de `CognitiveLoadCalculator` |
 | **C₁** `MinimumDaysConstraint` | Piso de cobertura por disciplina | `− 0,50 · (Σ_s max(0, m_s − d_s) / Σ_s m_s)` | **λ = 0,50** | Metade da massa total dos objetivos: uma violação plena custa mais do que qualquer objetivo isolado pode pagar de volta, então um plano inviável nunca supera um viável; uma violação marginal continua recuperável | Regra de produto (cobertura mínima do edital), sem base teórica de aprendizagem |
 | **P₁, P₂** `DropoutRiskPenalty`, `FatigueAndSustainabilityPenalty` | Risco de evasão; burnout | multiplicativas, `= 1,0` no caminho macro | — | Reservadas à camada tática, onde há cronograma real para avaliar. Neutras aqui por projeto, não por acidente | Engajamento/churn (não é um dos três fundamentos) |
 
-**Notação:** `Î_s` = importância normalizada no simplex (`Σ Î_s = 1`); `d_s` = dias alocados à
+**Notação:** `Î_s` = importância normalizada no simplex (`Σ Î_s = 1`); `w₃_s` = importância
+**temperada** que só O₃ usa, `Î_s^0,5 / Σ_k Î_k^0,5` (também soma 1 — §3.3); `d_s` = dias alocados à
 disciplina *s*; `τ_s` = constante de tempo da disciplina; `H` = horizonte em dias até a prova;
 `m_s` = piso de dias mínimos.
 
@@ -102,13 +108,30 @@ fitness o lia (`01` §2.5.1).
 
 ```
 sessõesNecessárias(s) = H / τ_s
-O₃ = Σ_s Î_s · min(1, d_s / sessõesNecessárias(s))
+w₃_s = Î_s^0,5 / Σ_k Î_k^0,5
+O₃   = Σ_s w₃_s · min(1, d_s / sessõesNecessárias(s))
 ```
 
 **Derivação.** A curva de Ebbinghaus, `R = e^(−t/S)`, atinge `e⁻¹` após exatamente um intervalo de
 estabilidade. Sessões espaçadas além de `τ` deixam a disciplina cair abaixo do ponto em que o
 `HybridRetentionEngine` declara a revisão devida. Num horizonte de `H` dias, isso são `H/τ` sessões.
 O termo é a fração do edital, ponderada por importância, que recebe sessões suficientes.
+
+**Por que o peso não é o mesmo de O₁ (temperagem).** O₁ pergunta *"quantos pontos este plano rende
+na prova?"*, e é correto ponderá-lo pelo valor de prova. O₃ pergunta outra coisa: *"quanto do que foi
+estudado sobrevive até a prova?"* O custo de esquecer **não** é proporcional ao valor de prova —
+esquecer uma disciplina de peso baixo desperdiça os dias já gastos nela, e esses dias custaram ao
+aluno o mesmo que os dias gastos numa disciplina de peso alto. A ponderação natural da retenção é
+mais achatada que a da pontuação. O expoente 0,5 é o ponto temperado entre uniforme (0) e
+proporcional ao valor de prova (1): uma disciplina que vale 100× mais na prova pesa 10× mais aqui.
+
+Enquanto os dois objetivos dividiram o **mesmo** vetor de pesos, eles concordavam em matar de fome as
+mesmas disciplinas e nada na fitness fazia contrapeso. A varredura controlada de
+[`06-regime-alta-carga.md`](./06-regime-alta-carga.md) mediu a consequência: acima de cerca de
+**30:1** de dispersão efetiva de importância a correlação entre fitness e retenção prevista virava
+negativa e se aprofundava com a dispersão. Com a temperagem essa fronteira passou para **~200:1**.
+O expoente 0,5 **não foi calibrado** — é um ponto médio defensável, e nada mostra que 0,4 ou 0,6
+seriam piores. *Implementação:* `EvolutionContext.temper`.
 
 **Por que o teto é essencial.** O `min(1, ·)` é o que torna o termo côncavo, e a concavidade é o que
 faz ele premiar espalhamento: uma vez que a disciplina tem sessões suficientes, dias extras não
@@ -247,8 +270,8 @@ Cada peso foi perturbado em ±20%, os demais renormalizados, e mediu-se **o quan
 | `I4-pesos-extremos` | 5,0% / 9,4% | 0,0% / 0,0% | 6,9% / 4,4% | **9,4%** |
 | `I5-pesos-balanceados` | 0,6% / 10,6% | 0,0% / 0,0% | 6,3% / 1,3% | **10,6%** |
 | `I6-horizonte-curto` | 3,8% / 4,8% | 0,0% / 0,0% | 3,8% / 1,9% | **4,8%** |
-| `I7-horizonte-longo` | 6,2% / 4,6% | 2,3% / 5,0% | 0,0% / 0,0% | **6,2%** |
-| `I8-escala` | 2,1% / 2,9% | 1,1% / 0,7% | 1,1% / 1,4% | **2,9%** |
+| `I7-horizonte-longo` | 4,6% / 3,1% | 2,3% / 3,5% | 0,0% / 0,0% | **4,6%** |
+| `I8-escala` | 1,8% / 2,1% | 1,8% / 1,1% | 1,4% / 2,1% | **2,1%** |
 
 **Afirmação sustentável:** *uma perturbação de ±20% em qualquer peso desloca no máximo 10,6% do
 orçamento de dias, com mediana em torno de 4%.* Os pesos importam, mas não são knife-edge — o plano
@@ -257,8 +280,11 @@ não depende de eles estarem exatamente certos.
 **Detalhe que merece registro:** o peso de retenção não move nada na maioria das instâncias. Não é
 sinal de que o termo é inerte — ele muda o plano —, e sim de que na maioria dos casos o orçamento não
 alcança a cobertura de todas as disciplinas, e o termo opera no seu regime **linear**, onde apenas
-reordena por `Î_s / sessõesNecessárias_s`. Só em horizontes longos (`I7`) e em escala (`I8`) o teto
+reordena por `w₃_s / sessõesNecessárias_s`. Só em horizontes longos (`I7`) e em escala (`I8`) o teto
 começa a atar e a perturbação passa a importar.
+
+*(Tabela remedida na etapa 06, depois da temperagem. `I7` e `I8` mudaram; as demais instâncias e o
+pior caso global de 10,6% permanecem idênticos.)*
 
 *Reprodução:* `benchmarks/…/robustness/WeightSensitivityMain` → `benchmarks/results/sensibilidade-pesos.csv`
 
@@ -266,24 +292,32 @@ começa a atar e a perturbação passa a importar.
 
 ## 6. Validação empírica
 
-Mesmo harness e mesmas 8 instâncias sintéticas da etapa `03`, medidos antes e depois das correções.
+Mesmo harness e mesmas 8 instâncias sintéticas da etapa `03`. Todos os números desta seção foram
+remedidos de ponta a ponta no fechamento da etapa 06, com a suíte completa (49 testes, 0 falhas).
 
 ### 6.1 Contra os baselines (positivo = AG melhor)
 
-| Instância | vs guloso prioridade **antes** | vs guloso prioridade **depois** | vs uniforme | vs aleatório |
-|---|---|---|---|---|
-| `I1-pequeno-folgado` | +0,02% | **+0,13%** | −0,25% | −0,00% |
-| `I2-medio-tipico` | +0,15% | **+4,17%** | +6,15% | +7,18% |
-| `I3-grande-apertado` | +0,29% | **+2,70%** | +2,84% | +2,90% |
-| `I4-pesos-extremos` | **−6,18%** | **+4,29%** | +10,95% | +12,67% |
-| `I5-pesos-balanceados` | +0,14% | **+5,49%** | +2,09% | +3,02% |
-| `I6-horizonte-curto` | +0,01% | **+2,65%** | +1,74% | +1,82% |
-| `I7-horizonte-longo` | +0,10% | **+0,41%** | +0,87% | +1,16% |
-| `I8-escala` | +0,44% | **+0,67%** | +3,62% | +4,39% |
+Três estados: **`03`** = fitness original; **`05`** = depois das correções de fidelidade;
+**`06`** = depois da temperagem dos pesos de retenção. As colunas `vs uniforme` e `vs aleatório` são
+do estado atual.
 
-**A vantagem melhorou em todas as 8 instâncias**, e a única em que o AG perdia (por 6,18%) passou a
-ganhar por 4,29%. `I1` empata com sorteio porque é uma instância saturada — poucas disciplinas,
-orçamento sobrando, todo plano viável está essencialmente no ótimo.
+| Instância | vs guloso `03` | vs guloso `05` | vs guloso **`06`** | vs uniforme | vs aleatório | gap até o ótimo exato |
+|---|---|---|---|---|---|---|
+| `I1-pequeno-folgado` | +0,02% | +0,13% | **+1,51%** | +0,42% | +0,53% | −0,00% |
+| `I2-medio-tipico` | +0,15% | +4,17% | **+3,66%** | +4,28% | +5,23% | −8,30% |
+| `I3-grande-apertado` | +0,29% | +2,70% | **+2,71%** | +2,35% | +2,46% | −4,07% |
+| `I4-pesos-extremos` | **−6,18%** | +4,29% | **+6,36%** | +7,45% | +8,59% | −8,03% |
+| `I5-pesos-balanceados` | +0,14% | +5,49% | **+4,71%** | −0,17% | +1,00% | −6,97% |
+| `I6-horizonte-curto` | +0,01% | +2,65% | **+2,73%** | +1,74% | +1,85% | −5,60% |
+| `I7-horizonte-longo` | +0,10% | +0,41% | **+2,16%** | +1,77% | +2,05% | +0,19% |
+| `I8-escala` | +0,44% | +0,67% | **+1,28%** | +3,56% | +4,36% | −1,68% |
+
+**A vantagem sobre o guloso por prioridade se manteve ou melhorou em todas as 8 instâncias**, tanto
+de `03` para `05` quanto de `05` para `06`. As duas quedas de `05` para `06` (`I2` −0,51 pp, `I5`
+−0,78 pp) são deslocamentos dentro da margem: o AG continua ganhando com folga nas duas, e a
+temperagem não custou vantagem competitiva em lugar nenhum. `I1` empata com sorteio porque é uma
+instância saturada — poucas disciplinas, orçamento sobrando, todo plano viável está essencialmente no
+ótimo. Em `I5` a divisão uniforme leva por 0,17%, o que também é ruído de instância saturada.
 
 ### 6.2 O AG passou a se justificar
 
@@ -301,7 +335,7 @@ guloso `O(D log n)` resolve exatamente e o argumento para rodar um AG em produç
 | `I4-pesos-extremos` | dias com sobrecarga cognitiva | **23,0** | 41,0 | 124,0 |
 | | concentração na disciplina top-1 | **25,2%** | 75,6% | 17,5% |
 | | % na janela de retenção | 81,4% | 70,0% | 100,0% |
-| `I8-escala` | dias com sobrecarga | **156,7** | 218,0 | 223,0 |
+| `I8-escala` | dias com sobrecarga | **164,0** | 218,0 | 223,0 |
 | | horas entregues / planejadas | **0,94** | 0,87 | 0,88 |
 | `I3-grande-apertado` | dias com sobrecarga | **73,4** | 93,0 | 91,0 |
 
@@ -309,31 +343,65 @@ O AG passou a produzir planos com **menos sobrecarga cognitiva e maior taxa de e
 que todos os baselines** — ganho de produto direto do termo de Sweller. A concentração em `I4` caiu
 de 75,6% para 25,2%.
 
-### 6.4 A anti-correlação: muito reduzida, não eliminada
+### 6.4 A anti-correlação: causa identificada e fronteira deslocada
 
 O achado central de `03` §5 era que maximizar a fitness **piorava** a retenção. Correlação de
 Spearman entre fitness e % na janela de retenção, sobre as 6 estratégias de cada instância:
 
-| Instância | antes | depois |
+| Instância | `03` | `05` | **`06`** |
+|---|---|---|---|
+| `I3-grande-apertado` | −0,941 | −0,029 | **+0,257** |
+| `I4-pesos-extremos` | −0,941 | −0,525 | **−0,093** |
+| `I7-horizonte-longo` | −0,833 | +0,000 | **+0,655** |
+| `I8-escala` | −0,880 | −0,880 | **−0,880** |
+
+**A causa foi identificada na etapa 06 e não era a que `05` supunha.** A limitação registrada aqui
+atribuía a anti-correlação ao aperto do orçamento. Três varreduras controladas
+([`06-regime-alta-carga.md`](./06-regime-alta-carga.md)) falsificaram essa hipótese — a métrica satura
+em 100% para todo planejador em razões de demanda de 0,5 a 5,0 — e também a hipótese do número de
+disciplinas. O driver é a **dispersão efetiva da importância**, e o mecanismo é o da §3.3: enquanto
+O₁ e O₃ dividiam o mesmo vetor de pesos, concordavam em abandonar as mesmas disciplinas.
+
+Fronteira medida em 30 pontos ordenados por dispersão efetiva:
+
+| | Antes da temperagem | Depois |
 |---|---|---|
-| `I3-grande-apertado` | −0,941 | **−0,029** |
-| `I4-pesos-extremos` | −0,941 | **−0,525** |
-| `I7-horizonte-longo` | −0,833 | **+0,000** |
-| `I8-escala` | −0,880 | **−0,880** |
-| **Agregado (48 obs.)** | **−0,654** | **+0,161** |
+| Dispersão a partir da qual a correlação fica negativa | **~30:1** (entre 22:1 e 32:1) | **~200:1** |
 
-**O sinal agregado inverteu** e a anti-correlação foi eliminada em `I3` e `I7`, e reduzida à metade
-em `I4`. **Mas `I8` permanece inalterada**, e isso precisa ser dito: com 40 disciplinas, 280 dias de
-orçamento e horizonte de 300, as `H/τ ≈ 30` sessões por disciplina somam ~1200 contra 280
-disponíveis. O termo de retenção nunca sai do regime linear e portanto não exerce força de
-espalhamento nenhuma. **Em editais muito grandes com orçamento apertado, a fitness ainda favorece
-concentração.** É limitação conhecida e registrada, não corrigida.
+Abaixo de 200:1 só `I8` permanece negativa; acima, a correlação segue negativa mas atenuada em cerca
+de um terço.
 
-Segunda ressalva honesta: a divisão uniforme continua vencendo o AG na métrica de janela de retenção
-em `I3` (96,0% contra 76,6%) e `I4` (100% contra 81,4%). Isso é a **troca deliberada que os pesos
-codificam** — 0,50 para edital contra 0,30 para retenção —, não um defeito: o AG sacrifica alguma
-amplitude de retenção para priorizar o que vale mais pontos na prova. Quem discordar dessa troca deve
-mexer nos pesos, e a §5.2 diz quanto o plano se move quando se faz isso.
+**`I8` continua sendo a exceção não explicada.** Com 32:1 de dispersão — bem abaixo da nova fronteira
+— mantém ρ = −0,880 inalterado. Duas observações sem as quais o número engana: (1) a **amplitude** da
+retenção em `I8` é de 2,5 pontos percentuais (97,5% a 100%), então a correlação é forte em *ranking* e
+desprezível em *magnitude* — nada a ver com os −0,941 sobre 50 pp que era o estado de `I4` em `03`;
+(2) `I8` combina 40 disciplinas com um agendador tático que estuda só as três mais críticas por dia,
+o que é hipótese plausível e **não medida**. Registrado como L4 revisada; não perseguido.
+
+### 6.5 A divisão uniforme ainda vence a janela de retenção em `I3` e `I4`
+
+Permanece verdade: 96,0% contra 76,6% em `I3`, 100% contra 81,4% em `I4`. A etapa 06 mediu essa troca
+em vez de justificá-la, e o resultado desmonta a explicação que estava escrita aqui — de que seria
+"a troca deliberada que os pesos codificam". Ela não é.
+
+Decompondo a vantagem de fitness do AG sobre a divisão uniforme em `I3` (+0,0153): O₁ **−0,0052**,
+O₃ **−0,0041**, O₄ **+0,0246**. **O AG perde nos dois termos de conteúdo e vence inteiramente pelo
+termo de carga cognitiva** — e o mesmo padrão vale em `I4`. A troca real, portanto, não é
+"pontuação × memória", é **"memória × sustentabilidade da agenda"**: em `I4` a divisão uniforme paga
+a retenção com 124 dos 160 dias em sobrecarga cognitiva, contra 23 do AG.
+
+Duas consequências práticas, ambas medidas em
+[`06-limite-troca-pesos.md`](./06-limite-troca-pesos.md):
+
+1. **Mexer nos pesos não resolveria.** Em `I3`, levar `w₃` de 0,30 a 0,70 compra 0,6 pp de janela ao
+   custo de 3,64% de O₁, e piora `I7` nas duas dimensões. A métrica de janela é uma contagem com
+   limiar e reage à **cauda** da alocação, não à média ponderada que O₃ mede.
+2. **A alavanca que move a métrica é o piso de dias mínimos**, que vive em `BaselineCalculator` e não
+   na fitness: um piso de 4 dias leva `I3` a 100% por 0,52% de O₁, sem regredir nenhuma instância.
+
+Nada disso foi implementado. **É pendência de negócio aberta** — qual promessa de cobertura o produto
+faz ao aluno —, registrada com as duas opções e seus preços no documento acima, aguardando decisão
+humana. Os pesos seguem em 0,50/0,30/0,20 e o piso em 1.
 
 ---
 
@@ -347,7 +415,11 @@ mexer nos pesos, e a §5.2 diz quanto o plano se move quando se faz isso.
 4. **Registre o novo componente em `BenchmarkHarness.productionFitnessEvaluator()`.** As listas são
    explícitas de propósito: esquecê-las invalidaria a comparação em silêncio.
 5. **Rode o harness e a análise de sensibilidade.** Atualize as tabelas da §5.2 e §6.
-6. **Atualize esta página.** Um peso alterado sem justificativa registrada deixa o produto incapaz de
+6. **Se mexer nos pesos por disciplina** — `EvolutionContext.normalize` ou `.temper`, incluindo o
+   expoente `RETENTION_TEMPERING` — **rode também `RegimeCorrelationMain`.** A temperagem existe por
+   causa de um efeito que só aparece em dispersão alta e é invisível nas 8 instâncias do harness
+   principal (§6.4).
+7. **Atualize esta página.** Um peso alterado sem justificativa registrada deixa o produto incapaz de
    explicar as próprias decisões de planejamento — que é exatamente o estado que esta revisão existiu
    para corrigir.
 
@@ -360,6 +432,10 @@ Testes que protegem o que está documentado aqui:
 | `GaEdgeCasesTest` | Determinismo, casos de borda, viabilidade dos planos |
 | Asserção em `FitnessEvaluator` | Pesos somando 1 |
 
+Medições que **não** têm teste e precisam ser rodadas à mão depois de qualquer mudança na fitness:
+`BenchmarkMain` (§6.1, §6.3), `RegimeCorrelationMain` (§6.4), `WeightSensitivityMain` (§5.2),
+`WeightTradeoffMain` (§6.5), `RobustnessMain` (`04`).
+
 ---
 
 ## 8. Limitações conhecidas
@@ -371,10 +447,17 @@ Registradas para que não sejam descobertas por um avaliador antes de nós.
 | L1 | **Ausubel não está implementado** | O produto não pode afirmar sequenciamento por pré-requisitos | Encoding indexado no tempo com grafo de dependências |
 | L2 | **O₃ é aproximação de campo médio** | Não é repetição espaçada; não sabe *quando* a revisão ocorre | Encoding indexado no tempo |
 | L3 | **O₄ limita carga esperada, não por episódio** | Um plano conforme ainda pode ter dias sobrecarregados | Encoding indexado no tempo |
-| L4 | **Anti-correlação persiste em editais grandes com orçamento apertado** (`I8`) | Em regime linear de O₃, a fitness ainda favorece concentração | Termo de retenção com saturação relativa ao orçamento, ou orçamento maior |
+| L4 | **Anti-correlação acima de ~200:1 de dispersão efetiva de importância**, mais a exceção não explicada de `I8` (32:1, ρ = −0,880 sobre amplitude de 2,5 pp) | Em editais com pesos muito dispersos a fitness ainda favorece concentração | Hipótese não medida para `I8`: `INTERLEAVING_FOCUS_SIZE` no agendador tático. Enunciado revisado na etapa 06 — a hipótese original (aperto de orçamento) foi **falsificada** |
 | L5 | **Pesos não calibrados empiricamente** | Defensáveis por estabilidade medida, não por otimalidade | Dados de desempenho real de alunos |
 | L6 | **Aderência a prazo não é otimizada** | O AG não sabe se o plano cabe no calendário; só o agendador descobre, depois | Encoding indexado no tempo |
 | L7 | **Taxa de mutação 0,05 mal calibrada** | `04` §5 mediu que 0,15–0,30 recupera qualidade a custo de tempo nulo | Pendência P4 de `04`, aguardando decisão |
+| L8 | **A divisão uniforme entrega mais retenção que o AG em `I3` e `I4`** | 5 de 25 e 2 de 10 disciplinas fora da janela de retenção; o AG compra isso com muito menos sobrecarga cognitiva | Decisão de produto pendente (`06-limite-troca-pesos.md`). A alavanca é o piso de `BaselineCalculator`, não os pesos |
+| L9 | **O expoente 0,5 da temperagem não foi calibrado** | Ponto médio defensável entre uniforme e proporcional; 0,4 ou 0,6 não foram medidos | Varredura do expoente contra a métrica de janela de retenção |
+| L10 | **A busca degrada em pesos extremos de retenção** | Com `w₃ ≥ 0,45` em `I3` o AG encontra planos piores sob o próprio objetivo do que os que encontra com os pesos de produção | Não investigado (`06-limite-troca-pesos.md` §4) |
+
+**L4 e L8 são o mesmo fenômeno visto por duas réguas:** L4 mede a correlação entre fitness e retenção
+sobre todas as estratégias, L8 mede a diferença absoluta entre dois planejadores específicos. A causa
+comum é que O₃ é uma média ponderada e a métrica de negócio é uma contagem com limiar.
 
 **L1, L2, L3 e L6 têm a mesma raiz:** o cromossomo `Map<Subject, Integer>` não tem coordenada
 temporal nem ordem. É a decisão de arquitetura em aberto mais importante do motor, e está registrada
@@ -387,6 +470,7 @@ em `02` §5 como separada e explícita.
 | Fundamento | Fonte | Onde aparece | Fidelidade |
 |---|---|---|---|
 | Curva de esquecimento | Ebbinghaus, H. (1885). *Über das Gedächtnis* | O₃; `HybridRetentionEngine` (`R = e^(−t/S)`) | **Fórmula fiel; integração aproximada** (L2) |
+| Ponderação temperada de O₃ | — | `EvolutionContext.temper`, expoente 0,5 | **Escolha nossa**, sem base na literatura. Motivada por medição (`06-regime-alta-carga.md`), não calibrada (L9) |
 | Repetição espaçada / SM-2 | Wozniak & Gorzelanczyk (1994), algoritmo SuperMemo-2 | `HybridRetentionEngine.processReview`; EF inicial 2,5 e piso 1,3 são canônicos do SM-2 | Fiel na camada tática; **não** no macro |
 | Teoria da carga cognitiva | Sweller, J. (1988). *Cognitive load during problem solving* | O₄; `CognitiveLoadCalculator` | **Aproximada** — carga esperada, não por episódio (L3) |
 | Aprendizagem significativa | Ausubel, D. (1968). *Educational Psychology: A Cognitive View* | — | **Não implementado** (L1) |
@@ -395,5 +479,5 @@ em `02` §5 como separada e explícita.
 
 **Distinção importante para auditoria:** as constantes herdadas do SM-2 (EF inicial 2,5, piso 1,3,
 intervalos 1 e 6 dias) são canônicas do algoritmo publicado. As demais — τ de 10 dias na dificuldade
-média, os pesos 0,50/0,30/0,20, o λ de 0,50 — são **escolhas nossas**, e estão marcadas como tal em
+média, os pesos 0,50/0,30/0,20, o λ de 0,50, o expoente 0,5 da temperagem — são **escolhas nossas**, e estão marcadas como tal em
 todo este documento. Nenhuma delas é apresentada como resultado da literatura.
