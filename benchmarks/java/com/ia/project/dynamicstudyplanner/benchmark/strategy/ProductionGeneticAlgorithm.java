@@ -47,8 +47,20 @@ public final class ProductionGeneticAlgorithm implements PlanningStrategy {
      * and {@code creepMutation} — are reproduced explicitly here.
      */
     public ProductionGeneticAlgorithm(FitnessEvaluator fitnessEvaluator) {
+        this(fitnessEvaluator, new BaselineCalculator(new ImportanceCalculator()));
+    }
+
+    /**
+     * Same wiring with the minimum-days calculator supplied by the caller.
+     * <p>
+     * Exists for {@code WeightTradeoffMain}, which needs to price a change to the coverage floor
+     * without making one: the floor is computed inside {@code BaselineCalculator}, so it cannot be
+     * overridden through the {@code EvolutionContext} the service builds for itself. Every other
+     * caller gets the production calculator through the constructor above.
+     */
+    public ProductionGeneticAlgorithm(FitnessEvaluator fitnessEvaluator,
+                                      BaselineCalculator baselineCalculator) {
         ImportanceCalculator importanceCalculator = new ImportanceCalculator();
-        BaselineCalculator baselineCalculator = new BaselineCalculator(importanceCalculator);
 
         DefaultGeneticAlgorithmFactory gaFactory = new DefaultGeneticAlgorithmFactory(
                 new TournamentSelection(),
