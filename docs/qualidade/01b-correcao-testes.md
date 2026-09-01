@@ -40,6 +40,7 @@ continuam para as etapas seguintes.
 | Tratadores de erro executados | 1 de 9 | **9 de 9** | |
 | CI | inexistente | **workflow com gate** | falta marcar como obrigatório |
 | Contrato HTTP versionado | não | **sim** | retrato OpenAPI commitado |
+| Cobertura no código alcançável | — | **87,3% / 68,8%** | instruções / ramos, excluído o código sem consumidor |
 
 **Dois defeitos de produção foram encontrados durante o trabalho** — o endpoint de documentação
 devolvia 500 e o projeto não gerava jar executável. Ambos estão descritos na seção "Defeitos
@@ -284,16 +285,53 @@ no mesmo commit e à vista do revisor.
 
 ### 4.2 O gate foi verificado, não apenas escrito
 
-Duas sabotagens temporárias, ambas revertidas:
+Duas sabotagens temporárias, ambas revertidas no mesmo dia em que foram feitas:
 
-| Experimento | Resultado |
-|---|---|
-| Quebrar uma asserção de `StudyPlanTest` | `Tests run: 117, Failures: 1` → **BUILD FAILURE** |
-| Subir o piso de instruções para 0,95 | `Rule violated ... is 0.79, but expected minimum is 0.95` → **BUILD FAILURE** |
+| Experimento | O que foi alterado | Resultado |
+|---|---|---|
+| Quebrar uma asserção de `StudyPlanTest` | `isEqualTo(8)` → `isEqualTo(999)` | `Tests run: 117, Failures: 1` → **BUILD FAILURE** |
+| Elevar o piso de instruções | `<minimum>` de `0.77` → `0.95`, **temporariamente** | `Rule violated ... is 0.79, but expected minimum is 0.95` → **BUILD FAILURE** |
 
 Falha de teste e queda de cobertura reprovam o mesmo job.
 
-### 4.3 Confirmado no ambiente real
+### 4.3 Sem ambiguidade: qual regra existe e qual piso está valendo
+
+A linha de log da segunda sabotagem circulou fora de contexto e merece ser desfeita ponto a ponto,
+porque ela **não** descreve a configuração do repositório:
+
+```
+[WARNING] Rule violated for bundle DynamicStudyPlanner:
+          instructions covered ratio is 0.79, but expected minimum is 0.95
+```
+
+1. **É uma regra de *bundle*** — `<element>BUNDLE</element>`, ou seja, o projeto inteiro tratado como
+   uma unidade. O nome `DynamicStudyPlanner` na mensagem é o `artifactId` do módulo Maven, não um
+   pacote nem uma classe.
+2. **Não existe nenhuma regra por classe ou por pacote.** O `pom.xml` tem exatamente **um** bloco
+   `<rule>` e exatamente **um** `<element>`. Não há regra de 100% aplicada às classes recém-cobertas,
+   nem qualquer outra granularidade — a hipótese é razoável, mas não é o que está lá.
+3. **O `0.95` era o valor da sabotagem, não o configurado.** Ele foi injetado de propósito, por uma
+   única execução, para provar que o `check` reprova; o `pom.xml` foi restaurado em seguida. O
+   `0.79` na mesma linha é a cobertura real medida, que o piso falso rejeitou — que é exatamente o
+   comportamento que se queria demonstrar.
+
+**O que está configurado hoje**, e é o que vale para o próximo commit legítimo:
+
+| Elemento | Contador | Piso configurado | Medido no `HEAD` | Margem |
+|---|---|---:|---:|---:|
+| `BUNDLE` | `INSTRUCTION` / `COVEREDRATIO` | **0,77** (77%) | 0,7916 (79,2%) | **+2,2 pontos** |
+| `BUNDLE` | `BRANCH` / `COVEREDRATIO` | **0,55** (55%) | 0,5682 (56,8%) | **+1,8 pontos** |
+
+Confirmado por execução limpa de `mvn clean verify` no `HEAD` desta etapa:
+`All coverage checks have been met` → `BUILD SUCCESS`.
+
+Um commit legítimo só reprova neste `check` se **derrubar** a cobertura em mais de 2,2 pontos de
+instruções ou 1,8 ponto de ramos — que é precisamente o evento que a catraca existe para tornar
+visível. A margem é estreita de propósito: uma catraca folgada não trava nada. Se ela se mostrar
+apertada demais na prática, o ajuste correto é baixar o piso **num commit explícito**, à vista do
+revisor, e não desligar a regra.
+
+### 4.4 Confirmado no ambiente real
 
 O workflow foi verificado no GitHub, e não apenas localmente. A primeira execução de CI da história
 do repositório (`run #1`, commit `724e80c`) terminou **`success`**, com todos os nove passos verdes:
@@ -308,7 +346,7 @@ do repositório (`run #1`, commit `724e80c`) terminou **`success`**, com todos o
 Execução completa em **59 segundos**, do agendamento ao fim. É um custo baixo o suficiente para que
 o gate rode em todo *push* e em todo *pull request* sem atrapalhar o ritmo de trabalho.
 
-### 4.4 O que falta para o gate bloquear de fato
+### 4.5 O que falta para o gate bloquear de fato
 
 **Este arquivo sozinho não bloqueia merge.** Ele faz a verificação existir e reportar. Para virar
 bloqueio, o job precisa ser marcado como *required status check* na proteção da branch — configuração
@@ -487,21 +525,56 @@ gate nasce vermelho.
 
 Como o repositório tem um serviço só, "por serviço" é este número. O detalhamento útil é por módulo.
 
-### 8.2 Por módulo — onde o esforço foi
+### 8.2 Cobertura por serviço
 
-| Pacote | Instruções antes | Depois | Ramos antes | Depois |
-|---|---:|---:|---:|---:|
-| `api.mapper` | 12,7% | **96,8%** | **0,0%** | **94,4%** |
-| `api.exception` | 22,0% | **99,4%** | 50,0% | 50,0% |
-| `api.dto` | 34,5% | **94,5%** | — | — |
-| `api.controller` | 67,7% | **93,7%** | 62,5% | 62,5% |
-| `config.logging` | 17,6% | **100,0%** | 0,0% | 50,0% |
-| `service` | 83,0% | **89,6%** | 83,3% | **87,5%** |
-| `domain` | 93,1% | **96,7%** | 72,7% | 72,7% |
-| (raiz do pacote) | 37,5% | 37,5% | — | — |
+O repositório tem **um** serviço implantável (verificado de novo nesta rodada — seção 9.1), então
+"por serviço" é uma linha só. O detalhamento com valor de decisão é por **módulo interno**, que é o
+que o inventário da etapa 00 §1.2 identificou como o análogo mais próximo de *bounded context* neste
+repositório.
 
-Os módulos não listados não mudaram: o trabalho foi dirigido à borda que fala com o usuário, que era
-onde estava o risco.
+**Serviço `DynamicStudyPlanner` — agregado:**
+
+| Métrica | Antes | Depois |
+|---|---:|---:|
+| Instruções | 67,1% | **79,2%** (5.219 / 6.593) |
+| Ramos | 52,9% | **56,8%** (275 / 484) |
+| Linhas | 68,4% | **80,2%** (1.118 / 1.394) |
+
+**Por módulo interno:**
+
+| Módulo | Instruções | cobertas / total | Ramos | cobertos / total | Tocado nesta etapa |
+|---|---:|---:|---:|---:|---|
+| `api/` | **96,9%** | 1.024 / 1.057 | **82,1%** | 23 / 28 | **sim** — 5 arquivos novos |
+| `config/` | 95,1% | 116 / 122 | 50,0% | 2 / 4 | indireto (contexto Spring) |
+| `domain/` | 82,5% | 725 / 879 | 66,7% | 36 / 54 | indireto (fluxo completo) |
+| `ga/` | 75,6% | 1.909 / 2.525 | 55,6% | 139 / 250 | indireto (fluxo completo) |
+| `service/` | 71,9% | 1.432 / 1.992 | 50,7% | 75 / 148 | **sim** — déficit de tempo |
+| `util/` | 100,0% | 10 / 10 | — | — | não |
+| (raiz) | 37,5% | 3 / 8 | — | — | **sim** — teste do `main` |
+| **TOTAL** | **79,2%** | 5.219 / 6.593 | **56,8%** | 275 / 484 | |
+
+**A leitura que importa: alcançável × sem consumidor.** Os módulos `ga/` e `service/` parecem os
+piores da tabela, mas o agregado deles mistura duas realidades opostas. Separando o código que algum
+caminho de produção alcança do que **nenhum** alcança (camada tática G5, estratégias sem consumidor
+G11, e os modelos de fadiga e evasão que só rodam por penalidades inertes no caminho macro):
+
+| Recorte | Instruções | Ramos |
+|---|---:|---:|
+| `ga/` — alcançável | **85,8%** (1.903 / 2.219) | **66,8%** (139 / 208) |
+| `ga/` — sem consumidor | 2,0% (6 / 306) | 0,0% (0 / 42) |
+| `service/` — alcançável | **85,4%** (1.426 / 1.669) | **70,8%** (75 / 106) |
+| `service/` — sem consumidor | 1,9% (6 / 323) | 0,0% (0 / 42) |
+
+Aplicando o mesmo corte ao projeto inteiro:
+
+| Recorte | Instruções | Ramos | Peso no projeto |
+|---|---:|---:|---:|
+| **Código alcançável em produção** | **87,3%** | **68,8%** | 90,5% das instruções |
+| Código sem consumidor | 1,9% | 0,0% | 9,5% das instruções, **17,4% dos ramos** |
+
+**87,3% de instruções e 68,8% de ramos no código que o aluno consegue alcançar** é a medida honesta
+do risco coberto. Os 79,2% e 56,8% agregados incluem 629 instruções e 84 ramos de código que nenhuma
+requisição atinge — e é esse peso, não uma falha de esforço, que explica o número de ramos.
 
 ### 8.3 Por que os ramos subiram só 3,9 pontos
 
@@ -533,7 +606,99 @@ risco nenhum** — e é decisão da etapa de estrutura o que fazer com esse cód
 
 ---
 
-## 9. Pendências explícitas
+## 9. Escopo real: quais contextos foram tocados
+
+Esta seção foi acrescentada depois do fechamento da etapa, para responder de forma verificável a uma
+dúvida legítima: o trabalho concentrou-se no motor de planejamento, e faltava dizer **explicitamente**
+o que ficou de fora e por quê.
+
+### 9.1 Os três contextos citados não existem neste repositório
+
+A dúvida mencionava *Intelligent Tutoring*, *Educational Analytics* e *Integration Gateway* como
+contextos do repositório. Fiz a busca antes de responder, em todo o repositório, ignorando apenas
+`.git` e `target`:
+
+| Termo procurado | Ocorrências |
+|---|---|
+| `Educational Analytics` / `EducationalAnalytics` / `analytics` | **0 arquivos** |
+| `Integration Gateway` / `IntegrationGateway` / `gateway` | **0 arquivos** |
+| `Intelligent Tutoring` | 7 arquivos — **nenhum deles um serviço** |
+
+As sete ocorrências de *Intelligent Tutoring* são: os cinco documentos de arquitetura da raiz
+(`GA_TACTICAL_SCHEDULING_ARCHITECTURE.md`, `RETENTION_ENGINE_ARCHITECTURE.md`,
+`DROPOUT_RISK_PREDICTOR_ARCHITECTURE.md`, `NUMERICAL_STABILITY_AUDIT.md`,
+`TESTING_STRATEGY_ARCHITECTURE.md`), o inventário da etapa 00, e **um comentário Javadoc** em
+`domain/tactical/TacticalStudyPlan.java`.
+
+Isso é exatamente o que o inventário já havia registrado na etapa 00 §4.2: aqueles cinco documentos
+são **prospectivos**, de maio de 2026, escritos no futuro e no modo de recomendação
+(*"As the system evolves… into a tactical, time-slot-based ITS"*). Descrevem um sistema que **não
+foi construído**. O único vestígio em código é a camada tática sem consumidor — a pendência G5, que
+`docs/revisao-ag/` mantém ABERTA.
+
+A confirmação estrutural, refeita nesta rodada:
+
+| Verificação | Resultado |
+|---|---|
+| Arquivos `pom.xml` | **1** |
+| Arquivos `build.gradle` | 0 |
+| Classes com `main()` | **1** |
+| Classes com `@SpringBootApplication` | **1** |
+| Endpoints HTTP mapeados | **1** (`POST /api/v1/optimizer/generate`) |
+
+**Não há lacuna de escopo a corrigir**, porque não há segundo, terceiro ou quarto serviço. Escrever
+teste de caminho feliz para *Educational Analytics* seria escrever teste para algo que não existe.
+
+### 9.2 O que o diagnóstico apontou como crítico, e onde estava
+
+Vale ser preciso sobre a segunda metade da pergunta — se o motor de planejamento foi a única
+prioridade crítica que o diagnóstico apontou, ou se os demais simplesmente não foram revisitados.
+
+**Foi a primeira coisa.** O Nível 1 de `01-diagnostico-testes.md` §7 tem cinco itens (T1 a T5), e os
+cinco são do mesmo serviço — porque só existe um. Não houve triagem entre serviços concorrentes; a
+priorização foi **dentro** do serviço único, entre a borda que fala com o usuário (descoberta) e o
+núcleo do algoritmo (já em 90–100%).
+
+### 9.3 Módulos tocados e não tocados
+
+| Módulo interno | Situação nesta etapa | Justificativa |
+|---|---|---|
+| `api/` (controller, DTOs, mapeadores, exceções) | **Coberto diretamente** — 5 arquivos de teste novos | Era onde estavam T1, T2, T3, T4 e T5, os cinco itens de Nível 1 |
+| `service/` — orquestração e agendamento | **Coberto diretamente** — fluxo completo e déficit de tempo | `DynamicStudyPlannerService` tinha 0 instruções cobertas |
+| `domain/`, `ga/` — núcleo | **Cobertos indiretamente** pelo fluxo completo | Já estavam em 90–100% antes; o diagnóstico não os listou como risco |
+| (raiz) — `DynamicStudyPlannerApplication` | **Coberto** — teste do `main` empacotável | Defeito encontrado durante a etapa (§7.2) |
+| `ga/tactical/*`, `service/calculation/fatigue`, `service/calculation/engagement`, duas estratégias de `service/scheduler/strategy` | **Deliberadamente não tocados** | Nível 3 do diagnóstico: 629 instruções e 84 ramos que **nenhum caminho de produção alcança** (G5, G11). Cobri-los subiria o agregado sem reduzir risco, e encareceria removê-los se essa for a decisão da etapa de estrutura |
+| `config/`, `util/` | Não tocados diretamente | Já em 94–100%; `config/` é exercitado pelo contexto Spring |
+
+### 9.4 Os dois itens que o retorno anterior não destacou
+
+**Testes de contrato — o diagnóstico apontou risco, e ele foi resolvido.** A resposta tem duas
+metades, e a primeira é uma correção de premissa que o diagnóstico já havia feito em §4.1:
+
+- **Contrato *entre serviços*: não é risco, porque não há serviços.** A busca por `RestTemplate`,
+  `WebClient`, `@FeignClient`, `KafkaTemplate`, `RabbitTemplate`, `JmsTemplate`, `HttpClient`,
+  `DataSource` e `JpaRepository` em todo o código de produção deu **zero ocorrências**. Não há
+  chamada de rede saindo do processo. Um teste de contrato entre serviços não teria objeto.
+- **Contrato HTTP público: era risco (T5), e está coberto.** É o contrato consumido por clientes que
+  o repositório não controla, e estava sem especificação versionada. Resolvido na seção 5:
+  `openapi-snapshot.json` commitado e `OpenApiContractTest` com 4 testes. **Este item está
+  concluído**, não pendente.
+
+**Reescrita de testes "não lança exceção" — aplicável, e feita.** O diagnóstico identificou três
+ocorrências (T13, T14, T15). Duas foram reescritas para afirmar comportamento e uma foi
+deliberadamente mantida, com o motivo registrado — tudo na seção 3:
+
+| Teste | Situação | Onde |
+|---|---|---|
+| `tinyGaConfigurationStillRuns` | **Reescrito** — agora afirma orçamento, disciplinas, fitness e gerações | §3.1 |
+| `productionPipelineSatisfiesTheAssertion` | **Reescrito** — separa "não lança" de "qual composição passa" | §3.2 |
+| `HybridHeuristicSchedulerTest` (3 asserções frouxas) | **Não mexido, de propósito** — a classe não tem consumidor em produção | §3.4, pendência P7 |
+
+Nenhum dos dois itens ficou em aberto por esquecimento.
+
+---
+
+## 10. Pendências explícitas
 
 O que **não** foi resolvido, com o motivo. Nada aqui foi omitido por esquecimento.
 
@@ -546,7 +711,7 @@ O que **não** foi resolvido, com o motivo. Nada aqui foi omitido por esquecimen
 | **P5** | `StudentProfileMapper` aceita lacuna que cita disciplina fora do edital: vira chave nula; duas delas colidem e viram **500** em vez de 400 | Dois testes **documentam** o comportamento atual, marcados `COMPORTAMENTO ATUAL`. Corrigir muda o contrato de erro da API | estrutura / escrita |
 | **P6** | Existem tratadores para `422`, `401` e `403` que nenhuma requisição consegue provocar | Testados diretamente. Decidir entre remover ou tornar alcançável é decisão de estrutura e de segurança — o `401`/`403` dependem do `permitAll()` (R13/R14 do inventário) | segurança |
 | **P7** | As asserções frouxas de `HybridHeuristicSchedulerTest` não foram apertadas | A classe não tem consumidor em produção (G5). Apertar asserções sobre código que ninguém alcança é esforço sem redução de risco, e encarece removê-la | estrutura |
-| **P8** | **O gate ainda não bloqueia merge** | O workflow roda e passa (seção 4.3), mas marcar o check como obrigatório é configuração de repositório; a API respondeu `403` para esta credencial. Passo a passo na seção 4.4 | **ação humana, uma vez** |
+| **P8** | **O gate ainda não bloqueia merge** | O workflow roda e passa (seção 4.4), mas marcar o check como obrigatório é configuração de repositório; a API respondeu `403` para esta credencial. Passo a passo na seção 4.5 | **ação humana, uma vez** |
 | **P9** | O bloco de log `TRACE` de `StudyOptimizerService.runEvolution` continua descoberto (39/103), e com ele `Population.getWorst` e `getAverageFitness` | Nível 3 da lista priorizada. Vale registrar que é um risco real de outra natureza: uma linha de log que só executa com `TRACE` ligado pode quebrar no dia em que alguém ligar | testes (próxima rodada) |
 | **P10** | Nenhum teste de concorrência sobre o `optimizerTaskExecutor` (pool 8, fila 50, rejeição rápida) | Fora do escopo desta etapa; o diagnóstico já o havia colocado na de performance | performance / escalonamento |
 
@@ -562,6 +727,14 @@ O que **não** foi resolvido, com o motivo. Nada aqui foi omitido por esquecimen
 - **O gate de CI existe, roda no GitHub e foi verificado nas duas direções** — a primeira execução da
   história do repositório passou em 59 s, e as sabotagens provaram que ele reprova por teste quebrado
   e por queda de cobertura. **Falta um passo humano** para virar bloqueio de merge (P8).
+- **O piso configurado é 0,77 de instruções e 0,55 de ramos, em regra de `BUNDLE`.** O `0.95` que
+  aparece no log de sabotagem foi um valor injetado por uma execução e revertido; não há, e nunca
+  houve, regra por classe ou por pacote (§4.3).
+- **Cobertura no código que o aluno alcança: 87,3% de instruções e 68,8% de ramos.** O agregado de
+  79,2% / 56,8% inclui 629 instruções e 84 ramos sem consumidor em produção (§8.2).
+- **Não há outros bounded contexts a cobrir.** *Educational Analytics* e *Integration Gateway* têm
+  zero ocorrências no repositório; *Intelligent Tutoring* existe só nos documentos prospectivos de
+  maio de 2026 e num Javadoc da camada tática morta (§9.1).
 - **O contrato HTTP tem retrato versionado**, e mudanças nele passam a aparecer no *diff*.
 - **Dois defeitos de produção foram encontrados e corrigidos**: a documentação da API estava fora do
   ar (`500`) e o projeto não gerava jar executável. Ambos existiam antes deste trabalho e nenhuma
