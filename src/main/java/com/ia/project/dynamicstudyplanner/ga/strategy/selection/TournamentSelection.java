@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.ga.strategy.selection;
 import org.springframework.stereotype.Component;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import com.ia.project.dynamicstudyplanner.ga.Population;
-import java.util.Random;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 /**
  * Implements the Tournament Selection strategy, a robust method for choosing parent individuals.
  * <p>
@@ -16,7 +16,6 @@ import java.util.Random;
 @Component
 public class TournamentSelection implements SelectionStrategy {
     private final int tournamentSize;
-    private final Random random = new Random();
     /**
      * Constructs a TournamentSelection strategy with a default tournament size.
      * The size is set to 3 to provide balanced selection pressure for standard configurations.
@@ -61,11 +60,11 @@ public class TournamentSelection implements SelectionStrategy {
             return null; // Cannot select from an empty population.
         }
         // 1. Select the first contender as the initial "best" individual.
-        Individual bestContender = population.getIndividual(random.nextInt(population.getSize()));
+        Individual bestContender = population.getIndividual(RandomProvider.getInstance().nextInt(population.getSize()));
         // 2. Loop through the rest of the tournament contenders.
         // We start the loop from 1 since we already have the first contender.
         for (int i = 1; i < tournamentSize; i++) {
-            Individual currentContender = population.getIndividual(random.nextInt(population.getSize()));
+            Individual currentContender = population.getIndividual(RandomProvider.getInstance().nextInt(population.getSize()));
             // 3. If the current contender is fitter, it becomes the new best.
             if (currentContender.getFitness() > bestContender.getFitness()) {
                 bestContender = currentContender;

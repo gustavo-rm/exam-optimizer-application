@@ -39,63 +39,18 @@ public final class Individual implements Comparable<Individual> {
     /**
      * Calculates the fitness of this individual based on a given context.
      * <p>
-     * This method is a pure calculator; it computes the fitness score but does not
-     * modify the individual's state. The result should be set using {@link #setFitness(double)}.
+     * This method delegates the calculation to the injected {@link com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator}
+     * provided in the context, allowing for a fully modular Multi-Objective Optimization pipeline.
      *
      * @param context The {@link EvolutionContext} containing all data needed for the calculation,
-     * such as importance scores and minimum day constraints.
+     * including the configured fitness pipeline.
      * @return The calculated fitness score.
      */
     public double calculateFitness(EvolutionContext context) {
-        // Step 1: Calculate the base score from the plan's knowledge acquisition.
-        double baseScore = calculateBaseScore(context.importanceScores());
-
-        // Step 2: Check if the plan violates any minimum day constraints.
-        // We now delegate to the domain object rather than calculating here.
-        boolean meetsConstraints = plan.meetsMinimumConstraints(context.minimumDaysPerSubject());
-
-        // Step 3: Apply a penalty to the score if constraints were violated.
-        return applyPenalty(baseScore, !meetsConstraints);
-    }
-
-    /**
-     * Calculates the base fitness score by summing the "knowledge" gained for each subject,
-     * weighted by that subject's importance.
-     *
-     * @param importanceScores A map of subjects to their importance scores.
-     * @return The raw, unpenalized fitness score.
-     */
-    private double calculateBaseScore(Map<Subject, Double> importanceScores) {
-        double score = 0.0;
-        for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
-            Subject subject = entry.getKey();
-            int days = entry.getValue();
-
-            double importance = importanceScores.getOrDefault(subject, 0.0);
-            if (importance == 0.0) {
-                log.warn("The subject '{}' does not have an importance score.", subject.name());
-            }
-
-            // A logarithmic function models the diminishing returns of studying.
-            double knowledge = Math.log(1.0 + days);
-            score += knowledge * importance;
+        if (context.fitnessEvaluator() == null) {
+            throw new IllegalStateException("FitnessEvaluator not provided in EvolutionContext");
         }
-        return score;
-    }
-
-    /**
-     * Applies a penalty to the base score if constraints were violated.
-     *
-     * @param score The base fitness score.
-     * @param isViolated A boolean indicating if a violation occurred.
-     * @return The final, potentially penalized fitness score.
-     */
-    private double applyPenalty(double score, boolean isViolated) {
-        if (isViolated) {
-            // A multiplicative penalty is often effective. Here we reduce fitness by 50%.
-            return score * 0.5;
-        }
-        return score;
+        return context.fitnessEvaluator().evaluate(this.plan, context);
     }
 
     /**

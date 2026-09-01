@@ -13,15 +13,42 @@ The **Dynamic Study Planner** solves the chronic problem of static and generic (
 
 The system operates through a **Stateless RESTful API** that receives a "snapshot" of the student's current state (time availability and knowledge gaps) and the rules of the exam syllabus. In seconds, it processes a strategic optimization and a tactical daily schedule, generating a realistic and mathematically superior plan.
 
-The great differentiator of this project is that its objective function (Fitness) and its scheduling heuristics are not arbitrary, but rather the direct computational translation of three established educational theories.
+The objective function (Fitness) is not arbitrary: two of its three terms are derived from established
+results in learning science, and the derivation, the weights and — importantly — the limits of each
+approximation are documented in
+[`docs/revisao-ag/05-fitness-function.md`](docs/revisao-ag/05-fitness-function.md).
 
 ## 🔬 Theoretical Foundation
 
-The intelligence of the system is based on the "Tripod of Efficient Learning":
+Every fitness term is normalised to `[0,1]` and combined by a weighted sum whose weights sum to 1.
 
-1. **Meaningful Learning Theory (David Ausubel):** The algorithm focuses on building cognitive bridges (*subsumers*). The study priority is calculated by crossing the weight of the subject in the syllabus with the **knowledge gaps (`knowledgeGaps`)** declared by the student.
-2. **The Forgetting Curve (Hermann Ebbinghaus):** Natively implemented through the `ReviewFocusedStrategy`. The system acts with **Spaced Repetition**, strategically prioritizing the review of the subject that has been unstudied for the longest time in the daily schedule.
-3. **Cognitive Load Theory (John Sweller):** The `CognitiveLoadBalancingStrategy` uses the *Two Pointers Interleaving* algorithm to alternate study blocks of high and low density (`cognitiveLoad`), respecting a maximum daily mental energy budget dynamically calculated by the AI to prevent exhaustion (*burnout*).
+1. **Syllabus coverage weighted by exam value** — *(weight 0.50)*. Each subject contributes in
+   proportion to what it is worth on the exam, multiplied by how much of it the plan can actually
+   teach, modelled as an exponential approach to a mastery ceiling. The **knowledge gap
+   (`knowledgeGaps`) declared by the student personalises that weighting: the larger the declared
+   gap, the higher the subject's priority.** That is a monotonic triage rule — it is not attributed
+   to any learning theory, and in particular it is *not* an implementation of Ausubel's meaningful
+   learning (see below).
+2. **The Forgetting Curve (Hermann Ebbinghaus)** — *(weight 0.30)*. Derived directly from
+   `R = e^(−t/S)`: recall falls to `e⁻¹` after one stability interval, so a subject needs roughly
+   `horizon / τ` sessions to stay above the forgetting threshold until exam day. The fitness scores
+   the importance-weighted fraction of the syllabus that gets them.
+   **This is a mean-field approximation, not spaced repetition proper** — the macro chromosome has no
+   calendar, so the term knows *how many* sessions a subject gets, not *when*.
+3. **Cognitive Load Theory (John Sweller)** — *(weight 0.20)*. `Subject.cognitiveLoad` is the
+   intrinsic-load proxy; `CognitiveLoadCalculator` turns availability and psychological state into a
+   sustainable daily budget, and the fitness penalises plans whose expected daily load exceeds it.
+   **This bounds the *expected* daily load, not the load of a single learning episode**, which is
+   what Sweller's construct is actually about.
+
+### What this system does **not** do
+
+**Ausubel's meaningful learning / prerequisite sequencing is not implemented.** The macro chromosome
+is `Map<Subject, Integer>` — a count of days with no ordering — so precedence between topics is not
+expressible, and the API does not collect prerequisite data in the first place. Earlier versions of
+this README attributed Ausubel to the knowledge-gap multiplier; that attribution was incorrect and
+has been removed. The reasoning, the two options considered and the decision are recorded in
+[`docs/revisao-ag/06-decisao-ausubel.md`](docs/revisao-ag/06-decisao-ausubel.md).
 
 ## 🚀 Features
 

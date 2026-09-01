@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -31,8 +33,11 @@ public class StudyOptimizerService {
 
     private final BaselineCalculator baselineCalculator;
     private final ImportanceCalculator importanceCalculator;
+    private final com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator cognitiveLoadCalculator =
+            new com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator();
     private final GeneticAlgorithmFactory gaFactory;
     private final PopulationGenerator populationGenerator;
+    private final com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator;
 
     // Custom Micrometer Metrics
     private final Counter optimizationRunsCounter;
@@ -42,11 +47,13 @@ public class StudyOptimizerService {
                                  ImportanceCalculator importanceCalculator,
                                  GeneticAlgorithmFactory gaFactory,
                                  PopulationGenerator populationGenerator,
+                                 com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator,
                                  MeterRegistry meterRegistry) {
         this.baselineCalculator = baselineCalculator;
         this.importanceCalculator = importanceCalculator;
         this.gaFactory = gaFactory;
         this.populationGenerator = populationGenerator;
+        this.fitnessEvaluator = fitnessEvaluator;
 
         this.optimizationRunsCounter = Counter.builder("dynamicstudyplanner.optimization.runs")
                 .description("Total number of study plan optimization runs executed")
@@ -121,7 +128,35 @@ public class StudyOptimizerService {
         Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
         Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
 
-        return new EvolutionContext(importanceScores, minimumDaysPerSubject);
+        // Dummy retention profile for macro-GA evaluation (will be properly hydrated in the tactical layer)
+        com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile retentionProfile = new com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile(java.util.Map.of());
+
+        // Dummy engagement profile for macro-GA evaluation (will be properly hydrated in the tactical layer)
+        com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile engagementProfile = com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile.baseline();
+
+        // Planning data the corrected fitness terms need. See docs/revisao-ag/05-fitness-function.md:
+        // the horizon drives the spacing estimate behind the retention term, and the daily load
+        // budget (which already folds in stress, fatigue and motivation) bounds the cognitive-load
+        // term. Both are properties of the request, computed once per optimisation.
+        LocalDate planStartDate = LocalDate.now();
+        int planningHorizonDays = Math.max(1,
+                (int) ChronoUnit.DAYS.between(planStartDate, exam.getExamDate()));
+        int hoursPerStudyDay = Math.max(1,
+                (int) Math.ceil(profile.getTotalWeeklyHours() / 7.0));
+        int maxDailyCognitiveLoad = cognitiveLoadCalculator.calculate(profile, exam);
+
+        return EvolutionContext.of(
+                importanceScores,
+                minimumDaysPerSubject,
+                profile.getState(),
+                fitnessEvaluator,
+                retentionProfile,
+                planStartDate,
+                engagementProfile,
+                planningHorizonDays,
+                hoursPerStudyDay,
+                maxDailyCognitiveLoad
+        );
     }
 
     /**

@@ -6,7 +6,7 @@ import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 
 /**
  * Factory for creating instances of {@link StudyPlan}.
@@ -17,7 +17,6 @@ import java.util.Random;
  * randomization used here is the most effective way to achieve that goal.
  */
 public final class StudyPlanFactory {
-    private final Random random = new Random();
 
     /**
      * Creates a random {@code StudyPlan} ensuring that all minimum day constraints are met.
@@ -42,6 +41,21 @@ public final class StudyPlanFactory {
             int totalDays,
             Map<Subject, Integer> minimumDaysPerSubject
     ) {
+        // Guarded explicitly: without this the random distribution below reaches
+        // Random.nextInt(0) and surfaces the JDK's "bound must be positive", which tells the
+        // caller nothing about what is actually wrong with their exam.
+        if (subjects == null || subjects.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Cannot build a study plan: the exam has no subjects."
+            );
+        }
+
+        if (totalDays < 0) {
+            throw new IllegalArgumentException(
+                    "Total available days cannot be negative (received " + totalDays + ")."
+            );
+        }
+
         int totalMinimumDays = minimumDaysPerSubject.values().stream()
                 .mapToInt(Integer::intValue)
                 .sum();
@@ -61,7 +75,7 @@ public final class StudyPlanFactory {
 
         int remainingDays = totalDays - totalMinimumDays;
         for (int i = 0; i < remainingDays; i++) {
-            Subject randomSubject = subjects.get(random.nextInt(subjects.size()));
+            Subject randomSubject = subjects.get(RandomProvider.getInstance().nextInt(subjects.size()));
             daysPerSubject.computeIfPresent(randomSubject, (k, currentDays) -> currentDays + 1);
         }
 

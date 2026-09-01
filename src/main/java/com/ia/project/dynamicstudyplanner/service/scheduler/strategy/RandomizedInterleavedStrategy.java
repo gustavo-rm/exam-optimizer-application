@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 
 /**
  * An allocation strategy that randomizes the order of subjects each day.
@@ -12,7 +13,6 @@ import java.util.stream.Collectors;
  * which can be a powerful learning technique.
  */
 public class RandomizedInterleavedStrategy implements AllocationStrategy {
-    private final Random random = new Random();
 
     @Override
     public List<StudyBlock> allocateHours(AllocationContext context) {
@@ -23,7 +23,8 @@ public class RandomizedInterleavedStrategy implements AllocationStrategy {
                 .filter(entry -> entry.getValue() > 0.5)
                 .map(Map.Entry::getKey)
                 .collect(Collectors.toList());
-        Collections.shuffle(subjectsToStudyToday, random);
+        Collections.shuffle(subjectsToStudyToday,
+                RandomProvider.getInstance());
 
         if (subjectsToStudyToday.isEmpty()) {
             return dailyBlocks;

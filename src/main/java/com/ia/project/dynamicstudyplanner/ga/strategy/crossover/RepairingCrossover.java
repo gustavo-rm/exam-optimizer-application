@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import java.util.*;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 /**
  * Implements a single-point crossover strategy followed by a repair mechanism.
  * This explorative crossover method is effective at creating new genetic combinations.
@@ -13,7 +14,6 @@ import java.util.*;
  */
 @Component
 public class RepairingCrossover implements CrossoverStrategy {
-    private final Random random = new Random();
     /**
      * Creates a new child by performing a single-point crossover on two parents and then
      * repairing the child's gene sum to ensure its validity.
@@ -26,7 +26,7 @@ public class RepairingCrossover implements CrossoverStrategy {
      */
     @Override
     public Individual crossover(Individual parent1, Individual parent2, double crossoverRate, EvolutionContext context) {
-        if (random.nextDouble() > crossoverRate) {
+        if (RandomProvider.getInstance().nextDouble() > crossoverRate) {
             // If no crossover occurs, return a clone of the fitter parent to maintain population quality.
             return parent1.getFitness() > parent2.getFitness() ? new Individual(parent1.getPlan()) : new Individual(parent2.getPlan());
         }
@@ -49,7 +49,7 @@ public class RepairingCrossover implements CrossoverStrategy {
         Map<Subject, Integer> parent2Genes = parent2.getPlan().getDaysPerSubject();
         List<Subject> subjects = new ArrayList<>(parent1Genes.keySet());
         Map<Subject, Integer> childGenes = new HashMap<>();
-        int crossoverPoint = subjects.size() > 1 ? random.nextInt(subjects.size() - 1) + 1 : 1;
+        int crossoverPoint = subjects.size() > 1 ? RandomProvider.getInstance().nextInt(subjects.size() - 1) + 1 : 1;
         for (int i = 0; i < subjects.size(); i++) {
             Subject subject = subjects.get(i);
             if (i < crossoverPoint) {
@@ -73,7 +73,7 @@ public class RepairingCrossover implements CrossoverStrategy {
         int difference = targetDaySum - currentDaySum;
         List<Subject> subjects = new ArrayList<>(childGenes.keySet());
         while (difference != 0 && !subjects.isEmpty()) {
-            Subject randomSubject = subjects.get(random.nextInt(subjects.size()));
+            Subject randomSubject = subjects.get(RandomProvider.getInstance().nextInt(subjects.size()));
             int currentDays = childGenes.get(randomSubject);
             if (difference > 0) { // Need to add days
                 childGenes.put(randomSubject, currentDays + 1);

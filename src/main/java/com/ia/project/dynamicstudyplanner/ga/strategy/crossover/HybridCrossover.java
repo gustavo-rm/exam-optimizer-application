@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.ga.strategy.crossover;
 import org.springframework.stereotype.Component;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
-import java.util.Random;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 /**
  * Implements a hybrid crossover strategy that dynamically chooses between
  * an exploitative and an explorative crossover method. This helps maintain
@@ -14,7 +14,6 @@ public class HybridCrossover implements CrossoverStrategy {
     private final CrossoverStrategy exploitationStrategy; // Para refinar (ex: Média Ponderada)
     private final CrossoverStrategy explorationStrategy;  // Para explorar (ex: Reparo)
     private final double exploitationChance;
-    private final Random random = new Random();
     public HybridCrossover(WeightedAverageCrossover exploitationStrategy, RepairingCrossover explorationStrategy) {
         this.exploitationStrategy = exploitationStrategy;
         this.explorationStrategy = explorationStrategy;
@@ -23,11 +22,11 @@ public class HybridCrossover implements CrossoverStrategy {
     @Override
     public Individual crossover(Individual parent1, Individual parent2, double crossoverRate, EvolutionContext context) {
         // Primeiro, decide se o crossover vai acontecer
-        if (random.nextDouble() > crossoverRate) {
+        if (RandomProvider.getInstance().nextDouble() > crossoverRate) {
             return parent1.getFitness() > parent2.getFitness() ? new Individual(parent1.getPlan()) : new Individual(parent2.getPlan());
         }
         // Se acontecer, escolhe qual estratégia usar
-        if (random.nextDouble() < exploitationChance) {
+        if (RandomProvider.getInstance().nextDouble() < exploitationChance) {
             // Usa a estratégia de refinamento
             return exploitationStrategy.crossover(parent1, parent2, 1.0, context); // Passa 1.0 pois já decidimos cruzar
         } else {
