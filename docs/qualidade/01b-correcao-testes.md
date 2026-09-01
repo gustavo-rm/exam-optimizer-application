@@ -293,7 +293,22 @@ Duas sabotagens temporárias, ambas revertidas:
 
 Falha de teste e queda de cobertura reprovam o mesmo job.
 
-### 4.3 O que falta para o gate bloquear de fato
+### 4.3 Confirmado no ambiente real
+
+O workflow foi verificado no GitHub, e não apenas localmente. A primeira execução de CI da história
+do repositório (`run #1`, commit `724e80c`) terminou **`success`**, com todos os nove passos verdes:
+
+| Passo | Resultado |
+|---|---|
+| Checkout, JDK 21 Temurin, cache do Maven | success |
+| **Build, testes e piso de cobertura** (`mvn verify`) | **success** — 47 s |
+| Publicação dos relatórios de teste e de cobertura | success |
+| Resumo da cobertura no sumário do job | success |
+
+Execução completa em **59 segundos**, do agendamento ao fim. É um custo baixo o suficiente para que
+o gate rode em todo *push* e em todo *pull request* sem atrapalhar o ritmo de trabalho.
+
+### 4.4 O que falta para o gate bloquear de fato
 
 **Este arquivo sozinho não bloqueia merge.** Ele faz a verificação existir e reportar. Para virar
 bloqueio, o job precisa ser marcado como *required status check* na proteção da branch — configuração
@@ -531,7 +546,7 @@ O que **não** foi resolvido, com o motivo. Nada aqui foi omitido por esquecimen
 | **P5** | `StudentProfileMapper` aceita lacuna que cita disciplina fora do edital: vira chave nula; duas delas colidem e viram **500** em vez de 400 | Dois testes **documentam** o comportamento atual, marcados `COMPORTAMENTO ATUAL`. Corrigir muda o contrato de erro da API | estrutura / escrita |
 | **P6** | Existem tratadores para `422`, `401` e `403` que nenhuma requisição consegue provocar | Testados diretamente. Decidir entre remover ou tornar alcançável é decisão de estrutura e de segurança — o `401`/`403` dependem do `permitAll()` (R13/R14 do inventário) | segurança |
 | **P7** | As asserções frouxas de `HybridHeuristicSchedulerTest` não foram apertadas | A classe não tem consumidor em produção (G5). Apertar asserções sobre código que ninguém alcança é esforço sem redução de risco, e encarece removê-la | estrutura |
-| **P8** | **O gate ainda não bloqueia merge** | Marcar o check como obrigatório é configuração de repositório; a API respondeu `403` para esta credencial. Passo a passo na seção 4.3 | **ação humana, uma vez** |
+| **P8** | **O gate ainda não bloqueia merge** | O workflow roda e passa (seção 4.3), mas marcar o check como obrigatório é configuração de repositório; a API respondeu `403` para esta credencial. Passo a passo na seção 4.4 | **ação humana, uma vez** |
 | **P9** | O bloco de log `TRACE` de `StudyOptimizerService.runEvolution` continua descoberto (39/103), e com ele `Population.getWorst` e `getAverageFitness` | Nível 3 da lista priorizada. Vale registrar que é um risco real de outra natureza: uma linha de log que só executa com `TRACE` ligado pode quebrar no dia em que alguém ligar | testes (próxima rodada) |
 | **P10** | Nenhum teste de concorrência sobre o `optimizerTaskExecutor` (pool 8, fila 50, rejeição rápida) | Fora do escopo desta etapa; o diagnóstico já o havia colocado na de performance | performance / escalonamento |
 
@@ -544,8 +559,9 @@ O que **não** foi resolvido, com o motivo. Nada aqui foi omitido por esquecimen
   propósito: o que resta é quase todo código que nenhum caminho de produção alcança.
 - **O fluxo de sucesso passou de zero para 100%** nos dois métodos que o diagnóstico apontou como o
   risco número um. **Os 9 tratadores de erro estão em 100%**; antes, 8 nunca executavam.
-- **O gate de CI existe e foi verificado nas duas direções** — reprova por teste quebrado e por queda
-  de cobertura. **Falta um passo humano** para virar bloqueio de merge (P8).
+- **O gate de CI existe, roda no GitHub e foi verificado nas duas direções** — a primeira execução da
+  história do repositório passou em 59 s, e as sabotagens provaram que ele reprova por teste quebrado
+  e por queda de cobertura. **Falta um passo humano** para virar bloqueio de merge (P8).
 - **O contrato HTTP tem retrato versionado**, e mudanças nele passam a aparecer no *diff*.
 - **Dois defeitos de produção foram encontrados e corrigidos**: a documentação da API estava fora do
   ar (`500`) e o projeto não gerava jar executável. Ambos existiam antes deste trabalho e nenhuma
