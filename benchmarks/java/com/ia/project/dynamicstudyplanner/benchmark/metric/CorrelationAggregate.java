@@ -88,17 +88,38 @@ public final class CorrelationAggregate {
      * @param upperBound       upper end of the 95% interval, on the r scale
      * @param instancesUsed    how many instances contributed
      * @param instancesSkipped how many were excluded as undefined or too small
+     * @param cochranQ         Cochran's Q: disagreement between instances beyond sampling error.
+     *                         Compare against {@code instancesUsed - 1} degrees of freedom
+     * @param iSquared         share of the total variation that is real disagreement rather than
+     *                         sampling error, in [0,1]. Above 0.5 the instances are not measuring a
+     *                         common quantity and a single summary is weak evidence
+     * @param randomEffectsLowerBound lower end of an interval that carries the disagreement instead
+     *                         of assuming it away (DerSimonian-Laird)
+     * @param randomEffectsUpperBound upper end of that interval
      */
     public record Result(
             double correlation,
             double lowerBound,
             double upperBound,
             int instancesUsed,
-            int instancesSkipped
+            int instancesSkipped,
+            double cochranQ,
+            double iSquared,
+            double randomEffectsLowerBound,
+            double randomEffectsUpperBound
     ) {
         /** {@code true} when no instance could contribute, so {@link #correlation()} is {@code NaN}. */
         public boolean isUndefined() {
             return instancesUsed == 0;
+        }
+
+        /**
+         * Whether the instances disagree more than sampling error explains, by the conventional
+         * {@code I2 > 50%} threshold. When true, the aggregate summarises instances that are not
+         * measuring a common quantity, and the random-effects interval is the honest one to quote.
+         */
+        public boolean isHeterogeneous() {
+            return iSquared > 0.5;
         }
 
         /** Report-ready rendering, always carrying the instance count so the number cannot be quoted bare. */
@@ -107,9 +128,17 @@ public final class CorrelationAggregate {
                 return String.format(Locale.ROOT,
                         "n/d (nenhuma das %d instancias tinha correlacao definida)", instancesSkipped);
             }
-            return String.format(Locale.ROOT, "%+.3f [IC95%% %+.3f, %+.3f], n = %d instancias%s",
+            String base = String.format(Locale.ROOT, "%+.3f [IC95%% %+.3f, %+.3f], n = %d instancias%s",
                     correlation, lowerBound, upperBound, instancesUsed,
                     instancesSkipped == 0 ? "" : " (" + instancesSkipped + " excluidas: correlacao indefinida)");
+            if (instancesUsed < 2) {
+                return base;
+            }
+            return base + String.format(Locale.ROOT,
+                    " | Q = %.2f, I2 = %.0f%%%s | IC95%% de efeitos aleatorios [%+.3f, %+.3f]",
+                    cochranQ, 100 * iSquared,
+                    isHeterogeneous() ? " (HETEROGENEO: as instancias discordam)" : "",
+                    randomEffectsLowerBound, randomEffectsUpperBound);
         }
     }
 
@@ -121,7 +150,8 @@ public final class CorrelationAggregate {
      */
     public static Result aggregate(List<InstanceCorrelation> perInstance) {
         if (perInstance == null || perInstance.isEmpty()) {
-            return new Result(Double.NaN, Double.NaN, Double.NaN, 0, 0);
+            return new Result(Double.NaN, Double.NaN, Double.NaN, 0, 0,
+                    Double.NaN, Double.NaN, Double.NaN, Double.NaN);
         }
 
         double weightedZ = 0.0;
@@ -144,18 +174,47 @@ public final class CorrelationAggregate {
         }
 
         if (used == 0) {
-            return new Result(Double.NaN, Double.NaN, Double.NaN, 0, skipped);
+            return new Result(Double.NaN, Double.NaN, Double.NaN, 0, skipped,
+                    Double.NaN, Double.NaN, Double.NaN, Double.NaN);
         }
 
         double meanZ = weightedZ / totalWeight;
         double standardError = Math.sqrt(SPEARMAN_VARIANCE_INFLATION / totalWeight);
+
+        // Cochran's Q: how much the instances disagree beyond what sampling error explains. Under
+        // homogeneity it follows chi-square with (used - 1) degrees of freedom, so Q well above its
+        // df means the instances are not estimating one common correlation.
+        double q = 0.0;
+        for (InstanceCorrelation entry : perInstance) {
+            double weight = (entry.sampleSize() - 3.0) / SPEARMAN_VARIANCE_INFLATION;
+            if (Double.isNaN(entry.correlation()) || weight <= 0.0) {
+                continue;
+            }
+            double deviation = fisherZ(entry.correlation()) - meanZ;
+            q += weight * deviation * deviation;
+        }
+
+        int degreesOfFreedom = used - 1;
+        double iSquared = q > degreesOfFreedom && q > 0 ? (q - degreesOfFreedom) / q : 0.0;
+
+        // DerSimonian-Laird tau^2, then a random-effects interval that carries the disagreement
+        // instead of hiding it. With equal weights the estimator reduces to (Q - df) / (W - W/k).
+        double inverseVarianceWeight = totalWeight / SPEARMAN_VARIANCE_INFLATION;
+        double tauSquared = Math.max(0.0,
+                (q - degreesOfFreedom) / (inverseVarianceWeight - inverseVarianceWeight / used));
+        double randomEffectsError =
+                Math.sqrt(1.0 / inverseVarianceWeight + tauSquared / used);
 
         return new Result(
                 Math.tanh(meanZ),
                 Math.tanh(meanZ - Z_95 * standardError),
                 Math.tanh(meanZ + Z_95 * standardError),
                 used,
-                skipped);
+                skipped,
+                q,
+                iSquared,
+                Math.tanh(meanZ - Z_95 * randomEffectsError),
+                Math.tanh(meanZ + Z_95 * randomEffectsError));
     }
 
     /**

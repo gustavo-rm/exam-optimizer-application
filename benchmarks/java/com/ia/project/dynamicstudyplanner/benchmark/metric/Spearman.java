@@ -49,6 +49,25 @@ public final class Spearman {
         return denominator == 0.0 ? Double.NaN : numerator / denominator;
     }
 
+    /**
+     * Tolerance for treating two values as tied.
+     * <p>
+     * <b>Not cosmetic.</b> Tie detection used exact {@code Double.equals}, and the series being
+     * ranked are means over repetitions: seven repetitions each scoring exactly {@code 0.975}
+     * average to {@code 0.9749999999999999}, one ulp away from a deterministic planner's exact
+     * {@code 0.975}. The tie was missed, the three tied planners got distinct ranks, and
+     * {@code I8-escala} read {@code -0.928} instead of its true {@code -0.880} - a difference that
+     * moved the canonical aggregate from {@code -0.106} to {@code -0.171}.
+     * <p>
+     * Worse, the artifact was path-dependent: reports that round-tripped through the CSV parsed
+     * {@code "0.9750"} back to an exact {@code 0.975} and saw the tie, while reports computing in
+     * memory did not. Two code paths, same data, different published coefficient.
+     * <p>
+     * {@code 1e-9} is far below any real difference in these series - the business metric is a count
+     * over a total, so genuine gaps are at least {@code 1/40} - and far above accumulated rounding.
+     */
+    private static final double TIE_TOLERANCE = 1e-9;
+
     /** Average ranks, so tied values share a rank instead of getting an arbitrary order. */
     private static double[] ranks(List<Double> values) {
         int n = values.size();
@@ -62,7 +81,7 @@ public final class Spearman {
         int i = 0;
         while (i < n) {
             int j = i;
-            while (j + 1 < n && values.get(order[j + 1]).equals(values.get(order[i]))) {
+            while (j + 1 < n && tied(values.get(order[j + 1]), values.get(order[i]))) {
                 j++;
             }
             double averageRank = (i + j) / 2.0 + 1;
@@ -72,6 +91,11 @@ public final class Spearman {
             i = j + 1;
         }
         return result;
+    }
+
+    /** Whether two values are equal to within {@link #TIE_TOLERANCE}. */
+    private static boolean tied(double a, double b) {
+        return Math.abs(a - b) <= TIE_TOLERANCE;
     }
 
     private static double mean(double[] values) {

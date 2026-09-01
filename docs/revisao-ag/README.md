@@ -1,8 +1,8 @@
 # Revisão do Algoritmo Genético — Índice
 
-Revisão de engenharia do motor de planejamento macro do SINAPSE, conduzida em sete etapas entre
+Revisão de engenharia do motor de planejamento macro do SINAPSE, conduzida em oito etapas entre
 2026-08-30 e 2026-08-31. Esta página é a **porta de entrada** e a **fonte única de status** das
-pendências G1–G11.
+pendências G1–G13.
 
 ---
 
@@ -20,7 +20,8 @@ pendências G1–G11.
 | 06b | [`06-regime-alta-carga.md`](./06-regime-alta-carga.md) | Onde a fitness deixa de ajudar a retenção. Fronteira caracterizada | Sim — temperagem dos pesos |
 | 06c | [`06-limite-troca-pesos.md`](./06-limite-troca-pesos.md) | Troca pontuação × retenção. **Pendência de negócio aberta** | Não |
 | 06d | [`06-verificacao-pos-rodada.md`](./06-verificacao-pos-rodada.md) | Verificação independente em código. Origem de G1–G11 | Só um teste |
-| 07 | [`07-correcao-metrica-e-ausubel.md`](./07-correcao-metrica-e-ausubel.md) | **Estado atual.** Métrica corrigida, baseline remedida, narrativa de Ausubel | Sim — método de agregação |
+| 07 | [`07-correcao-metrica-e-ausubel.md`](./07-correcao-metrica-e-ausubel.md) | Métrica corrigida, baseline remedida, narrativa de Ausubel | Sim — método de agregação |
+| 08 | [`08-saturacao-e-amostragem.md`](./08-saturacao-e-amostragem.md) | **Estado atual.** Por que 4 de 8 instâncias saturam, heterogeneidade, e a decisão de não expandir a amostra | Sim — empates do Spearman |
 
 ---
 
@@ -30,15 +31,30 @@ Qualquer relatório futuro cita **estes** valores. Correlação de Spearman entr
 disciplinas na janela de retenção, agregada entre instâncias por **transformada z de Fisher**
 (`benchmarks/…/metric/CorrelationAggregate.java`) — nunca por empilhamento de observações.
 
-| Estado | Agregado (Fisher z, n = 4 instâncias) | IC 95% |
-|---|---|---|
-| Etapa 03 — fitness original (média de 10 execuções) | **−0,909** | −0,971 a −0,734 |
-| Etapa 05 — após correções de fidelidade | **−0,460** | −0,793 a +0,085 |
-| Etapa 06 — após temperagem dos pesos de retenção | **−0,106** | −0,597 a +0,443 |
+| Estado | Agregado (Fisher z) | IC 95% fixo | I² | IC 95% efeitos aleatórios |
+|---|---|---|---|---|
+| Etapa 03 — fitness original (média de 10 execuções) | **−0,909** | −0,971 a −0,734 | 0% | −0,971 a −0,734 |
+| Etapa 05 — após correções de fidelidade | **−0,460** | −0,793 a +0,085 | 15% | −0,811 a +0,134 |
+| Etapa 06 — após temperagem dos pesos de retenção | **−0,106** | −0,597 a +0,443 | **58%** | **−0,765 a +0,662** |
 
-**A anti-correlação foi reduzida em quase uma ordem de grandeza, mas não invertida.** Com n = 4 os
-intervalos são largos: a *direção* da trajetória é sólida, o valor pontual de cada etapa não é
-preciso. Detalhamento e tabela por instância em [`07`](./07-correcao-metrica-e-ausubel.md) §4.
+> ### ⚠ Três limitações que acompanham estes números — sempre
+>
+> 1. **`n = 4` instâncias, de 8.** As outras quatro saturam a métrica em 100% para todo planejador,
+>    então a correlação é indefinida — não zero. A causa está medida e classificada em
+>    [`08`](./08-saturacao-e-amostragem.md) §3: saturação **no teto**, o caso em que a fitness não
+>    tem como causar dano.
+> 2. **I² = 58% no estado atual: as instâncias discordam.** `I7` está em +0,655 e `I8` em −0,880.
+>    A média é uma descrição fraca de qualquer uma delas, e o intervalo honesto é o de efeitos
+>    aleatórios. A heterogeneidade **cresceu** ao longo da revisão porque a temperagem moveu umas
+>    instâncias muito e `I8` nada ([`08`](./08-saturacao-e-amostragem.md) §4).
+> 3. **A amostra não será expandida por ora**, por decisão registrada em
+>    [`08`](./08-saturacao-e-amostragem.md) §5 — com gatilhos explícitos para reabrir, sendo o
+>    primeiro deles *"o número ser usado por um avaliador externo"*.
+
+**A anti-correlação foi reduzida em quase uma ordem de grandeza, mas não invertida.** A *direção* da
+trajetória é sólida — três estados, melhora monotônica, cada um medido em código reconstruído do
+próprio commit. O *valor pontual* de cada etapa não é preciso. Tabela por instância em
+[`07`](./07-correcao-metrica-e-ausubel.md) §4.
 
 > **Números que não devem mais ser citados:** o agregado empilhado das etapas 03/05/06
 > (−0,654 → +0,161 → +0,196) é estatisticamente inválido e inverte o sinal da conclusão. Ver
@@ -82,9 +98,16 @@ severidade original. **Atualizado em 2026-08-31 (etapa 07).**
 |---|---|---|---|
 | **G11** | `CriticalFirstStrategy` e `RandomizedInterleavedStrategy` existem e nunca são usadas | ⬜ **ABERTO** — corretas, sem anotação Spring, sem consumidor. Custo de manter é próximo de zero | `service/scheduler/strategy/` |
 
-**Resumo: 8 de 11 resolvidos.** Os três abertos (G5, G6, G11) são todos sobre a camada tática morta
-ou código não cabeado — nenhum afeta o caminho de execução de produção, e nenhum sustenta uma
-afirmação publicada.
+### Acrescentados na etapa 08 — lacunas de rastreamento
+
+| # | Gap | Status | Onde |
+|---|---|---|---|
+| **G12** | **L4 — `I8-escala` mantém ρ = −0,880 e a temperagem não a moveu.** 40 disciplinas, dispersão de 32:1 (abaixo da fronteira de ~200:1), amplitude de retenção de apenas 2,5 pp. É a instância que mais puxa o agregado e a principal fonte da heterogeneidade de I² = 58%. Hipótese **não medida**: `InterleavedCriticalStrategy` estuda só as 3 disciplinas mais críticas por dia. **Atenção:** a explicação original — "regime linear por orçamento apertado" — foi **falsificada** em [`06b`](./06-regime-alta-carga.md) §3; o driver é dispersão, não orçamento | ⬜ **PENDENTE** — caracterizado, não corrigido. Teste seria variar `INTERLEAVING_FOCUS_SIZE` | [`08`](./08-saturacao-e-amostragem.md) §1.2 · [`06b`](./06-regime-alta-carga.md) §10 · [`05`](./05-fitness-function.md) §8 (L4) |
+| **G13** | **A divisão uniforme vence o AG na janela de retenção em `I3` (96,0% × 76,6%) e `I4` (100,0% × 81,4%).** Medido, não é defeito: o AG perde em O₁ **e** em O₃ nessas instâncias e vence pelo termo de carga cognitiva — a troca real é memória × sustentabilidade da agenda. A alavanca que fecharia a lacuna é o piso de dias mínimos (+23,4 pp por 0,52% de O₁), não os pesos | ⬜ **PENDENTE — decisão de negócio.** Exige responder antes qual promessa de cobertura o produto faz ao aluno | [`06c`](./06-limite-troca-pesos.md) §6 |
+
+**Resumo: 8 de 13 resolvidos.** Os cinco abertos: G5, G6 e G11 são sobre código fora do caminho de
+execução de produção; **G12 e G13 estão no caminho de produção** e são os que importam — G12 é
+técnico e não explicado, G13 aguarda decisão humana.
 
 ---
 
@@ -94,7 +117,8 @@ Separadas dos gaps porque **não são defeitos** — são escolhas que engenhari
 
 | Pendência | Pergunta | Documento |
 |---|---|---|
-| **Troca de pesos** | Até onde a vitória da divisão uniforme na métrica de retenção é aceitável? Qual promessa de cobertura o produto faz ao aluno? | [`06c`](./06-limite-troca-pesos.md) §6 |
+| **Troca de pesos** (G13) | Até onde a vitória da divisão uniforme na janela de retenção é aceitável — `I3` 96,0% × 76,6%, `I4` 100,0% × 81,4%? Qual promessa de cobertura o produto faz ao aluno? | [`06c`](./06-limite-troca-pesos.md) §6 |
+| **Expandir a amostra** | Não agora ([`08`](./08-saturacao-e-amostragem.md) §5). Reabrir se o agregado for usado externamente, ou se houver edital real | [`08`](./08-saturacao-e-amostragem.md) §5.3 |
 | **Ausubel** | Reabrir quando existir DAG de pré-requisitos autorado por edital | [`06a`](./06-decisao-ausubel.md) §4.2 |
 | **P1–P7 da etapa 04** | Correções estruturais listadas como pendência, não implementadas | [`04`](./04-robustez.md) |
 
@@ -113,6 +137,7 @@ java -cp "$CP" com.ia...benchmark.robustness.WeightSensitivityMain   # estabilid
 java -cp "$CP" com.ia...benchmark.robustness.WeightTradeoffMain      # troca de pesos (06c)
 java -cp "$CP" com.ia...benchmark.robustness.RobustnessMain          # determinismo e hiperparâmetros
 java -cp "$CP" com.ia...benchmark.robustness.BaselineReplayMain <dir> # agrega N execuções salvas
+java -cp "$CP" com.ia...benchmark.robustness.SaturationDiagnosticMain # por que uma instância satura (08 §3)
 ```
 
 Prefixo completo: `com.ia.project.dynamicstudyplanner`.

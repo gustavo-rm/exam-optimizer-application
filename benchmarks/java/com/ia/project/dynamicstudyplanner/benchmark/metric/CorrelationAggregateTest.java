@@ -157,6 +157,55 @@ class CorrelationAggregateTest {
     }
 
     @Nested
+    @DisplayName("Heterogeneidade entre instancias")
+    class Heterogeneity {
+
+        @Test
+        @DisplayName("instancias que concordam nao sao marcadas como heterogeneas")
+        void agreeingInstancesAreNotFlagged() {
+            CorrelationAggregate.Result result = CorrelationAggregate.aggregate(
+                    List.of(-0.90, -0.88, -0.91, -0.89), PLANNERS_PER_INSTANCE);
+
+            assertThat(result.iSquared()).isLessThan(0.5);
+            assertThat(result.isHeterogeneous()).isFalse();
+        }
+
+        @Test
+        @DisplayName("instancias que discordam sao marcadas, e o IC aleatorio e mais largo")
+        void disagreeingInstancesAreFlaggedAndWidenTheInterval() {
+            // The etapa-06 shape: two clearly positive, two clearly negative.
+            CorrelationAggregate.Result result = CorrelationAggregate.aggregate(
+                    List.of(0.257, -0.093, 0.655, -0.880), PLANNERS_PER_INSTANCE);
+
+            assertThat(result.isHeterogeneous())
+                    .as("I2 = %.0f%%: I7 em +0,655 e I8 em -0,880 nao estimam a mesma quantidade.",
+                            100 * result.iSquared())
+                    .isTrue();
+            assertThat(result.randomEffectsLowerBound()).isLessThan(result.lowerBound());
+            assertThat(result.randomEffectsUpperBound()).isGreaterThan(result.upperBound());
+        }
+
+        @Test
+        @DisplayName("o IC de efeitos aleatorios e substancialmente mais largo quando ha discordancia")
+        void theRandomEffectsIntervalIsSubstantiallyWiderUnderDisagreement() {
+            CorrelationAggregate.Result result = CorrelationAggregate.aggregate(
+                    List.of(0.257, -0.093, 0.655, -0.880), PLANNERS_PER_INSTANCE);
+
+            double fixed = width(result.lowerBound(), result.upperBound());
+            double random = width(result.randomEffectsLowerBound(), result.randomEffectsUpperBound());
+
+            assertThat(random / fixed)
+                    .as("IC fixo = %.3f de largura, aleatorio = %.3f. Citar o fixo com I2 = %.0f%% "
+                            + "subestima a incerteza.", fixed, random, 100 * result.iSquared())
+                    .isGreaterThan(1.3);
+        }
+
+        private double width(double low, double high) {
+            return high - low;
+        }
+    }
+
+    @Nested
     @DisplayName("Regressao sobre os dados reais das etapas 03, 05 e 06")
     class RealDataRegression {
 
@@ -186,6 +235,12 @@ class CorrelationAggregateTest {
             assertThat(etapa03.correlation()).isCloseTo(-0.909, tol);
             assertThat(etapa05.correlation()).isCloseTo(-0.460, tol);
             assertThat(etapa06.correlation()).isCloseTo(-0.105, tol);
+
+            // A heterogeneidade cresce ao longo da trajetoria: na etapa 03 as quatro instancias
+            // concordavam (todas fortemente negativas); hoje discordam, porque a temperagem moveu
+            // I3 e I7 muito e I8 nada. Ver 08-saturacao-e-amostragem.md §4.
+            assertThat(etapa03.iSquared()).isLessThan(0.5);
+            assertThat(etapa06.iSquared()).isGreaterThan(0.5);
         }
     }
 
