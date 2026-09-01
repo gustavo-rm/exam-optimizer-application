@@ -13,7 +13,7 @@ correlação, e decidir se o conjunto de instâncias deve crescer.
 
 | Item | Resultado |
 |---|---|
-| L4 estava rastreado? | **Não.** Nem no `README`, nem em G1–G11. Órfão → agora **G12** |
+| L4 estava rastreado? | **Não.** Não aparecia no `README` nem na lista G1–G11. Ficou órfão; agora é o **G12** |
 | Troca I3/I4 estava rastreada? | **Parcialmente** — existia como pendência de negócio, sem os números e fora de G1–G11 → agora **G13** |
 | Saturação e L4 são o mesmo problema? | **Não. São opostos.** As 4 instâncias indefinidas saturam no **teto** (100% para todo planejador); L4 é sobre regime disperso |
 | Expandir a amostra? | **Não agora** — o eixo proposto já foi varrido e é nulo, e o gargalo não é `n`, é heterogeneidade (I² = 58%) |
@@ -33,8 +33,8 @@ existia apenas dentro de [`05`](./05-fitness-function.md) §8 (tabela de limita�
 ### 1.2 Correção necessária ao enunciado de L4
 
 O enunciado desta etapa descreve L4 como *"o termo de retenção ficar em regime linear sem força de
-espalhamento sob orçamento muito apertado"*. **Essa explicação foi falsificada na etapa 06** e não
-deve ser propagada.
+espalhamento sob orçamento muito apertado"*. **Essa explicação foi testada na etapa 06 e não se
+confirmou**, portanto não deve ser propagada.
 
 [`06b`](./06-regime-alta-carga.md) §3 varreu a razão demanda/orçamento de 0,50 a 5,00 mantendo todo
 o resto fixo: **as oito instâncias saturam em 100% para todo planejador**, amplitude 0,0 pp. O

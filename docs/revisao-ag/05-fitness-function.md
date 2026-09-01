@@ -389,7 +389,7 @@ dizer "é exatamente −0,106" não.
 
 **A causa foi identificada na etapa 06 e não era a que `05` supunha.** A limitação registrada aqui
 atribuía a anti-correlação ao aperto do orçamento. Três varreduras controladas
-([`06-regime-alta-carga.md`](./06-regime-alta-carga.md)) falsificaram essa hipótese — a métrica satura
+([`06-regime-alta-carga.md`](./06-regime-alta-carga.md)) refutaram essa hipótese com dados — a métrica satura
 em 100% para todo planejador em razões de demanda de 0,5 a 5,0 — e também a hipótese do número de
 disciplinas. O driver é a **dispersão efetiva da importância**, e o mecanismo é o da §3.3: enquanto
 O₁ e O₃ dividiam o mesmo vetor de pesos, concordavam em abandonar as mesmas disciplinas.
@@ -479,7 +479,7 @@ Registradas para que não sejam descobertas por um avaliador antes de nós.
 | L1 | **Ausubel não está implementado** | O produto não pode afirmar sequenciamento por pré-requisitos | Encoding indexado no tempo com grafo de dependências |
 | L2 | **O₃ é aproximação de campo médio** | Não é repetição espaçada; não sabe *quando* a revisão ocorre | Encoding indexado no tempo |
 | L3 | **O₄ limita carga esperada, não por episódio** | Um plano conforme ainda pode ter dias sobrecarregados | Encoding indexado no tempo |
-| L4 | **Anti-correlação acima de ~200:1 de dispersão efetiva de importância**, mais a exceção não explicada de `I8` (32:1, ρ = −0,880 sobre amplitude de 2,5 pp) | Em editais com pesos muito dispersos a fitness ainda favorece concentração | Hipótese não medida para `I8`: `INTERLEAVING_FOCUS_SIZE` no agendador tático. Enunciado revisado na etapa 06 — a hipótese original (aperto de orçamento) foi **falsificada**. Rastreada como **G12** em [`README.md`](./README.md) desde a etapa 08 |
+| L4 | **Anti-correlação acima de ~200:1 de dispersão efetiva de importância**, mais a exceção não explicada de `I8` (32:1, ρ = −0,880 sobre amplitude de 2,5 pp) | Em editais com pesos muito dispersos a fitness ainda favorece concentração | Hipótese não medida para `I8`: `INTERLEAVING_FOCUS_SIZE` no agendador tático. Enunciado revisado na etapa 06 — a hipótese original (aperto de orçamento) **foi testada e não se confirmou**. Rastreada como **G12** em [`README.md`](./README.md) desde a etapa 08 |
 | L5 | **Pesos não calibrados empiricamente** | Defensáveis por estabilidade medida, não por otimalidade | Dados de desempenho real de alunos |
 | L6 | **Aderência a prazo não é otimizada** | O AG não sabe se o plano cabe no calendário; só o agendador descobre, depois | Encoding indexado no tempo |
 | L7 | **Taxa de mutação 0,05 mal calibrada** | `04` §5 mediu que 0,15–0,30 recupera qualidade a custo de tempo nulo | Pendência P4 de `04`, aguardando decisão |

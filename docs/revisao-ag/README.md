@@ -102,7 +102,7 @@ severidade original. **Atualizado em 2026-08-31 (etapa 07).**
 
 | # | Gap | Status | Onde |
 |---|---|---|---|
-| **G12** | **L4 — `I8-escala` mantém ρ = −0,880 e a temperagem não a moveu.** 40 disciplinas, dispersão de 32:1 (abaixo da fronteira de ~200:1), amplitude de retenção de apenas 2,5 pp. É a instância que mais puxa o agregado e a principal fonte da heterogeneidade de I² = 58%. Hipótese **não medida**: `InterleavedCriticalStrategy` estuda só as 3 disciplinas mais críticas por dia. **Atenção:** a explicação original — "regime linear por orçamento apertado" — foi **falsificada** em [`06b`](./06-regime-alta-carga.md) §3; o driver é dispersão, não orçamento | ⬜ **PENDENTE** — caracterizado, não corrigido. Teste seria variar `INTERLEAVING_FOCUS_SIZE` | [`08`](./08-saturacao-e-amostragem.md) §1.2 · [`06b`](./06-regime-alta-carga.md) §10 · [`05`](./05-fitness-function.md) §8 (L4) |
+| **G12** | **L4 — `I8-escala` mantém ρ = −0,880 e a temperagem não a moveu.** 40 disciplinas, dispersão de 32:1 (abaixo da fronteira de ~200:1), amplitude de retenção de apenas 2,5 pp. É a instância que mais puxa o agregado e a principal fonte da heterogeneidade de I² = 58%. Hipótese **não medida**: `InterleavedCriticalStrategy` estuda só as 3 disciplinas mais críticas por dia. **Atenção:** a explicação original — "regime linear por orçamento apertado" — **não se confirmou** quando foi testada em [`06b`](./06-regime-alta-carga.md) §3; o driver medido é a dispersão dos pesos, não o orçamento | ⬜ **PENDENTE** — caracterizado, não corrigido. Teste seria variar `INTERLEAVING_FOCUS_SIZE` | [`08`](./08-saturacao-e-amostragem.md) §1.2 · [`06b`](./06-regime-alta-carga.md) §10 · [`05`](./05-fitness-function.md) §8 (L4) |
 | **G13** | **A divisão uniforme vence o AG na janela de retenção em `I3` (96,0% × 76,6%) e `I4` (100,0% × 81,4%).** Medido, não é defeito: o AG perde em O₁ **e** em O₃ nessas instâncias e vence pelo termo de carga cognitiva — a troca real é memória × sustentabilidade da agenda. A alavanca que fecharia a lacuna é o piso de dias mínimos (+23,4 pp por 0,52% de O₁), não os pesos | ⬜ **PENDENTE — decisão de negócio.** Exige responder antes qual promessa de cobertura o produto faz ao aluno | [`06c`](./06-limite-troca-pesos.md) §6 |
 
 **Resumo: 8 de 13 resolvidos.** Os cinco abertos: G5, G6 e G11 são sobre código fora do caminho de
@@ -121,6 +121,26 @@ Separadas dos gaps porque **não são defeitos** — são escolhas que engenhari
 | **Expandir a amostra** | Não agora ([`08`](./08-saturacao-e-amostragem.md) §5). Reabrir se o agregado for usado externamente, ou se houver edital real | [`08`](./08-saturacao-e-amostragem.md) §5.3 |
 | **Ausubel** | Reabrir quando existir DAG de pré-requisitos autorado por edital | [`06a`](./06-decisao-ausubel.md) §4.2 |
 | **P1–P7 da etapa 04** | Correções estruturais listadas como pendência, não implementadas | [`04`](./04-robustez.md) |
+
+---
+
+## Padrão de escrita destes relatórios
+
+Vale para todo relatório, mensagem de commit e descrição de PR desta linha de trabalho, a partir da
+etapa 09.
+
+1. **Frases completas, em português direto.** Evitar construções elípticas e telegráficas. Se a
+   frase precisa ser relida para ser entendida, ela precisa ser reescrita.
+2. **Todo termo técnico ou estatístico é explicado na primeira vez que aparece em cada documento** —
+   Fisher z, I², efeitos aleatórios, Spearman, saturação. O leitor não deve precisar consultar outro
+   documento para entender o parágrafo que está lendo.
+3. **Cuidado com traduções literais do inglês que mudam de sentido.** O caso concreto que motivou
+   esta regra: em inglês, dizer que uma hipótese foi *falsified* significa que ela foi testada e
+   refutada pelos dados. Em português, "falsificada" sugere fraude. Escreva **"testada e refutada"**,
+   **"refutada pelos dados"** ou **"não se confirmou"**. Todas as ocorrências anteriores foram
+   corrigidas.
+4. **Número publicado vem sempre com o que o qualifica** — quantas instâncias, qual intervalo, qual
+   método. Um coeficiente sozinho é uma afirmação sem evidência.
 
 ---
 

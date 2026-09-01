@@ -32,7 +32,7 @@ correlacionar". Nesses casos a fitness não está prejudicando nada.
 
 ---
 
-## 3. Varredura 1 — razão demanda/orçamento: **hipótese falsificada**
+## 3. Varredura 1 — razão demanda/orçamento: **hipótese testada e refutada**
 
 `R = (Σ_s sessõesNecessárias_s) / orçamentoDeDias`. Oito instâncias, 20 disciplinas, horizonte de
 300 dias, 21h/semana — **só o orçamento varia**.
@@ -55,7 +55,7 @@ Isso já bastaria para descartar a explicação de L4, e as instâncias originai
 negativa a `R = 1,81` (folgado) e `I8` a `R = 6,02` (apertado), enquanto `R5_00`, entre as duas, não
 mede correlação nenhuma. A razão não ordena nada.
 
-## 4. Varredura 2 — número de disciplinas: **também falsificada**
+## 4. Varredura 2 — número de disciplinas: **também refutada**
 
 Sete instâncias, 5 a 40 disciplinas, razão fixa em ~2,0, tudo o mais constante.
 
