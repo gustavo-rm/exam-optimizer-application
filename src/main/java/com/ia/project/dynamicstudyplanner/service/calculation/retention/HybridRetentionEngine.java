@@ -14,8 +14,22 @@ import java.time.temporal.ChronoUnit;
 @Service
 public class HybridRetentionEngine implements RetentionAlgorithm {
 
-    // If probability drops below this, review becomes mandatory to prevent forgetting.
-    private static final double MANDATORY_REVIEW_THRESHOLD = 0.85;
+    /**
+     * Recall probability below which a review becomes mandatory.
+     * <p>
+     * Set to {@code e^-1}, the value the forgetting curve {@code R = e^(-t/S)} reaches after
+     * exactly one stability interval. That makes the two halves of this "hybrid" agree: SM-2
+     * schedules the next review at {@code t = S}, and the Ebbinghaus threshold now fires at the
+     * same moment.
+     * <p>
+     * It was 0.85, which is <b>not</b> consistent with the SM-2 half. Solving
+     * {@code e^(-t/S) <= 0.85} gives {@code t >= 0.1625 * S}: the engine declared a review overdue
+     * after 16% of the interval it had just scheduled — for a 6-day SM-2 interval, mandatory the
+     * next day, a disagreement of roughly 6x across the whole domain. Derivation in
+     * {@code docs/revisao-ag/01-auditoria-fitness.md} Apendice C; consequences for the fitness in
+     * {@code docs/revisao-ag/05-fitness-function.md}.
+     */
+    public static final double MANDATORY_REVIEW_THRESHOLD = Math.exp(-1.0);
 
     @Override
     public double calculateRetentionProbability(SubjectRetentionState state, LocalDate targetDate) {

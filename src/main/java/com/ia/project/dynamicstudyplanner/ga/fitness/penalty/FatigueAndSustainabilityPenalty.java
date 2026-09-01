@@ -9,6 +9,12 @@ import org.springframework.stereotype.Component;
 /**
  * Penalizes plans that are unsustainable given the student's psychological and physical state.
  * It integrates the advanced FatigueAndEnergyModel to determine burnout risks.
+ * <p>
+ * <b>Tactical path only.</b> The macro branch is deliberately neutral: the student's state now
+ * reaches the optimizer through the daily budget that {@code CognitiveLoadObjective} scores against,
+ * where it can actually distinguish one plan from another. See
+ * {@code docs/revisao-ag/05-fitness-function.md} §3.4 and the comment in
+ * {@link #calculatePenaltyFactor}.
  */
 @Component
 public class FatigueAndSustainabilityPenalty implements FitnessPenalty {
@@ -34,28 +40,18 @@ public class FatigueAndSustainabilityPenalty implements FitnessPenalty {
             return fatigueModel.calculateBurnoutRisk(tacticalPlan, state);
         }
 
-        // --- Fallback for Macro (Days-based) Plans ---
-        int totalDays = plan.getTotalDays();
-
-        // Calculate a basic "sustainability factor".
-        // We consider the optimal state to be stress=1, fatigue=1, motivation=5.
-        // The worse the state, the lower the sustainability factor.
-        double stressFactor = 1.0 - ((state.stressLevel() - 1.0) / 8.0); // 1.0 -> 1.0, 5.0 -> 0.5
-        double fatigueFactor = 1.0 - ((state.fatigueLevel() - 1.0) / 8.0); // 1.0 -> 1.0, 5.0 -> 0.5
-        double motivationFactor = 0.5 + ((state.motivationLevel() - 1.0) / 8.0); // 1.0 -> 0.5, 5.0 -> 1.0
-
-        double sustainabilityFactor = stressFactor * fatigueFactor * motivationFactor;
-
-        // If the plan is very long, a low sustainability factor hits harder.
-        // E.g., if totalDays > 10, we reduce the score based on sustainability.
-        if (totalDays > 10) {
-            // The more days, the more the state affects the score
-            double penalty = 1.0 - sustainabilityFactor;
-            // Cap penalty between 0.0 and 0.5
-            penalty = Math.max(0.0, Math.min(0.5, penalty));
-            return 1.0 - penalty; // Multiplier: 0.5 to 1.0
-        }
-
+        // --- Macro (days-based) plans: deliberately neutral ---
+        // This branch used to compute a sustainability factor from stress, fatigue and motivation.
+        // docs/revisao-ag/01-auditoria-fitness.md Apendice B proved it could not affect any decision:
+        // it depended only on the student state and the total day budget, both identical for every
+        // individual in a run, so it was a positive constant that left tournament comparisons,
+        // weighted-average crossover and stagnation detection untouched. Its only effect was to
+        // rescale the number reported to the client.
+        //
+        // The signal itself was worth keeping, so it moved somewhere it can discriminate: the
+        // student's state feeds CognitiveLoadCalculator's daily budget, which CognitiveLoadObjective
+        // compares each plan against. A stressed student now gets a smaller budget, and heavy plans
+        // lose more fitness than light ones — which is what the term was always meant to express.
         return 1.0;
     }
 }

@@ -105,6 +105,34 @@
 
     <build>
         <plugins>
+            <!--
+                Attaches benchmarks/java as an extra TEST source root.
+
+                The benchmark harness (docs/revisao-ag/03-validacao.md) must never ship inside the
+                application artifact, so it is compiled at test scope: spring-boot-maven-plugin
+                repackages only main classes, and test classes are excluded from the jar by
+                construction. Keeping the sources in their own top-level directory rather than under
+                src/test/java also makes the separation visible on disk.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>add-benchmark-test-source</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>benchmarks/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

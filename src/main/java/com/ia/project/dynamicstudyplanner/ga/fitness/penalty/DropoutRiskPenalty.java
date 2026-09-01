@@ -9,6 +9,10 @@ import org.springframework.stereotype.Component;
 /**
  * Penalizes schedules that exacerbate the risk of a student abandoning the platform.
  * If risk is high, this penalty forces the GA to seek "Recovery Days" or lighter schedules.
+ * <p>
+ * <b>Tactical path only</b> — it needs a {@code TacticalStudyPlan} to have anything to measure, so
+ * it returns 1.0 in the macro path by design. Engagement is a fourth concern, not one of the three
+ * learning-science foundations; see {@code docs/revisao-ag/05-fitness-function.md} §2.
  */
 @Component
 public class DropoutRiskPenalty implements FitnessPenalty {

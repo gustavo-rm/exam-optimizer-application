@@ -15,8 +15,12 @@ import org.springframework.stereotype.Service;
  * Calculates the importance of subjects by implementing a Weighted Scoring Model.
  * <p>
  * This calculator determines a subject's priority by combining its objective value in the
- * exam with the student's subjective need to study it. The final score is used by the
- * genetic algorithm's fitness function.
+ * exam with the student's subjective need to study it.
+ * <p>
+ * The score produced here is <b>raw</b>, in the exam's own scoring units. Every fitness term reads
+ * the normalised form instead ({@code EvolutionContext.normalizedImportance}), because raw values
+ * from two subjects in one sum can differ by a factor of 250,000 under the API's own validation
+ * limits. See {@code docs/revisao-ag/05-fitness-function.md} §3.1.
  */
 @Service
 public class ImportanceCalculator {

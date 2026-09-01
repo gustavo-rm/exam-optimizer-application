@@ -8,7 +8,7 @@ import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 
 /**
  * A mutation strategy that changes the study methodology of a block (e.g., from reading to active recall).
@@ -16,17 +16,16 @@ import java.util.Random;
  */
 public class MethodologyMutation implements TacticalMutationStrategy {
 
-    private final Random random = com.ia.project.dynamicstudyplanner.util.RandomProvider.getInstance();
 
     @Override
     public TacticalStudyPlan mutate(TacticalStudyPlan plan, double mutationRate, EvolutionContext context) {
         Map<TimeSlot, TacticalStudyBlock> newSchedule = new HashMap<>(plan.getSchedule());
 
         for (Map.Entry<TimeSlot, TacticalStudyBlock> entry : newSchedule.entrySet()) {
-            if (random.nextDouble() < mutationRate) {
+            if (RandomProvider.getInstance().nextDouble() < mutationRate) {
                 TacticalStudyBlock block = entry.getValue();
                 StudyMethodology[] methodologies = StudyMethodology.values();
-                StudyMethodology newMethod = methodologies[random.nextInt(methodologies.length)];
+                StudyMethodology newMethod = methodologies[RandomProvider.getInstance().nextInt(methodologies.length)];
 
                 // Do not mutate into Spaced Repetition randomly, that is controlled by the RetentionEngine
                 if (newMethod != StudyMethodology.SPACED_REPETITION_REVIEW) {
