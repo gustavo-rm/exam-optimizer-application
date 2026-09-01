@@ -41,6 +41,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.security.SecureRandom;
@@ -54,7 +55,6 @@ import java.util.Map;
 import java.util.Random;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -270,7 +270,30 @@ class GaEdgeCasesTest {
     // Scalability
     // ------------------------------------------------------------------
 
+    /**
+     * <b>CONHECIDO-INSTAVEL — asserção de tempo de parede.</b> Registrado como T8 em
+     * {@code docs/qualidade/01-diagnostico-testes.md} e tratado em
+     * {@code docs/qualidade/01b-correcao-testes.md}.
+     *
+     * <p><b>Causa suspeita:</b> a asserção final compara tempo de parede (<i>wall-clock</i>, o tempo
+     * real decorrido, que inclui pausas do coletor de lixo e concorrência com outros processos)
+     * contra um limite fixo. Numa máquina de integração contínua compartilhada, uma pausa longa ou
+     * um vizinho barulhento pode estourar o limite sem que nada no código tenha mudado. Não foi
+     * observada nenhuma falha em 15 execuções (10 no diagnóstico, 5 na verificação final), e a folga
+     * medida é grande — cerca de 150 ms contra um teto de 10 s, ou 66x —, então o teste continua
+     * ativo em vez de ser removido.
+     *
+     * <p><b>Por que não foi corrigido agora:</b> substituir tempo por uma medida insensível à
+     * máquina exigiria contar operações (avaliações de fitness, por exemplo), o que significa
+     * instrumentar o motor do algoritmo genético — mudança em código de produção, fora do escopo de
+     * uma etapa de testes. Fica como pendência P2.
+     *
+     * <p>A etiqueta {@code lento-e-sensivel-a-maquina} permite excluir este teste de uma execução
+     * com {@code -Dgroups='!lento-e-sensivel-a-maquina'} caso ele passe a falhar de forma
+     * intermitente, sem precisar editar o código.
+     */
     @Test
+    @Tag("lento-e-sensivel-a-maquina")
     @DisplayName("escala para 200 disciplinas dentro de um orcamento de tempo razoavel")
     void scalesToManySubjects() {
         Exam exam = examWithSubjects(200);
@@ -334,14 +357,40 @@ class GaEdgeCasesTest {
         }
     }
 
+    /**
+     * Reescrito na etapa 01b. A versão anterior era
+     * {@code assertThatCode(...).doesNotThrowAnyException()} e não afirmava nada sobre o plano
+     * produzido: um algoritmo que devolvesse um plano vazio, estourasse o orçamento ou reportasse
+     * fitness fora de {@code [0,1]} passaria. A configuração mínima (1 geração, população 2) é o
+     * caminho em que os laços do AG executam menos vezes, e é justamente onde um erro de contorno —
+     * população que nunca evolui, elite não inicializada — apareceria primeiro.
+     */
     @Test
-    @DisplayName("uma matriz de fitness sem excecoes para configuracoes minimas do AG")
-    void tinyGaConfigurationStillRuns() {
+    @DisplayName("configuracao minima do AG produz um resultado valido, nao apenas ausencia de excecao")
+    void tinyGaConfigurationProducesAValidResult() {
         Exam exam = examWithSubjects(3);
         StudentProfile profile = profile(exam, 3);
+        int budget = 60;
 
-        assertThatCode(() -> optimizer().optimize(exam, profile, 60, 1, 2))
-                .doesNotThrowAnyException();
+        OptimizationResult result = optimizer().optimize(exam, profile, budget, 1, 2);
+
+        assertThat(result).as("o otimizador deve devolver um resultado").isNotNull();
+        assertThat(result.plan()).as("o resultado deve conter um plano").isNotNull();
+        assertThat(result.plan().getDaysPerSubject())
+                .as("toda disciplina do edital precisa aparecer no plano, mesmo com 1 geracao")
+                .hasSize(3)
+                .allSatisfy((subject, days) -> assertThat(days)
+                        .as("dias alocados para %s", subject.name())
+                        .isNotNegative());
+        assertThat(result.plan().getTotalDays())
+                .as("o orcamento deve ser respeitado exatamente, mesmo na configuracao minima")
+                .isEqualTo(budget);
+        assertThat(result.fitness())
+                .as("a fitness agregada e normalizada em [0,1] (05-fitness-function.md)")
+                .isBetween(0.0, 1.0);
+        assertThat(result.generationsRun())
+                .as("uma geracao foi pedida, uma geracao deve ser reportada")
+                .isEqualTo(1);
     }
 
     // ------------------------------------------------------------------

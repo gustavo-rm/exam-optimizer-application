@@ -1,0 +1,93 @@
+name: CI
+
+# Gate de integração contínua.
+#
+# Antes da etapa 01b este repositório não tinha nenhum workflow: a consulta à API do GitHub
+# reportava 0 workflows e 0 execuções em toda a história do projeto. Os 73 testes só rodavam quando
+# alguém digitava `./mvnw test` na própria máquina, e não havia registro de que tivessem rodado
+# antes de qualquer um dos merges já feitos.
+#
+# ATENÇÃO — este arquivo sozinho NÃO bloqueia merge. Ele faz a verificação existir e reportar. Para
+# que ela vire um bloqueio de verdade, o job `build` precisa ser marcado como *required status
+# check* na proteção da branch, o que é configuração do repositório e não pode ser feita por commit.
+# O passo a passo está em docs/qualidade/01b-correcao-testes.md, seção "O que falta para o gate
+# bloquear de fato".
+
+on:
+  push:
+    branches: [ main, 'release/**' ]
+  pull_request:
+    branches: [ main, 'release/**' ]
+  workflow_dispatch:
+
+# Uma execução por branch: um push novo cancela a execução anterior que ficou obsoleta.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Testes e cobertura
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Java 21: é a versão que o pom fixa em <java.version> e a que o bytecode gerado usa
+      # (major version 65). O `source`/`target` 24 declarado no maven-compiler-plugin é inerte,
+      # porque maven.compiler.release=21 herdado do parent prevalece — ver R3 do inventário.
+      - name: Configura JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      # `verify` roda a suíte E o goal `check` do JaCoCo, que reprova a build se a cobertura cair
+      # abaixo do piso registrado no pom. Falha de teste e queda de cobertura reprovam o mesmo job.
+      - name: Build, testes e piso de cobertura
+        run: ./mvnw -B --no-transfer-progress verify
+
+      # Publicado mesmo quando a etapa anterior falha: é o relatório que explica a falha.
+      - name: Publica relatorios de teste
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Publica relatorio de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+          retention-days: 14
+          if-no-files-found: warn
+
+      # Torna o número visível no resumo do job, para que a cobertura deixe de ser algo que só
+      # existe quando alguém a mede à mão.
+      - name: Resumo da cobertura
+        if: always()
+        run: |
+          CSV=target/site/jacoco/jacoco.csv
+          if [ ! -f "$CSV" ]; then
+            echo "Relatorio de cobertura ausente." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          awk -F, 'NR>1 {im+=$4; ic+=$5; bm+=$6; bc+=$7; lm+=$8; lc+=$9}
+            END {
+              printf "## Cobertura\n\n";
+              printf "| Metrica | Cobertura | Cobertas / Total |\n";
+              printf "|---|---:|---:|\n";
+              printf "| Instrucoes | %.1f%% | %d / %d |\n", 100*ic/(ic+im), ic, ic+im;
+              printf "| Ramos | %.1f%% | %d / %d |\n", 100*bc/(bc+bm), bc, bc+bm;
+              printf "| Linhas | %.1f%% | %d / %d |\n", 100*lc/(lc+lm), lc, lc+lm;
+            }' "$CSV" >> "$GITHUB_STEP_SUMMARY"

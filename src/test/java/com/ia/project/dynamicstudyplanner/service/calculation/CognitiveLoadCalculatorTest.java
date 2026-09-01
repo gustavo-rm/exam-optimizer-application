@@ -14,6 +14,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CognitiveLoadCalculatorTest {
 
+    /**
+     * Ancora fixa em vez de {@code LocalDate.now()}: a data da prova entra no calculo, e um teste
+     * cujo resultado depende do dia em que roda pode mudar de comportamento sem que nenhuma linha
+     * mude. Mesma disciplina que {@code benchmarks/.../InstanceLibrary} ja adota.
+     */
+    private static final LocalDate EXAM_DATE = LocalDate.of(2026, 9, 1);
+
     private final CognitiveLoadCalculator calculator = new CognitiveLoadCalculator();
 
     @Test
@@ -23,7 +30,7 @@ class CognitiveLoadCalculatorTest {
         StudentProfile profile = new StudentProfile("Test", Map.of(), Map.of(DayOfWeek.MONDAY, 7, DayOfWeek.TUESDAY, 7));
 
         // Avg cognitive load = 4.0. Pressure factor = 1.1 - ((4-1)/4)*0.2 = 1.1 - 0.15 = 0.95
-        Exam exam = new Exam("Test", LocalDate.now(), 100.0, List.of(new Subject("Math", 10, 4)), List.of());
+        Exam exam = new Exam("Test", EXAM_DATE, 100.0, List.of(new Subject("Math", 10, 4)), List.of());
 
         // Fatigue factor (no gaps, default -1.0 -> assume 3.0) = 1.1 - ((3-1)/4)*0.3 = 1.1 - 0.15 = 0.95
         // Final load = 6.0 * 0.95 * 0.95 = 5.415 -> rounds to 5
