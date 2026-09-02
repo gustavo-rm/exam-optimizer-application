@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.api.mapper;
 
 import com.ia.project.dynamicstudyplanner.api.dto.ExamDto;
+import com.ia.project.dynamicstudyplanner.api.exception.UnknownSubjectException;
 import com.ia.project.dynamicstudyplanner.api.dto.OptimizationResultDto;
 import com.ia.project.dynamicstudyplanner.api.dto.PlannerResponseDto;
 import com.ia.project.dynamicstudyplanner.api.dto.ScheduleResultDto;
@@ -184,45 +185,52 @@ class MapperRoundTripTest {
         }
 
         @Test
-        @DisplayName("COMPORTAMENTO ATUAL: lacuna que cita disciplina fora do edital vira chave nula")
-        void lacunaParaDisciplinaInexistenteViraChaveNula() {
-            // Este teste fixa o comportamento de HOJE, que nao e obviamente o desejado.
+        @DisplayName("lacuna que cita disciplina fora do edital e recusada, nao vira chave nula")
+        void lacunaParaDisciplinaInexistenteEhRecusada() {
+            // Corrigido na etapa 02b. Antes, subjectMap.get(nome) devolvia null para um nome que
+            // nao existisse no edital e null virava chave do mapa de lacunas — a origem do achado
+            // S3, porque a colisao dessas chaves produzia uma excecao cuja mensagem continha as
+            // NOTAS do aluno, que iam para o log de ERRO.
             //
-            // StudentProfileMapper resolve o nome da disciplina com subjectMap.get(nome). Um nome
-            // que nao esta no edital devolve null, e null vira chave do mapa de lacunas em vez de
-            // ser rejeitado. Nenhuma validacao do contrato impede isso: knowledgeGaps e um mapa de
-            // String livre, sem referencia cruzada com as disciplinas declaradas.
-            //
-            // Nao esta sendo corrigido aqui porque a correcao muda codigo de producao e o contrato
-            // de erro da API (provavelmente um 400 novo), o que e decisao de estrutura, nao de
-            // teste. Registrado como pendencia P5 em docs/qualidade/01b-correcao-testes.md.
+            // Agora falha cedo, com uma excecao que carrega so os nomes nao reconhecidos.
             Subject portugues = new Subject("Portugues", 20, 2);
             StudentProfileDto dto = new StudentProfileDto(
                     "Aluno", Map.of("Disciplina Que Nao Existe", 3.0),
                     Map.of(DayOfWeek.MONDAY, 3), null);
 
-            StudentProfile perfil = studentProfileMapper.toDomain(dto, List.of(portugues));
-
-            assertThat(perfil.getKnowledgeGapFactor(portugues))
-                    .as("a disciplina real fica sem lacuna declarada e cai no fator padrao")
-                    .isEqualTo(1.0);
+            assertThatThrownBy(() -> studentProfileMapper.toDomain(dto, List.of(portugues)))
+                    .isInstanceOf(UnknownSubjectException.class)
+                    .satisfies(erro -> assertThat(((UnknownSubjectException) erro).getUnknownSubjects())
+                            .containsExactly("Disciplina Que Nao Existe"))
+                    .as("a mensagem carrega o nome da disciplina, que e contrato publico...")
+                    .hasMessageContaining("Disciplina Que Nao Existe")
+                    .as("...e NUNCA a nota, que e autoavaliacao do aluno")
+                    .hasMessageNotContaining("3.0");
         }
 
         @Test
-        @DisplayName("COMPORTAMENTO ATUAL: duas lacunas invalidas colidem na mesma chave nula")
-        void duasLacunasInvalidasColidem() {
-            // Consequencia da anterior: Collectors.toMap recusa chaves duplicadas, entao duas
-            // disciplinas inexistentes produzem IllegalStateException — que o
-            // GlobalExceptionHandler traduz em 500, nao em 400. O aluno recebe "erro interno"
-            // por um erro que e dele. Mesma pendencia P5.
+        @DisplayName("duas lacunas invalidas sao reportadas juntas, sem expor as notas")
+        void duasLacunasInvalidasSaoReportadasJuntas() {
+            // Este era exatamente o cenario que produzia
+            //   IllegalStateException: Duplicate key null (attempted merging values 4.5 and 2.0)
+            // com as notas na mensagem, registrada em log de ERRO com pilha completa (achado S3).
             Subject portugues = new Subject("Portugues", 20, 2);
             StudentProfileDto dto = new StudentProfileDto(
-                    "Aluno", Map.of("Nao Existe A", 3.0, "Nao Existe B", 4.0),
+                    "Aluno", Map.of("Nao Existe A", 4.5, "Nao Existe B", 2.0),
                     Map.of(DayOfWeek.MONDAY, 3), null);
 
             assertThatThrownBy(() -> studentProfileMapper.toDomain(dto, List.of(portugues)))
-                    .isInstanceOf(IllegalStateException.class);
+                    .isInstanceOf(UnknownSubjectException.class)
+                    .satisfies(erro -> assertThat(((UnknownSubjectException) erro).getUnknownSubjects())
+                            .as("as duas sao reportadas de uma vez, para o aluno corrigir tudo junto")
+                            .containsExactlyInAnyOrder("Nao Existe A", "Nao Existe B"))
+                    .as("as notas de autoavaliacao nao podem aparecer na mensagem")
+                    .hasMessageNotContaining("4.5")
+                    .hasMessageNotContaining("2.0")
+                    .as("e a mensagem antiga, que as expunha, nao pode voltar")
+                    .hasMessageNotContaining("Duplicate key");
         }
+
     }
 
     @Nested

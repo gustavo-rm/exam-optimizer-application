@@ -31,8 +31,10 @@ class RateLimitingFilterTest {
 
     @BeforeEach
     void setUp() {
-        // Set up filter with capacity=2, refill 2 every 1 minute
-        filter = new RateLimitingFilter(2, 2, 1, handlerExceptionResolver);
+        // Capacidade 2, recarga de 2 a cada minuto. O resolvedor vai sem proxy confiavel
+        // declarado, que e o padrao seguro: o endereco da conexao e a unica fonte considerada.
+        filter = new RateLimitingFilter(2, 2, 1, handlerExceptionResolver,
+                new ClientIpResolver(""));
     }
 
     @Test

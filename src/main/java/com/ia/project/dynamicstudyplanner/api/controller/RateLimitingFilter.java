@@ -36,17 +36,20 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private final int refillTokens;
     private final int refillDurationMinutes;
     private final HandlerExceptionResolver handlerExceptionResolver;
+    private final ClientIpResolver clientIpResolver;
 
     public RateLimitingFilter(
             @Value("${api.rate-limit.capacity:5}") int capacity,
             @Value("${api.rate-limit.refill-tokens:5}") int refillTokens,
             @Value("${api.rate-limit.refill-duration-minutes:1}") int refillDurationMinutes,
-            HandlerExceptionResolver handlerExceptionResolver) {
+            HandlerExceptionResolver handlerExceptionResolver,
+            ClientIpResolver clientIpResolver) {
 
         this.capacity = capacity;
         this.refillTokens = refillTokens;
         this.refillDurationMinutes = refillDurationMinutes;
         this.handlerExceptionResolver = handlerExceptionResolver;
+        this.clientIpResolver = clientIpResolver;
 
         // Configure Caffeine Cache with an eviction policy to avoid memory leaks
         this.cache = Caffeine.newBuilder()
@@ -61,13 +64,18 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         // Only rate limit the optimizer endpoints
         if (request.getRequestURI().startsWith("/api/v1/optimizer/")) {
-            String clientIp = getClientIP(request);
+            // Chave do balde: endereco COMPLETO, para nao juntar clientes distintos num mesmo
+            // balde. O mascaramento e aplicado so no que sai para log (ver ClientIpResolver).
+            String clientIp = clientIpResolver.resolve(request);
             Bucket bucket = cache.get(clientIp, this::createNewBucket);
 
             if (!bucket.tryConsume(1)) {
-                // If bucket is empty, pass to the exception resolver
+                // A mensagem desta excecao e registrada em log pelo GlobalExceptionHandler, entao
+                // carrega o endereco ja mascarado: rede o suficiente para reconhecer abuso, sem
+                // identificar o assinante (achado S1).
                 handlerExceptionResolver.resolveException(request, response, null,
-                        new RateLimitExceededException("Rate limit exceeded for IP: " + clientIp));
+                        new RateLimitExceededException("Rate limit exceeded for client "
+                                + ClientIpResolver.maskForLogging(clientIp)));
                 return;
             }
         }
@@ -83,11 +91,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return Bucket.builder().addLimit(limit).build();
     }
 
-    private String getClientIP(HttpServletRequest request) {
-        String xfHeader = request.getHeader("X-Forwarded-For");
-        if (xfHeader == null || xfHeader.isEmpty()) {
-            return request.getRemoteAddr();
-        }
-        return xfHeader.split(",")[0].trim();
-    }
+    // A resolucao do endereco do cliente saiu daqui na etapa 02b e virou ClientIpResolver.
+    // A versao anterior confiava no X-Forwarded-For enviado pelo cliente, o que permitia a qualquer
+    // chamador trocar de balde a cada requisicao e anular o limite (achado S12).
 }

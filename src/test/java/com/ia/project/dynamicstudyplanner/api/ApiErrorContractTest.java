@@ -147,35 +147,43 @@ class ApiErrorContractTest {
     }
 
     @Test
-    @DisplayName("429: o cabecalho X-Forwarded-For define o balde quando presente")
-    void oCabecalhoXForwardedForDefineOBalde() throws Exception {
-        // Exercita o ramo de getClientIP() que le X-Forwarded-For — o caminho realmente usado
-        // atras de um balanceador de carga, e que nenhum teste percorria antes da etapa 01b.
-        // O comportamento verificado aqui e o atual: o primeiro valor da lista vira a chave.
-        // Se essa origem deve ou nao ser confiada e questao de seguranca (R15 do inventario),
-        // nao de teste.
-        String encaminhado = "203.0.113.7, 70.41.3.18";
+    @DisplayName("429: o cabecalho X-Forwarded-For NAO define o balde (corrigido na etapa 02b)")
+    void oCabecalhoXForwardedForNaoDefineOBalde() throws Exception {
+        // Este teste mudou de sentido na etapa 02b, e a mudanca e o ponto.
+        //
+        // Na etapa 01b ele documentava o comportamento de entao: o primeiro valor do
+        // X-Forwarded-For virava a chave do balde. O diagnostico de seguranca registrou isso como
+        // o achado S12 — cabecalho e dado enviado pelo cliente, entao qualquer chamador variava o
+        // valor e obtinha um balde novo a cada requisicao, anulando o limite.
+        //
+        // Agora a identificacao usa o endereco da conexao. A cobertura completa, incluindo a
+        // interacao com o ForwardedHeaderFilter que quase deixou a correcao pela metade, esta em
+        // ForwardedHeaderConfigTest e ClientIpResolverTest.
+        String ip = "10.0.4.1";
 
         for (int i = 1; i <= 3; i++) {
             mockMvc.perform(post("/api/v1/optimizer/generate")
-                            .header("X-Forwarded-For", encaminhado)
+                            .with(req -> {
+                                req.setRemoteAddr(ip);
+                                return req;
+                            })
+                            .header("X-Forwarded-For", "203.0.113." + i)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(CARGA_INVALIDA))
                     .andExpect(status().isBadRequest());
         }
 
+        // Quarta requisicao, com cabecalho outra vez diferente: mesma conexao, mesmo balde,
+        // bloqueada. Antes da correcao, esta linha recebia 400.
         mockMvc.perform(post("/api/v1/optimizer/generate")
-                        .header("X-Forwarded-For", encaminhado)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(CARGA_INVALIDA))
-                .andExpect(status().isTooManyRequests());
-
-        // Outro valor no mesmo cabecalho e outro balde.
-        mockMvc.perform(post("/api/v1/optimizer/generate")
+                        .with(req -> {
+                            req.setRemoteAddr(ip);
+                            return req;
+                        })
                         .header("X-Forwarded-For", "198.51.100.4")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CARGA_INVALIDA))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isTooManyRequests());
     }
 
     @Test
