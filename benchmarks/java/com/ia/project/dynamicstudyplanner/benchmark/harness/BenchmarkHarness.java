@@ -174,17 +174,17 @@ public final class BenchmarkHarness {
                 (int) Math.ceil(instance.profile().getTotalWeeklyHours() / 7.0));
         int maxDailyLoad = new CognitiveLoadCalculator().calculate(instance.profile(), instance.exam());
 
-        return EvolutionContext.of(
-                importance,
-                minimumDays,
-                instance.profile().getState(),
-                fitnessEvaluator,
-                new RetentionProfile(Map.of()),
-                instance.planStartDate(),
-                EngagementProfile.baseline(),
-                horizonDays,
-                hoursPerStudyDay,
-                maxDailyLoad
-        );
+        return EvolutionContext.builder()
+                .importanceScores(importance)
+                .minimumDaysPerSubject(minimumDays)
+                .studentState(instance.profile().getState())
+                .fitnessEvaluator(fitnessEvaluator)
+                .retentionProfile(new RetentionProfile(Map.of()))
+                .planStartDate(instance.planStartDate())
+                .engagementProfile(EngagementProfile.baseline())
+                .planningHorizonDays(horizonDays)
+                .hoursPerStudyDay(hoursPerStudyDay)
+                .maxDailyCognitiveLoad(maxDailyLoad)
+                .build();
     }
 }

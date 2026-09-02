@@ -36,3 +36,4 @@ antigo passa a "Substituído por". O histórico é o valor.
 | [0001](./0001-abstracoes-de-calculo-no-dominio.md) | Contratos de cálculo de domínio vivem em `domain` | Aceito |
 | [0002](./0002-remocao-de-codigo-inalcancavel.md) | Remover código inalcançável sem destino registrado; manter a camada tática | Aceito |
 | [0003](./0003-composicao-de-producao-unica.md) | Unificar a cadeia de alocação; manter a composição de fitness duplicada, com guarda | Aceito |
+| [0004](./0004-construtor-passo-a-passo-do-contexto.md) | `EvolutionContext` é montado por construtor passo a passo | Aceito |

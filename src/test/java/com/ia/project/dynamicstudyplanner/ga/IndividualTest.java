@@ -89,9 +89,14 @@ class IndividualTest {
 
     private static double fitnessOf(int allocatedDays, int minimumDays) {
         FitnessEvaluator evaluator = productionPipeline();
-        EvolutionContext context = EvolutionContext.of(
-                Map.of(MATH, 10.0), Map.of(MATH, minimumDays), null, evaluator,
-                null, null, null, HORIZON_DAYS, HOURS_PER_STUDY_DAY, MAX_DAILY_LOAD);
+        EvolutionContext context = EvolutionContext.builder()
+                .importanceScores(Map.of(MATH, 10.0))
+                .minimumDaysPerSubject(Map.of(MATH, minimumDays))
+                .fitnessEvaluator(evaluator)
+                .planningHorizonDays(HORIZON_DAYS)
+                .hoursPerStudyDay(HOURS_PER_STUDY_DAY)
+                .maxDailyCognitiveLoad(MAX_DAILY_LOAD)
+                .build();
 
         return new Individual(new StudyPlan(Map.of(MATH, allocatedDays))).calculateFitness(context);
     }

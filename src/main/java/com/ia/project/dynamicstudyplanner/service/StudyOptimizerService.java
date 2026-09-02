@@ -145,18 +145,18 @@ public class StudyOptimizerService {
                 (int) Math.ceil(profile.getTotalWeeklyHours() / 7.0));
         int maxDailyCognitiveLoad = cognitiveLoadCalculator.calculate(profile, exam);
 
-        return EvolutionContext.of(
-                importanceScores,
-                minimumDaysPerSubject,
-                profile.getState(),
-                fitnessEvaluator,
-                retentionProfile,
-                planStartDate,
-                engagementProfile,
-                planningHorizonDays,
-                hoursPerStudyDay,
-                maxDailyCognitiveLoad
-        );
+        return EvolutionContext.builder()
+                .importanceScores(importanceScores)
+                .minimumDaysPerSubject(minimumDaysPerSubject)
+                .studentState(profile.getState())
+                .fitnessEvaluator(fitnessEvaluator)
+                .retentionProfile(retentionProfile)
+                .planStartDate(planStartDate)
+                .engagementProfile(engagementProfile)
+                .planningHorizonDays(planningHorizonDays)
+                .hoursPerStudyDay(hoursPerStudyDay)
+                .maxDailyCognitiveLoad(maxDailyCognitiveLoad)
+                .build();
     }
 
     /**

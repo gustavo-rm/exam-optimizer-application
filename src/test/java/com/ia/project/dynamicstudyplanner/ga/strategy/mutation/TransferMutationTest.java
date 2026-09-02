@@ -21,7 +21,16 @@ class TransferMutationTest {
         Subject history = new Subject("History", 10, 3);
         StudyPlan plan = new StudyPlan(Map.of(math, 10, history, 5));
         Individual individual = new Individual(plan);
-        EvolutionContext context = EvolutionContext.of(Map.of(), Map.of(), null, null, null, null, null, 180, 4, 20);
+        // A mutacao por transferencia so olha o plano e o orcamento: nao precisa de estado do
+        // aluno, de fitness, de retencao nem de datas. Antes da etapa 03c isso era escrito como
+        // cinco null consecutivos; agora os campos que nao importam sao simplesmente omitidos.
+        EvolutionContext context = EvolutionContext.builder()
+                .importanceScores(Map.of())
+                .minimumDaysPerSubject(Map.of())
+                .planningHorizonDays(180)
+                .hoursPerStudyDay(4)
+                .maxDailyCognitiveLoad(20)
+                .build();
 
         // Act - Force mutation with 1.0 rate
         Individual mutated = mutation.mutate(individual, 1.0, context);

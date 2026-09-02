@@ -194,11 +194,14 @@ class PrerequisiteSequencingDiagnosticTest {
     }
 
     private static EvolutionContext contextFor(FitnessEvaluator evaluator) {
-        return EvolutionContext.of(
-                Map.of(FOUNDATION, 10.0, ADVANCED, 10.0),
-                Map.of(FOUNDATION, 1, ADVANCED, 1),
-                null, evaluator, null, null, null,
-                HORIZON_DAYS, HOURS_PER_STUDY_DAY, MAX_DAILY_LOAD);
+        return EvolutionContext.builder()
+                .importanceScores(Map.of(FOUNDATION, 10.0, ADVANCED, 10.0))
+                .minimumDaysPerSubject(Map.of(FOUNDATION, 1, ADVANCED, 1))
+                .fitnessEvaluator(evaluator)
+                .planningHorizonDays(HORIZON_DAYS)
+                .hoursPerStudyDay(HOURS_PER_STUDY_DAY)
+                .maxDailyCognitiveLoad(MAX_DAILY_LOAD)
+                .build();
     }
 
     /** The same component set Spring wires in production. */

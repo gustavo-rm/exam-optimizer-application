@@ -298,7 +298,7 @@ Achados da etapa 03 que **não** foram tratados nesta etapa:
 
 | # | Achado | Por que ficou |
 |---|---|---|
-| **E1** | `EvolutionContext.of()` com 10 parâmetros posicionais | **É o maior custo de manutenção do repositório** e merece etapa própria. A correção — objeto de construção passo a passo — toca 9 locais de chamada e mexe no coração do motor; misturá-la com mudanças de fronteira tornaria impossível saber qual delas quebrou algo. Recomendo como primeiro item da próxima etapa |
+| **E1** | `EvolutionContext.of()` com 10 parâmetros posicionais | **Corrigido logo em seguida, na etapa 03c** — ver seção 10. Ficou fora *desta* etapa de propósito: misturá-lo com mudanças de fronteira tornaria impossível saber qual delas quebrou algo |
 | **E3** | `DomainException` usada 1 vez contra 13 `IllegalArgumentException` | Corrigir muda o **contrato de erro da API**: exceções que hoje viram `400` passariam a `422`. É mudança visível ao cliente e pertence a uma etapa que trate contrato, não estrutura interna |
 | **E7** | `GlobalExceptionHandler` com 447 linhas e 16 tratadores | Separar em três `@RestControllerAdvice` por natureza é refatoração de API, e faz par com E3 |
 | **E8** | `StudyOptimizerService` mistura 4 responsabilidades | Extrair a montagem do contexto depende de E1 estar resolvido primeiro — é o mesmo código |
@@ -328,5 +328,67 @@ Achados da etapa 03 que **não** foram tratados nesta etapa:
 - **148 testes, cobertura 81,4% / 60,0% / 82,2%**, com `verify` rodado cinco vezes — uma após cada
   mudança estrutural, como pedido.
 - **`docs/adr/` existe**, com três ADRs e a regra de não editar decisão aceita.
-- **E1 fica recomendado como primeiro item da próxima etapa**: é o maior custo de manutenção medido, e
-  misturá-lo com mudanças de fronteira teria tornado impossível isolar regressões.
+- **E1 foi corrigido na etapa 03c**, imediatamente depois e em commit separado — ver seção 10.
+
+
+---
+
+## 10. Adendo — etapa 03c: E1 corrigido
+
+Feito logo após esta etapa, **em commit separado e de propósito**: manter a refatoração do motor
+apartada das mudanças de fronteira é o que permite saber qual delas quebrou algo, se algo quebrar.
+
+### O que mudou
+
+`EvolutionContext.of()` — dez parâmetros posicionais, nove locais de chamada — foi substituído por um
+**construtor passo a passo** e removido. Os nove chamadores foram migrados: produção, quatro classes
+de teste e três programas de benchmark.
+
+```java
+// antes, em TransferMutationTest
+EvolutionContext.of(Map.of(), Map.of(), null, null, null, null, null, 180, 4, 20);
+
+// depois
+EvolutionContext.builder()
+        .importanceScores(Map.of())
+        .minimumDaysPerSubject(Map.of())
+        .planningHorizonDays(180)
+        .hoursPerStudyDay(4)
+        .maxDailyCognitiveLoad(20)
+        .build();
+```
+
+Cinco valores são obrigatórios e `build()` nomeia **todos** os ausentes de uma vez; cinco são
+opcionais e valem `null` quando omitidos — exatamente o que os chamadores do caminho macro passavam
+antes, então **não há mudança de comportamento**.
+
+### Como se sabe que o comportamento não mudou
+
+Não por inspeção: a suíte tem dois testes que travam números do algoritmo genético com sementes
+fixas. `GeneticAlgorithmVsBaselinesTest` compara o AG contra seis baselines em oito instâncias
+sintéticas, e `CorrelationAggregateTest.RealDataRegression` fixa a trajetória de correlação
+−0,909 → −0,460 → −0,106. **Ambos passam sem alteração.**
+
+### Cobertura do próprio construtor
+
+`EvolutionContextBuilderTest` — 9 testes em três grupos: obrigatórios exigidos (inclusive o caso de
+vários ausentes reportados juntos), opcionais omissíveis, e campos derivados calculados na
+construção. Mais um que verifica que o **construtor canônico de doze argumentos** — público por
+exigência da linguagem, e pior que a fábrica removida — não é usado em lugar nenhum fora do próprio
+construtor passo a passo.
+
+Esse último teste falhou na primeira execução acusando **a si mesmo**, porque cita o trecho procurado
+na própria mensagem de falha. A exclusão está explícita no código, com o motivo.
+
+### Números
+
+| | Etapa 03b | **Etapa 03c** |
+|---|---:|---:|
+| Testes | 148 | **157** |
+| Instruções | 81,4% | **81,8%** |
+| Ramos | 60,0% | **60,9%** |
+| Linhas | 82,2% | **82,7%** |
+
+**ADR-0004** registra a decisão, com três alternativas descartadas — manter `of()` como atalho,
+agrupar parâmetros em objetos intermediários e usar Lombok `@Builder` — e as consequências aceitas,
+inclusive a troca de erro de compilação por erro de execução.

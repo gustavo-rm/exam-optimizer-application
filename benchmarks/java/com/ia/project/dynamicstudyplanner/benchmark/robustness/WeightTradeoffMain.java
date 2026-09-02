@@ -450,18 +450,18 @@ public final class WeightTradeoffMain {
         Map<Subject, Integer> minimumDays = new BaselineCalculator(importanceCalculator)
                 .calculateMinimumDays(instance.exam(), instance.profile());
 
-        return EvolutionContext.of(
-                importance,
-                minimumDays,
-                instance.profile().getState(),
-                evaluator,
-                new RetentionProfile(Map.of()),
-                instance.planStartDate(),
-                EngagementProfile.baseline(),
-                Math.max(1, (int) instance.horizonDays()),
-                Math.max(1, (int) Math.ceil(instance.profile().getTotalWeeklyHours() / 7.0)),
-                new CognitiveLoadCalculator().calculate(instance.profile(), instance.exam())
-        );
+        return EvolutionContext.builder()
+                .importanceScores(importance)
+                .minimumDaysPerSubject(minimumDays)
+                .studentState(instance.profile().getState())
+                .fitnessEvaluator(evaluator)
+                .retentionProfile(new RetentionProfile(Map.of()))
+                .planStartDate(instance.planStartDate())
+                .engagementProfile(EngagementProfile.baseline())
+                .planningHorizonDays(Math.max(1, (int) instance.horizonDays()))
+                .hoursPerStudyDay(Math.max(1, (int) Math.ceil(instance.profile().getTotalWeeklyHours() / 7.0)))
+                .maxDailyCognitiveLoad(new CognitiveLoadCalculator().calculate(instance.profile(), instance.exam()))
+                .build();
     }
 
     private WeightTradeoffMain() {
