@@ -54,21 +54,54 @@ class DynamicStudyPlannerApplicationTests {
                 .isNotNull();
     }
 
+    /**
+     * Trava a composição de fitness que o Spring monta em produção — tipos <b>e</b> pesos.
+     *
+     * <h2>Por que os tipos, e não só a soma</h2>
+     *
+     * A etapa 03 registrou (achado E2) que a composição de produção é remontada à mão em seis
+     * lugares fora dela: três programas de benchmark e três classes de teste. Diferente da cadeia de
+     * alocação — que a etapa 03b unificou em {@code AllocationChains} —, essa duplicação é
+     * <b>deliberada</b>: os benchmarks precisam construir variantes com pesos perturbados, que é
+     * literalmente o que {@code WeightSensitivityMain} mede. Unificar removeria a capacidade de
+     * variar.
+     *
+     * <p>O risco que sobra é outro: acrescentar um {@code FitnessObjective} novo em produção custa
+     * uma anotação, o Spring o injeta sozinho, e as seis cópias continuam rodando sem ele — em
+     * silêncio. Os números publicados em {@code docs/revisao-ag/} passariam a medir uma fitness que
+     * não é a de produção.
+     *
+     * <p>Verificar a soma dos pesos não pega esse caso: um objetivo novo com peso 0,0 mantém a soma
+     * em 1,0. Por isso este teste fixa também <b>quais</b> tipos compõem a fitness. Acrescentar,
+     * remover ou trocar um objetivo falha aqui, e a mensagem manda atualizar as cópias.
+     *
+     * <p>Decisão registrada em {@code docs/adr/0003-composicao-de-producao-unica.md}.
+     */
     @Test
-    @DisplayName("os objetivos de fitness fiados pelo Spring somam exatamente 1,0")
-    void osPesosDosObjetivosFiadosPeloSpringSomamUm() {
+    @DisplayName("a composicao de fitness fiada pelo Spring e exatamente a canonica")
+    void aComposicaoDeFitnessFiadaPeloSpringEhACanonica() {
         List<FitnessObjective> objetivos = context.getBeanProvider(FitnessObjective.class)
                 .stream().toList();
 
         assertThat(objetivos)
-                .as("os tres objetivos de producao precisam estar registrados como beans")
-                .hasSize(3);
+                .as("""
+                        A composicao de fitness de producao mudou.
+
+                        Ela e remontada a mao, de proposito, em seis lugares fora da producao:
+                          benchmarks/.../harness/BenchmarkHarness
+                          benchmarks/.../robustness/WeightSensitivityMain
+                          benchmarks/.../robustness/WeightTradeoffMain
+                          src/test/.../ga/IndividualTest
+                          src/test/.../ga/GaEdgeCasesTest
+                          src/test/.../ga/PrerequisiteSequencingDiagnosticTest
+
+                        Atualize as seis no MESMO commit, ou os numeros publicados em
+                        docs/revisao-ag/ passarao a medir uma fitness que nao e a de producao.""")
+                .extracting(objetivo -> objetivo.getClass().getSimpleName())
+                .containsExactlyInAnyOrder(
+                        "ScoreGainObjective", "RetentionObjective", "CognitiveLoadObjective");
 
         double soma = objetivos.stream().mapToDouble(FitnessObjective::getWeight).sum();
-
-        // Fecha a lacuna descrita em 01-diagnostico-testes.md §2.4: os testes de unidade remontam a
-        // composicao a mao e afirmam por comentario que ela e igual a do Spring. Aqui a afirmacao e
-        // feita sobre os beans reais.
         assertThat(soma)
                 .as("a fitness agregada so e comparavel entre releases se os pesos somarem 1,0")
                 .isEqualTo(1.0, org.assertj.core.data.Offset.offset(1e-9));

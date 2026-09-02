@@ -3,7 +3,7 @@ package com.ia.project.dynamicstudyplanner.ga.fitness.penalty;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
-import com.ia.project.dynamicstudyplanner.service.calculation.engagement.DropoutRiskPredictor;
+import com.ia.project.dynamicstudyplanner.domain.engagement.DropoutRiskAlgorithm;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,9 +17,9 @@ import org.springframework.stereotype.Component;
 @Component
 public class DropoutRiskPenalty implements FitnessPenalty {
 
-    private final DropoutRiskPredictor riskPredictor;
+    private final DropoutRiskAlgorithm riskPredictor;
 
-    public DropoutRiskPenalty(DropoutRiskPredictor riskPredictor) {
+    public DropoutRiskPenalty(DropoutRiskAlgorithm riskPredictor) {
         this.riskPredictor = riskPredictor;
     }
 

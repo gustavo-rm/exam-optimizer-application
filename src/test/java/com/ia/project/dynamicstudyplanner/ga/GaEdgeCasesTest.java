@@ -33,7 +33,7 @@ import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculat
 import com.ia.project.dynamicstudyplanner.service.calculation.engagement.DropoutRiskPredictor;
 import com.ia.project.dynamicstudyplanner.service.calculation.fatigue.FatigueAndEnergyModel;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
-import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.CognitiveLoadBalancingStrategy;
+import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationChains;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.InterleavedCriticalStrategy;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.ReviewFocusedStrategy;
 import com.ia.project.dynamicstudyplanner.util.RandomProvider;
@@ -422,9 +422,10 @@ class GaEdgeCasesTest {
 
     private static ScheduleResult scheduleFor(StudyPlan plan, StudentProfile profile, Exam exam) {
         int maxLoad = new CognitiveLoadCalculator().calculate(profile, exam);
+        // Usa a definicao unica de AllocationChains: se producao trocar a ordem dos decoradores,
+        // este teste passa a exercitar a cadeia nova sem que ninguem precise lembrar de atualiza-lo.
         return new StudyScheduleGenerator().generate(plan, profile, exam, TODAY,
-                new ReviewFocusedStrategy(
-                        new CognitiveLoadBalancingStrategy(new InterleavedCriticalStrategy(), maxLoad)));
+                AllocationChains.production(maxLoad));
     }
 
     /** Uniformly weighted subjects: every subject has the same importance, so the optimum is unique. */

@@ -6,7 +6,7 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
-import com.ia.project.dynamicstudyplanner.service.calculation.retention.RetentionAlgorithm;
+import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;

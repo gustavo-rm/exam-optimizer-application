@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.service.calculation.retention;
 
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.retention.SubjectRetentionState;
 import org.springframework.stereotype.Service;
 

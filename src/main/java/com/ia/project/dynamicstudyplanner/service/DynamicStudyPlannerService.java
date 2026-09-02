@@ -4,10 +4,8 @@ import com.ia.project.dynamicstudyplanner.domain.*;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleResult;
 import com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator;
+import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationChains;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationStrategy;
-import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.CognitiveLoadBalancingStrategy;
-import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.InterleavedCriticalStrategy;
-import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.ReviewFocusedStrategy;
 import com.ia.project.dynamicstudyplanner.usecase.GenerateStudyPlanUseCase;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -57,16 +55,10 @@ public class DynamicStudyPlannerService implements GenerateStudyPlanUseCase {
         );
 
         // --- Step 2: Tactical Scheduling ---
-        // 1. The base strategy decides WHICH subjects to study today (the most critical ones)
-        // 2. The load balancing strategy decides HOW to organize these subjects
-        // 3. The review strategy decides whether a REVIEW should come first
-
-        AllocationStrategy finalStrategy = new ReviewFocusedStrategy(
-                new CognitiveLoadBalancingStrategy(
-                        new InterleavedCriticalStrategy(),
-                        cognitiveLoadCalculator.calculate(profile, exam)
-                )
-        );
+        // A composicao da cadeia vive em AllocationChains, e nao aqui, para que os benchmarks e os
+        // testes usem exatamente a mesma definicao em vez de replica-la (achado E2 da etapa 03).
+        AllocationStrategy finalStrategy = AllocationChains.production(
+                cognitiveLoadCalculator.calculate(profile, exam));
 
         ScheduleResult scheduleResult = scheduleGenerator.generate(
                 optimizationResult.plan(), profile, exam, LocalDate.now(), finalStrategy

@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.service.calculation.fatigue;
 
 import com.ia.project.dynamicstudyplanner.domain.Chronotype;
+import com.ia.project.dynamicstudyplanner.domain.fatigue.FatigueAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
@@ -18,7 +19,7 @@ import java.util.Map;
  * Future roadmap: Replace heuristic curves with ML inference engine.
  */
 @Service
-public class FatigueAndEnergyModel {
+public class FatigueAndEnergyModel implements FatigueAlgorithm {
 
     // A theoretical maximum fatigue level before the student crashes.
     private static final double BURNOUT_THRESHOLD = 50.0;
@@ -30,6 +31,7 @@ public class FatigueAndEnergyModel {
      * 1.0 means perfectly sustainable. Lower values indicate higher risk,
      * dropping exponentially if the burnout threshold is breached.
      */
+    @Override
     public double calculateBurnoutRisk(TacticalStudyPlan plan, StudentState state) {
         if (state == null || plan.getSchedule().isEmpty()) {
             return 1.0;
@@ -89,6 +91,7 @@ public class FatigueAndEnergyModel {
      * Mathematical heuristic for the Biphasic energy curve based on chronotype.
      * Returns a multiplier between ~0.5 and ~1.5.
      */
+    @Override
     public double getExpectedEnergyLevel(LocalTime time, Chronotype chronotype) {
         double hour = time.getHour() + (time.getMinute() / 60.0);
 

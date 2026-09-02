@@ -1,12 +1,23 @@
-package com.ia.project.dynamicstudyplanner.service.calculation.retention;
+package com.ia.project.dynamicstudyplanner.domain.retention;
 
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
-import com.ia.project.dynamicstudyplanner.domain.retention.SubjectRetentionState;
 
 import java.time.LocalDate;
 
 /**
- * Interface defining the cognitive science algorithms for memory retention.
+ * Contrato dos algoritmos de retenção de memória.
+ *
+ * <h2>Por que esta interface vive em {@code domain}</h2>
+ *
+ * Ela foi movida de {@code service.calculation.retention} na etapa 03b. Estava no pacote de quem a
+ * <b>implementa</b> ({@code HybridRetentionEngine}), e não no de quem a <b>consome</b> — o que
+ * obrigava {@code ga.fitness.constraint} a compilar contra {@code service} só para enxergar o
+ * contrato, e fechava um ciclo de dependência entre os dois módulos
+ * ({@code docs/qualidade/03-diagnostico-estrutura.md}, achados E4 e E5).
+ *
+ * <p>Todos os tipos da assinatura — {@link Subject}, {@link SubjectRetentionState},
+ * {@link LocalDate} — já são de domínio, então o contrato pertence naturalmente aqui. A decisão está
+ * registrada em {@code docs/adr/0001-abstracoes-de-calculo-no-dominio.md}.
  * <p>
  * The macro fitness does not call this interface: its retention term is a mean-field approximation
  * derived from the same forgetting curve, because the macro chromosome has no calendar. See
