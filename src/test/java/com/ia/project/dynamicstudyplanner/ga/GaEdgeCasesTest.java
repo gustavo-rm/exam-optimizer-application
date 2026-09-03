@@ -26,6 +26,8 @@ import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.RepairingCrossov
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.WeightedAverageCrossover;
 import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.CreepMutation;
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
+import com.ia.project.dynamicstudyplanner.service.EvolutionContextAssembler;
+import com.ia.project.dynamicstudyplanner.service.OptimizationMetrics;
 import com.ia.project.dynamicstudyplanner.service.StudyOptimizerService;
 import com.ia.project.dynamicstudyplanner.service.StudyScheduleGenerator;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
@@ -408,17 +410,28 @@ class GaEdgeCasesTest {
     // ------------------------------------------------------------------
 
     private static StudyOptimizerService optimizer() {
-        ImportanceCalculator importanceCalculator = new ImportanceCalculator();
         return new StudyOptimizerService(
-                new BaselineCalculator(importanceCalculator),
-                importanceCalculator,
+                contextAssembler(),
                 new DefaultGeneticAlgorithmFactory(
                         new TournamentSelection(),
                         new HybridCrossover(new WeightedAverageCrossover(), new RepairingCrossover()),
                         new CreepMutation()),
                 new DefaultPopulationGenerator(),
-                fitnessEvaluator(),
-                new SimpleMeterRegistry());
+                new OptimizationMetrics(new SimpleMeterRegistry()));
+    }
+
+    /**
+     * As calculadoras de dominio deixaram de ser dependencias diretas do servico na etapa 03e
+     * (achado E8) e passaram a viver no montador do contexto. Este metodo existe para que a
+     * mudanca fique num lugar so, se elas mudarem de novo.
+     */
+    private static EvolutionContextAssembler contextAssembler() {
+        ImportanceCalculator importanceCalculator = new ImportanceCalculator();
+        return new EvolutionContextAssembler(
+                new BaselineCalculator(importanceCalculator),
+                importanceCalculator,
+                new CognitiveLoadCalculator(),
+                fitnessEvaluator());
     }
 
     private static FitnessEvaluator fitnessEvaluator() {

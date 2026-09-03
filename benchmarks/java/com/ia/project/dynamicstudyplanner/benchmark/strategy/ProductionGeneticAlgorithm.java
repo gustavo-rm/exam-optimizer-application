@@ -11,8 +11,11 @@ import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.RepairingCrossov
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.WeightedAverageCrossover;
 import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.CreepMutation;
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
+import com.ia.project.dynamicstudyplanner.service.EvolutionContextAssembler;
+import com.ia.project.dynamicstudyplanner.service.OptimizationMetrics;
 import com.ia.project.dynamicstudyplanner.service.StudyOptimizerService;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
+import com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
 import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -58,8 +61,13 @@ public final class ProductionGeneticAlgorithm implements PlanningStrategy {
      * <p>
      * Exists for {@code WeightTradeoffMain}, which needs to price a change to the coverage floor
      * without making one: the floor is computed inside {@code BaselineCalculator}, so it cannot be
-     * overridden through the {@code EvolutionContext} the service builds for itself. Every other
-     * caller gets the production calculator through the constructor above.
+     * overridden through the finished {@code EvolutionContext}. Every other caller gets the
+     * production calculator through the constructor above.
+     * <p>
+     * Since etapa 03e (finding E8) the substitution point is {@link EvolutionContextAssembler},
+     * which is where the calculators now live — the service itself no longer holds any. That made
+     * this seam explicit instead of incidental: the calculator is handed to the class whose job is
+     * to use it, not to the orchestrator that merely passed it along.
      */
     public ProductionGeneticAlgorithm(FitnessEvaluator fitnessEvaluator,
                                       BaselineCalculator baselineCalculator) {
@@ -71,13 +79,18 @@ public final class ProductionGeneticAlgorithm implements PlanningStrategy {
                 new CreepMutation()
         );
 
-        this.optimizerService = new StudyOptimizerService(
+        EvolutionContextAssembler contextAssembler = new EvolutionContextAssembler(
                 baselineCalculator,
                 importanceCalculator,
+                new CognitiveLoadCalculator(),
+                fitnessEvaluator
+        );
+
+        this.optimizerService = new StudyOptimizerService(
+                contextAssembler,
                 gaFactory,
                 new DefaultPopulationGenerator(),
-                fitnessEvaluator,
-                new SimpleMeterRegistry()
+                new OptimizationMetrics(new SimpleMeterRegistry())
         );
     }
 
