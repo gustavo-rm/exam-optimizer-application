@@ -385,7 +385,7 @@ public final class WeightTradeoffMain {
      * <p>
      * Simulates a change to {@code BaselineCalculator.MIN_REQUIRED_DAYS} without making one. The
      * floor cannot be injected through {@link EvolutionContext}, because
-     * {@code StudyOptimizerService} builds its own context and computes the floor itself — which is
+     * {@code EvolutionContextAssembler} computes the floor while assembling the context — which is
      * also why {@code ProductionGeneticAlgorithm} has to take the calculator by constructor.
      * Subjects whose production floor already exceeds the target are left alone, so this only lifts
      * the tail that was being reduced to one or two days.

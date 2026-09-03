@@ -62,7 +62,25 @@ public class OptimizerController {
                             schema = @Schema(implementation = PlannerResponseDto.class))
             }),
             @ApiResponse(responseCode = "400",
-                    description = "Bad Request. Validation failed for the input payload.", content = {
+                    description = "Bad Request. The payload could not be understood: failed validation, "
+                            + "malformed JSON, or a field with an incompatible type.", content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
+            }),
+            @ApiResponse(responseCode = "404",
+                    description = "Not Found. No endpoint is mapped to the requested path.", content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
+            }),
+            @ApiResponse(responseCode = "405",
+                    description = "Method Not Allowed. This endpoint accepts POST only; the response "
+                            + "carries an Allow header.", content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
+            }),
+            @ApiResponse(responseCode = "415",
+                    description = "Unsupported Media Type. The request body must be application/json.",
+                    content = {
                     @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class))
             }),
@@ -72,8 +90,15 @@ public class OptimizerController {
                             schema = @Schema(implementation = ProblemDetail.class))
             }),
             @ApiResponse(responseCode = "422",
-                    description = "Unprocessable Entity. The business logic failed (e.g., impossible constraints).",
+                    description = "Unprocessable Content. The request was understood but cannot be "
+                            + "fulfilled — typically the subjects require more days than remain before "
+                            + "the exam date.",
                     content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
+            }),
+            @ApiResponse(responseCode = "429",
+                    description = "Too Many Requests. The per-client rate limit was exceeded.", content = {
                     @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class))
             }),

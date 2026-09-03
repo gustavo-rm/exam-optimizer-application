@@ -30,7 +30,7 @@ import java.util.Random;
  * in {@link DefaultGeneticAlgorithmFactory} (elitism, crossover 0.95, mutation 0.05, stagnation
  * patience 25, hypermutation 0.20), the {@code HybridCrossover} / {@code CreepMutation} /
  * {@code TournamentSelection} operator set, and the same dummy retention and engagement profiles
- * the service injects. Nothing here is a transcription that could drift from production.
+ * the assembler injects. Nothing here is a transcription that could drift from production.
  * <p>
  * <b>On reproducibility.</b> Seeding {@link RandomProvider} now pins the whole evolution. It did not
  * when this class was written: {@code AbstractMutationStrategy} decided whether to mutate with
@@ -112,11 +112,11 @@ public final class ProductionGeneticAlgorithm implements PlanningStrategy {
     /**
      * Runs the production optimizer.
      * <p>
-     * The {@code context} argument is ignored on purpose: the service builds its own context through
-     * its private {@code prepareContext}, and letting it do so is what keeps this an end-to-end
-     * measurement. The harness builds an equivalent context for scoring, using the same production
-     * calculators on the same exam and profile, so the two agree on {@code importanceScores} and
-     * {@code minimumDaysPerSubject} — the only context fields any active fitness component reads.
+     * The {@code context} argument is ignored on purpose: the service assembles its own context
+     * through {@code EvolutionContextAssembler}, and letting it do so is what keeps this an
+     * end-to-end measurement. Since etapa 04b the harness scores with a context from that very
+     * same assembler rather than a hand-written copy, so the two agree on every field by
+     * construction — not just on {@code importanceScores} and {@code minimumDaysPerSubject}.
      */
     @Override
     public StudyPlan plan(BenchmarkInstance instance, EvolutionContext context, long seed) {

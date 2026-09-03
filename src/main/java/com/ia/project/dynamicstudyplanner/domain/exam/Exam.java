@@ -94,12 +94,12 @@ public class Exam {
      */
     public double calculateBaseImportance(Subject subject) {
         if (generalKnowledgeSubjects.contains(subject)) {
-            int totalGKQuestions = getGeneralKnowledgeTotalQuestions();
-            if (totalGKQuestions <= 0) {
+            int totalGeneralKnowledgeQuestions = getGeneralKnowledgeTotalQuestions();
+            if (totalGeneralKnowledgeQuestions <= 0) {
                 throw new DomainException(
                         "General Knowledge total questions must be positive to calculate importance.");
             }
-            double valuePerQuestion = generalKnowledgeTotalScore / totalGKQuestions;
+            double valuePerQuestion = generalKnowledgeTotalScore / totalGeneralKnowledgeQuestions;
             return subject.questionCount() * valuePerQuestion;
         } else {
             Optional<ThematicAxis> parentAxis = findAxisForSubject(subject);

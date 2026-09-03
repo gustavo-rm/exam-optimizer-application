@@ -39,3 +39,4 @@ antigo passa a "Substituído por". O histórico é o valor.
 | [0004](./0004-construtor-passo-a-passo-do-contexto.md) | `EvolutionContext` é montado por construtor passo a passo | Aceito |
 | [0005](./0005-criterio-de-classificacao-de-erro.md) | O que separa `IllegalArgumentException` (400) de `DomainException` (422) | Aceito |
 | [0006](./0006-separacao-de-responsabilidades-do-otimizador.md) | Três classes para quatro responsabilidades no otimizador | Aceito |
+| [0007](./0007-idioma-do-codigo-e-da-documentacao.md) | Inglês para o que a máquina lê, português para o que a pessoa lê | Aceito |

@@ -30,6 +30,11 @@ public class BaselineCalculator {
         this.importanceCalculator = importanceCalculator;
     }
 
+    // PENDENCIA P5 (docs/revisao-ag/04-robustez.md): estes dois pisos sao ABSOLUTOS por disciplina,
+    // e nao escalam com o orcamento. Num edital com n disciplinas de peso homogeneo o minimo total
+    // tende a 15 x n, o que inviabiliza o pedido antes de o AG rodar — e a origem do 422 que
+    // BusinessRuleStatusTest exercita. Deveriam escalar com o orcamento disponivel. Mexer aqui
+    // altera TODOS os planos ja gerados: e decisao de produto, nao de refatoracao.
     private static final int MAX_MINIMUM_DAYS = 15; // The most difficult subject will be assigned this many days.
     private static final int MIN_REQUIRED_DAYS = 1;  // Every subject will have at least this many days.
 

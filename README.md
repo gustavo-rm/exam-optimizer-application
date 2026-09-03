@@ -106,11 +106,32 @@ The application can be configured via `application.properties` or environment va
 | Variable / Property | Default Value | Description |
 |----------------------|---------------|-------------|
 | `spring.profiles.active` | `dev` | Active Spring profile. |
-| `server.forward-headers-strategy` | `framework` | Strategy for extracting client IPs from X-Forwarded-For headers. |
-| `api.rate-limit.capacity` | `5` | Bucket4j Rate Limiting capacity. |
+| `api.rate-limit.capacity` | `5` | Bucket4j rate limiting capacity. |
 | `api.rate-limit.refill-tokens` | `5` | Tokens refilled per duration. |
 | `api.rate-limit.refill-duration-minutes` | `1` | Refill duration in minutes. |
 | `optimizer.thread-pool-size` | `8` | Size of the dedicated thread pool for CPU-bound tasks. |
+
+#### Deployment-dependent security settings
+
+These four describe **one single deployment assumption** and must be changed together. The defaults
+are the safe ones — they assume no reverse proxy in front of the application.
+
+| Variable / Property | Default Value | Description |
+|----------------------|---------------|-------------|
+| `server.forward-headers-strategy` | `none` | Whether Spring trusts `X-Forwarded-*`. **Do not set to `framework` without also filling `api.trusted-proxies`** — see below. |
+| `api.trusted-proxies` | *(empty)* | Comma-separated proxies whose `X-Forwarded-For` may be believed. Empty means client identity comes from the connection address only. |
+| `api.security.require-https` | `false` | Requires HTTPS and emits HSTS. Depends on `X-Forwarded-Proto`, so only meaningful behind a known proxy. |
+| `api.security.hsts-max-age-seconds` | `31536000` | HSTS max-age, used only when the above is on. |
+
+> **Why `server.forward-headers-strategy` defaults to `none`.** With `framework`, Spring registers
+> `ForwardedHeaderFilter`, which rewrites `request.getRemoteAddr()` with the client-supplied
+> `X-Forwarded-For` **before any application filter runs**. That defeats rate limiting entirely:
+> varying the header on each request gets a fresh bucket every time. This was measured, not assumed
+> — see `docs/qualidade/02b-correcao-seguranca.md`, finding S12. Switch to `framework` **only**
+> together with a populated `api.trusted-proxies` and a real proxy in front.
+>
+> TLS termination itself is infrastructure's responsibility and cannot be done by this application.
+> `application.properties` carries the same warning next to each key.
 
 ## 🛠️ Installation & Running the Project
 
@@ -119,7 +140,7 @@ The application can be configured via `application.properties` or environment va
 1. Clone the repository:
    ```bash
    git clone https://github.com/gustavo-rm/exam-optimizer-application.git
-   cd DynamicStudyPlanner
+   cd exam-optimizer-application
    ```
 
 2. Build the project:
@@ -179,12 +200,20 @@ This application is **completely stateless** and does not use a database. It pro
 
 ## 🧪 Testing
 
-The project uses JUnit 5 and Mockito.
+The project uses JUnit 5, Mockito and AssertJ.
 
-To run the tests:
 ```bash
-./mvnw test
+./mvnw test      # test suite only
+./mvnw verify    # style check + tests + coverage floor — what CI runs
 ```
+
+`verify` is the meaningful command: it runs **Checkstyle** (`config/checkstyle/checkstyle.xml`) in
+the `validate` phase, then the suite, then the **JaCoCo coverage floor**, which fails the build if
+coverage drops below the recorded threshold. `test` alone runs neither gate.
+
+Continuous integration runs `verify` on every push and pull request
+(`.github/workflows/ci.yml`). Note that the workflow reports but does not yet *block* merges — that
+requires marking the job as a required status check in the branch protection settings.
 
 ## 🔒 Security
 
@@ -235,10 +264,19 @@ Gustavo Malacarne (Software Engineer) - dynamic-study-planner
 
 ## 🧹 Code Quality
 
-The project prioritizes clean code and standard enterprise practices:
-* **Linting and Formatting:** (Assuming IDE defaults, further configuration via Checkstyle or Spotless is recommended).
-* **Static Analysis:** (Can be integrated via SonarQube or similar tools in future CI pipelines).
-* **Architectural Standards:** Strict adherence to Domain-Driven Design principles with bounded contexts mapped to packages. Code smells and anti-patterns are actively refactored during reviews.
+* **Linting and formatting:** Checkstyle, configured in `config/checkstyle/checkstyle.xml` with the
+  conventions the codebase already follows (4-space indent, 120-column lines, no star imports, no
+  brace-less `if`). It runs in the `validate` phase, so a style violation fails in seconds rather
+  than at the end of the build. `.editorconfig` mirrors the same rules for editors.
+* **Coverage floor:** JaCoCo `check` fails the build when coverage regresses. Current floors are in
+  `pom.xml`.
+* **Architectural boundaries:** enforced by test, not by convention — `arquitetura/ModuleBoundaryTest`
+  fails on a dependency cycle between top-level modules and on any framework import inside `domain`.
+* **API contract:** `contract/OpenApiContractTest` compares the generated OpenAPI spec against a
+  committed snapshot, so the published contract cannot drift unnoticed.
+* **Static analysis:** not configured. PMD and SonarQube were run manually during the quality review
+  (`docs/qualidade/04-diagnostico-escrita.md`) but are not part of the build.
+* **Architectural decisions:** recorded as ADRs in [`docs/adr/`](./docs/adr/).
 
 ## 🚀 Deployment
 

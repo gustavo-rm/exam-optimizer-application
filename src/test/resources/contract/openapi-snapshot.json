@@ -1,542 +1,532 @@
 {
-  "components": {
-    "schemas": {
-      "ExamDto": {
-        "description": "Data Transfer Object representing the official structure of the exam (e.g., from an edital).",
-        "properties": {
-          "examDate": {
-            "description": "The scheduled date for the exam. Must be in the future.",
-            "example": "2024-12-01",
-            "format": "date",
-            "type": "string"
+  "components" : {
+    "schemas" : {
+      "ExamDto" : {
+        "description" : "Data Transfer Object representing the official structure of the exam (e.g., from an edital).",
+        "properties" : {
+          "examDate" : {
+            "description" : "The scheduled date for the exam. Must be in the future.",
+            "example" : "2024-12-01",
+            "format" : "date",
+            "type" : "string"
           },
-          "generalKnowledgeSubjects": {
-            "description": "List of subjects evaluated in the general knowledge section.",
-            "items": {
-              "$ref": "#/components/schemas/SubjectDto"
+          "generalKnowledgeSubjects" : {
+            "description" : "List of subjects evaluated in the general knowledge section.",
+            "items" : {
+              "$ref" : "#/components/schemas/SubjectDto"
             },
-            "maxItems": 50,
-            "minItems": 0,
-            "type": "array"
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
           },
-          "generalKnowledgeTotalScore": {
-            "description": "The total score available in the general knowledge section.",
-            "example": 50.0,
-            "format": "double",
-            "maximum": 1000.0,
-            "minimum": 0,
-            "type": "number"
+          "generalKnowledgeTotalScore" : {
+            "description" : "The total score available in the general knowledge section.",
+            "example" : 50.0,
+            "format" : "double",
+            "maximum" : 1000.0,
+            "minimum" : 0,
+            "type" : "number"
           },
-          "name": {
-            "description": "The official name of the exam.",
-            "example": "Federal Police Officer 2024",
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string"
+          "name" : {
+            "description" : "The official name of the exam.",
+            "example" : "Federal Police Officer 2024",
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
           },
-          "specificKnowledgeAxes": {
-            "description": "List of thematic axes, which group specific knowledge subjects and define their weights.",
-            "items": {
-              "$ref": "#/components/schemas/ThematicAxisDto"
+          "specificKnowledgeAxes" : {
+            "description" : "List of thematic axes, which group specific knowledge subjects and define their weights.",
+            "items" : {
+              "$ref" : "#/components/schemas/ThematicAxisDto"
             },
-            "maxItems": 50,
-            "minItems": 0,
-            "type": "array"
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
           }
         },
-        "required": [
-          "examDate",
-          "generalKnowledgeSubjects",
-          "name",
-          "specificKnowledgeAxes"
-        ],
-        "type": "object"
+        "required" : [ "examDate", "generalKnowledgeSubjects", "name", "specificKnowledgeAxes" ],
+        "type" : "object"
       },
-      "GaConfigDto": {
-        "description": "Configuration settings for the Genetic Algorithm.",
-        "properties": {
-          "numGenerations": {
-            "description": "The number of evolutionary cycles the algorithm will run. Higher yields better results but takes longer.",
-            "example": 100,
-            "format": "int32",
-            "maximum": 1000,
-            "minimum": 10,
-            "type": "integer"
+      "GaConfigDto" : {
+        "description" : "Configuration settings for the Genetic Algorithm.",
+        "properties" : {
+          "numGenerations" : {
+            "description" : "The number of evolutionary cycles the algorithm will run. Higher yields better results but takes longer.",
+            "example" : 100,
+            "format" : "int32",
+            "maximum" : 1000,
+            "minimum" : 10,
+            "type" : "integer"
           },
-          "populationSize": {
-            "description": "The number of potential solutions evolving per generation.",
-            "example": 50,
-            "format": "int32",
-            "maximum": 500,
-            "minimum": 10,
-            "type": "integer"
+          "populationSize" : {
+            "description" : "The number of potential solutions evolving per generation.",
+            "example" : 50,
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 10,
+            "type" : "integer"
           },
-          "totalStudyDays": {
-            "description": "The target number of study days to allocate across all subjects.",
-            "example": 100,
-            "format": "int32",
-            "maximum": 365,
-            "minimum": 1,
-            "type": "integer"
+          "totalStudyDays" : {
+            "description" : "The target number of study days to allocate across all subjects.",
+            "example" : 100,
+            "format" : "int32",
+            "maximum" : 365,
+            "minimum" : 1,
+            "type" : "integer"
           }
         },
-        "type": "object"
+        "type" : "object"
       },
-      "OptimizationRequest": {
-        "description": "The main request payload for generating an optimized study plan.",
-        "properties": {
-          "exam": {
-            "$ref": "#/components/schemas/ExamDto",
-            "description": "The structure and rules of the exam."
+      "OptimizationRequest" : {
+        "description" : "The main request payload for generating an optimized study plan.",
+        "properties" : {
+          "exam" : {
+            "$ref" : "#/components/schemas/ExamDto",
+            "description" : "The structure and rules of the exam."
           },
-          "gaConfig": {
-            "$ref": "#/components/schemas/GaConfigDto",
-            "description": "Configuration parameters for the underlying Genetic Algorithm engine."
+          "gaConfig" : {
+            "$ref" : "#/components/schemas/GaConfigDto",
+            "description" : "Configuration parameters for the underlying Genetic Algorithm engine."
           },
-          "studentProfile": {
-            "$ref": "#/components/schemas/StudentProfileDto",
-            "description": "The personal profile of the student, including availability and knowledge gaps."
+          "studentProfile" : {
+            "$ref" : "#/components/schemas/StudentProfileDto",
+            "description" : "The personal profile of the student, including availability and knowledge gaps."
           }
         },
-        "required": [
-          "exam",
-          "gaConfig",
-          "studentProfile"
-        ],
-        "type": "object"
+        "required" : [ "exam", "gaConfig", "studentProfile" ],
+        "type" : "object"
       },
-      "OptimizationResultDto": {
-        "description": "The strategic result generated by the Genetic Algorithm.",
-        "properties": {
-          "executionTimeMillis": {
-            "description": "The total execution time of the optimization algorithm in milliseconds.",
-            "example": 45,
-            "format": "int64",
-            "type": "integer"
+      "OptimizationResultDto" : {
+        "description" : "The strategic result generated by the Genetic Algorithm.",
+        "properties" : {
+          "executionTimeMillis" : {
+            "description" : "The total execution time of the optimization algorithm in milliseconds.",
+            "example" : 45,
+            "format" : "int64",
+            "type" : "integer"
           },
-          "fitness": {
-            "description": "The final calculated fitness score of the best individual.",
-            "example": 142.55,
-            "format": "double",
-            "type": "number"
+          "fitness" : {
+            "description" : "The final calculated fitness score of the best individual.",
+            "example" : 142.55,
+            "format" : "double",
+            "type" : "number"
           },
-          "generationsRun": {
-            "description": "The number of evolutionary generations processed before finding this solution.",
-            "example": 100,
-            "format": "int32",
-            "type": "integer"
+          "generationsRun" : {
+            "description" : "The number of evolutionary generations processed before finding this solution.",
+            "example" : 100,
+            "format" : "int32",
+            "type" : "integer"
           },
-          "plan": {
-            "$ref": "#/components/schemas/StudyPlanDto",
-            "description": "The allocated study days for each subject."
+          "plan" : {
+            "$ref" : "#/components/schemas/StudyPlanDto",
+            "description" : "The allocated study days for each subject."
           }
         },
-        "type": "object"
+        "type" : "object"
       },
-      "PlannerResponseDto": {
-        "description": "The comprehensive response containing both the strategic and tactical study plans.",
-        "properties": {
-          "message": {
-            "description": "A status message summarizing the generation outcome.",
-            "example": "Full study plan generated successfully.",
-            "type": "string"
+      "PlannerResponseDto" : {
+        "description" : "The comprehensive response containing both the strategic and tactical study plans.",
+        "properties" : {
+          "message" : {
+            "description" : "A status message summarizing the generation outcome.",
+            "example" : "Full study plan generated successfully.",
+            "type" : "string"
           },
-          "optimizationResult": {
-            "$ref": "#/components/schemas/OptimizationResultDto",
-            "description": "The strategic output from the Genetic Algorithm (e.g., total days per subject)."
+          "optimizationResult" : {
+            "$ref" : "#/components/schemas/OptimizationResultDto",
+            "description" : "The strategic output from the Genetic Algorithm (e.g., total days per subject)."
           },
-          "scheduleResult": {
-            "$ref": "#/components/schemas/ScheduleResultDto",
-            "description": "The tactical, day-by-day study schedule based on the optimization result."
+          "scheduleResult" : {
+            "$ref" : "#/components/schemas/ScheduleResultDto",
+            "description" : "The tactical, day-by-day study schedule based on the optimization result."
           }
         },
-        "type": "object"
+        "type" : "object"
       },
-      "ProblemDetail": {
-        "properties": {
-          "detail": {
-            "type": [
-              "string",
-              "null"
-            ]
+      "ProblemDetail" : {
+        "properties" : {
+          "detail" : {
+            "type" : [ "string", "null" ]
           },
-          "instance": {
-            "format": "uri",
-            "type": [
-              "string",
-              "null"
-            ]
+          "instance" : {
+            "format" : "uri",
+            "type" : [ "string", "null" ]
           },
-          "properties": {
-            "additionalProperties": {},
-            "type": [
-              "object",
-              "null"
-            ]
+          "properties" : {
+            "additionalProperties" : { },
+            "type" : [ "object", "null" ]
           },
-          "status": {
-            "format": "int32",
-            "type": "integer"
+          "status" : {
+            "format" : "int32",
+            "type" : "integer"
           },
-          "title": {
-            "type": [
-              "string",
-              "null"
-            ]
+          "title" : {
+            "type" : [ "string", "null" ]
           },
-          "type": {
-            "format": "uri",
-            "type": "string"
+          "type" : {
+            "format" : "uri",
+            "type" : "string"
           }
         },
-        "type": "object"
+        "type" : "object"
       },
-      "ScheduleResultDto": {
-        "description": "The tactical, day-by-day scheduling result based on the optimized plan and student availability.",
-        "properties": {
-          "availableHours": {
-            "description": "The total number of hours the student has available before the exam.",
-            "example": 150.0,
-            "format": "double",
-            "type": "number"
+      "ScheduleResultDto" : {
+        "description" : "The tactical, day-by-day scheduling result based on the optimized plan and student availability.",
+        "properties" : {
+          "availableHours" : {
+            "description" : "The total number of hours the student has available before the exam.",
+            "example" : 150.0,
+            "format" : "double",
+            "type" : "number"
           },
-          "requiredHours": {
-            "description": "The total number of hours required to complete the ideal study plan.",
-            "example": 120.0,
-            "format": "double",
-            "type": "number"
+          "requiredHours" : {
+            "description" : "The total number of hours required to complete the ideal study plan.",
+            "example" : 120.0,
+            "format" : "double",
+            "type" : "number"
           },
-          "schedule": {
-            "additionalProperties": {
-              "items": {
-                "$ref": "#/components/schemas/StudyBlockDto"
+          "schedule" : {
+            "additionalProperties" : {
+              "items" : {
+                "$ref" : "#/components/schemas/StudyBlockDto"
               },
-              "type": "array"
+              "type" : "array"
             },
-            "description": "A mapping of specific dates to a list of study blocks scheduled for that day.",
-            "example": {
-              "2024-10-15": [
-                {
-                  "hours": 2,
-                  "subjectName": "Constitutional Law"
-                }
-              ]
+            "description" : "A mapping of specific dates to a list of study blocks scheduled for that day.",
+            "example" : {
+              "2024-10-15" : [ {
+                "hours" : 2,
+                "subjectName" : "Constitutional Law"
+              } ]
             },
-            "type": "object"
+            "type" : "object"
           },
-          "status": {
-            "description": "An indicator of whether the ideal plan was fully scheduled, or if there was a time deficit/surplus.",
-            "enum": [
-              "SUCCESS_IDEAL_PLAN",
-              "SUCCESS_WITH_SURPLUS_TIME",
-              "WARNING_TIME_DEFICIT"
-            ],
-            "example": "SUCCESS_IDEAL_PLAN",
-            "type": "string"
+          "status" : {
+            "description" : "An indicator of whether the ideal plan was fully scheduled, or if there was a time deficit/surplus.",
+            "enum" : [ "SUCCESS_IDEAL_PLAN", "SUCCESS_WITH_SURPLUS_TIME", "WARNING_TIME_DEFICIT" ],
+            "example" : "SUCCESS_IDEAL_PLAN",
+            "type" : "string"
           }
         },
-        "type": "object"
+        "type" : "object"
       },
-      "StudentProfileDto": {
-        "description": "Data Transfer Object representing the student's personal constraints and knowledge state.",
-        "properties": {
-          "knowledgeGaps": {
-            "additionalProperties": {
-              "format": "double",
-              "type": "number"
+      "StudentProfileDto" : {
+        "description" : "Data Transfer Object representing the student's personal constraints and knowledge state.",
+        "properties" : {
+          "knowledgeGaps" : {
+            "additionalProperties" : {
+              "format" : "double",
+              "type" : "number"
             },
-            "description": "A mapping of subject names to the student's self-assessed knowledge gap on a 1.0 (very strong) to 5.0 (very weak) scale.",
-            "example": {
-              "Constitutional Law": 4.5,
-              "Portuguese": 2.0
+            "description" : "A mapping of subject names to the student's self-assessed knowledge gap on a 1.0 (very strong) to 5.0 (very weak) scale.",
+            "example" : {
+              "Constitutional Law" : 4.5,
+              "Portuguese" : 2.0
             },
-            "minProperties": 1,
-            "type": "object"
+            "minProperties" : 1,
+            "type" : "object"
           },
-          "name": {
-            "description": "The name of the student.",
-            "example": "Jane Doe",
-            "maxLength": 100,
-            "minLength": 0,
-            "type": "string"
+          "name" : {
+            "description" : "The name of the student.",
+            "example" : "Jane Doe",
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
           },
-          "state": {
-            "$ref": "#/components/schemas/StudentStateDto",
-            "description": "The psychological, physical, and emotional state of the student."
+          "state" : {
+            "$ref" : "#/components/schemas/StudentStateDto",
+            "description" : "The psychological, physical, and emotional state of the student."
           },
-          "weeklyAvailability": {
-            "additionalProperties": {
-              "format": "int32",
-              "type": "integer"
+          "weeklyAvailability" : {
+            "additionalProperties" : {
+              "format" : "int32",
+              "type" : "integer"
             },
-            "description": "A mapping of the days of the week to the number of hours the student is available to study on that day.",
-            "example": {
-              "MONDAY": 4,
-              "SATURDAY": 8
+            "description" : "A mapping of the days of the week to the number of hours the student is available to study on that day.",
+            "example" : {
+              "MONDAY" : 4,
+              "SATURDAY" : 8
             },
-            "minProperties": 1,
-            "type": "object"
+            "minProperties" : 1,
+            "type" : "object"
           }
         },
-        "required": [
-          "knowledgeGaps",
-          "name",
-          "weeklyAvailability"
-        ],
-        "type": "object"
+        "required" : [ "knowledgeGaps", "name", "weeklyAvailability" ],
+        "type" : "object"
       },
-      "StudentStateDto": {
-        "description": "Data Transfer Object representing the student's psychological, physical, and emotional state.",
-        "properties": {
-          "chronotype": {
-            "description": "The student's natural circadian rhythm.",
-            "enum": [
-              "MORNING_LARK",
-              "NIGHT_OWL",
-              "INTERMEDIATE"
-            ],
-            "example": "INTERMEDIATE",
-            "type": "string"
+      "StudentStateDto" : {
+        "description" : "Data Transfer Object representing the student's psychological, physical, and emotional state.",
+        "properties" : {
+          "chronotype" : {
+            "description" : "The student's natural circadian rhythm.",
+            "enum" : [ "MORNING_LARK", "NIGHT_OWL", "INTERMEDIATE" ],
+            "example" : "INTERMEDIATE",
+            "type" : "string"
           },
-          "fatigueLevel": {
-            "description": "Fatigue level on a 1.0 (very low) to 5.0 (very high) scale.",
-            "example": 2.0,
-            "format": "double",
-            "maximum": 5.0,
-            "minimum": 1.0,
-            "type": "number"
+          "fatigueLevel" : {
+            "description" : "Fatigue level on a 1.0 (very low) to 5.0 (very high) scale.",
+            "example" : 2.0,
+            "format" : "double",
+            "maximum" : 5.0,
+            "minimum" : 1.0,
+            "type" : "number"
           },
-          "motivationLevel": {
-            "description": "Motivation level on a 1.0 (very low) to 5.0 (very high) scale.",
-            "example": 4.0,
-            "format": "double",
-            "maximum": 5.0,
-            "minimum": 1.0,
-            "type": "number"
+          "motivationLevel" : {
+            "description" : "Motivation level on a 1.0 (very low) to 5.0 (very high) scale.",
+            "example" : 4.0,
+            "format" : "double",
+            "maximum" : 5.0,
+            "minimum" : 1.0,
+            "type" : "number"
           },
-          "stressLevel": {
-            "description": "Stress level on a 1.0 (very low) to 5.0 (very high) scale.",
-            "example": 3.5,
-            "format": "double",
-            "maximum": 5.0,
-            "minimum": 1.0,
-            "type": "number"
+          "stressLevel" : {
+            "description" : "Stress level on a 1.0 (very low) to 5.0 (very high) scale.",
+            "example" : 3.5,
+            "format" : "double",
+            "maximum" : 5.0,
+            "minimum" : 1.0,
+            "type" : "number"
           }
         },
-        "required": [
-          "fatigueLevel",
-          "motivationLevel",
-          "stressLevel"
-        ],
-        "type": "object"
+        "required" : [ "fatigueLevel", "motivationLevel", "stressLevel" ],
+        "type" : "object"
       },
-      "StudyBlockDto": {
-        "description": "Represents a distinct, contiguous block of study time allocated to a specific subject.",
-        "properties": {
-          "hours": {
-            "description": "The number of hours allocated to this block.",
-            "example": 2,
-            "format": "int32",
-            "type": "integer"
+      "StudyBlockDto" : {
+        "description" : "Represents a distinct, contiguous block of study time allocated to a specific subject.",
+        "properties" : {
+          "hours" : {
+            "description" : "The number of hours allocated to this block.",
+            "example" : 2,
+            "format" : "int32",
+            "type" : "integer"
           },
-          "subjectName": {
-            "description": "The name of the subject to study in this block.",
-            "example": "Constitutional Law",
-            "type": "string"
+          "subjectName" : {
+            "description" : "The name of the subject to study in this block.",
+            "example" : "Constitutional Law",
+            "type" : "string"
           }
         },
-        "type": "object"
+        "type" : "object"
       },
-      "StudyPlanDto": {
-        "description": "The core output of the Genetic Algorithm, representing the optimal distribution of study days across subjects.",
-        "properties": {
-          "daysPerSubject": {
-            "additionalProperties": {
-              "format": "int32",
-              "type": "integer"
+      "StudyPlanDto" : {
+        "description" : "The core output of the Genetic Algorithm, representing the optimal distribution of study days across subjects.",
+        "properties" : {
+          "daysPerSubject" : {
+            "additionalProperties" : {
+              "format" : "int32",
+              "type" : "integer"
             },
-            "description": "A mapping where keys are subject names and values are the optimal number of days to study them.",
-            "example": {
-              "Constitutional Law": 10,
-              "Portuguese": 5
+            "description" : "A mapping where keys are subject names and values are the optimal number of days to study them.",
+            "example" : {
+              "Constitutional Law" : 10,
+              "Portuguese" : 5
             },
-            "type": "object"
+            "type" : "object"
           }
         },
-        "type": "object"
+        "type" : "object"
       },
-      "SubjectDto": {
-        "description": "Data Transfer Object for a specific study subject within an exam.",
-        "properties": {
-          "cognitiveLoad": {
-            "description": "An intrinsic, objective difficulty score for this subject (1=Very Easy, 5=Extremely Difficult), used for load balancing.",
-            "example": 4,
-            "format": "int32",
-            "maximum": 5,
-            "minimum": 1,
-            "type": "integer"
+      "SubjectDto" : {
+        "description" : "Data Transfer Object for a specific study subject within an exam.",
+        "properties" : {
+          "cognitiveLoad" : {
+            "description" : "An intrinsic, objective difficulty score for this subject (1=Very Easy, 5=Extremely Difficult), used for load balancing.",
+            "example" : 4,
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
           },
-          "name": {
-            "description": "The name of the subject.",
-            "example": "Constitutional Law",
-            "maxLength": 100,
-            "minLength": 0,
-            "type": "string"
+          "name" : {
+            "description" : "The name of the subject.",
+            "example" : "Constitutional Law",
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
           },
-          "questionCount": {
-            "description": "The number of questions expected for this subject on the exam.",
-            "example": 15,
-            "format": "int32",
-            "maximum": 500,
-            "minimum": 1,
-            "type": "integer"
+          "questionCount" : {
+            "description" : "The number of questions expected for this subject on the exam.",
+            "example" : 15,
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
           }
         },
-        "required": [
-          "name"
-        ],
-        "type": "object"
+        "required" : [ "name" ],
+        "type" : "object"
       },
-      "ThematicAxisDto": {
-        "description": "Data Transfer Object grouping related specific knowledge subjects into an axis with a shared weight.",
-        "properties": {
-          "id": {
-            "description": "A unique identifier for the thematic axis.",
-            "example": 1,
-            "format": "int32",
-            "minimum": 1,
-            "type": "integer"
+      "ThematicAxisDto" : {
+        "description" : "Data Transfer Object grouping related specific knowledge subjects into an axis with a shared weight.",
+        "properties" : {
+          "id" : {
+            "description" : "A unique identifier for the thematic axis.",
+            "example" : 1,
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
           },
-          "name": {
-            "description": "A descriptive name for the axis.",
-            "example": "Information Technology",
-            "maxLength": 100,
-            "minLength": 0,
-            "type": "string"
+          "name" : {
+            "description" : "A descriptive name for the axis.",
+            "example" : "Information Technology",
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
           },
-          "subjects": {
-            "description": "The list of subjects belonging to this thematic axis.",
-            "items": {
-              "$ref": "#/components/schemas/SubjectDto"
+          "subjects" : {
+            "description" : "The list of subjects belonging to this thematic axis.",
+            "items" : {
+              "$ref" : "#/components/schemas/SubjectDto"
             },
-            "maxItems": 50,
-            "minItems": 0,
-            "type": "array"
+            "maxItems" : 50,
+            "minItems" : 0,
+            "type" : "array"
           },
-          "weight": {
-            "description": "The multiplier weight applied to all questions within this axis.",
-            "example": 2.5,
-            "format": "double",
-            "maximum": 100.0,
-            "type": "number"
+          "weight" : {
+            "description" : "The multiplier weight applied to all questions within this axis.",
+            "example" : 2.5,
+            "format" : "double",
+            "maximum" : 100.0,
+            "type" : "number"
           }
         },
-        "required": [
-          "name",
-          "subjects"
-        ],
-        "type": "object"
+        "required" : [ "name", "subjects" ],
+        "type" : "object"
       }
     }
   },
-  "info": {
-    "contact": {
-      "email": "engineering@example.com",
-      "name": "Engineering Team"
+  "info" : {
+    "contact" : {
+      "email" : "engineering@example.com",
+      "name" : "Engineering Team"
     },
-    "description": "A stateless REST API that uses Genetic Algorithms to orchestrate an optimized and mathematically superior study plan. Built with Spring Boot.",
-    "license": {
-      "name": "MIT License",
-      "url": "https://opensource.org/licenses/MIT"
+    "description" : "A stateless REST API that uses Genetic Algorithms to orchestrate an optimized and mathematically superior study plan. Built with Spring Boot.",
+    "license" : {
+      "name" : "MIT License",
+      "url" : "https://opensource.org/licenses/MIT"
     },
-    "title": "Dynamic Study Planner API",
-    "version": "v1"
+    "title" : "Dynamic Study Planner API",
+    "version" : "v1"
   },
-  "openapi": "3.1.0",
-  "paths": {
-    "/api/v1/optimizer/generate": {
-      "post": {
-        "description": "Runs a Genetic Algorithm to find the optimal allocation of study days, then generates a day-by-day tactical schedule.",
-        "operationId": "generateFullStudyPlan",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OptimizationRequest"
+  "openapi" : "3.1.0",
+  "paths" : {
+    "/api/v1/optimizer/generate" : {
+      "post" : {
+        "description" : "Runs a Genetic Algorithm to find the optimal allocation of study days, then generates a day-by-day tactical schedule.",
+        "operationId" : "generateFullStudyPlan",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OptimizationRequest"
               }
             }
           },
-          "required": true
+          "required" : true
         },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PlannerResponseDto"
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PlannerResponseDto"
                 }
               }
             },
-            "description": "Successfully generated the optimized study plan."
+            "description" : "Successfully generated the optimized study plan."
           },
-          "400": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
                 }
               }
             },
-            "description": "Bad Request. Validation failed for the input payload."
+            "description" : "Bad Request. The payload could not be understood: failed validation, malformed JSON, or a field with an incompatible type."
           },
-          "408": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
                 }
               }
             },
-            "description": "Request Timeout. The algorithm took too long to compute."
+            "description" : "Not Found. No endpoint is mapped to the requested path."
           },
-          "422": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
+          "405" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
                 }
               }
             },
-            "description": "Unprocessable Entity. The business logic failed (e.g., impossible constraints)."
+            "description" : "Method Not Allowed. This endpoint accepts POST only; the response carries an Allow header."
           },
-          "500": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
+          "408" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
                 }
               }
             },
-            "description": "Internal Server Error. An unexpected exception occurred."
+            "description" : "Request Timeout. The algorithm took too long to compute."
+          },
+          "415" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Unsupported Media Type. The request body must be application/json."
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Unprocessable Content. The request was understood but cannot be fulfilled — typically the subjects require more days than remain before the exam date."
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Too Many Requests. The per-client rate limit was exceeded."
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Internal Server Error. An unexpected exception occurred."
           }
         },
-        "summary": "Generate an optimized study plan",
-        "tags": [
-          "Study Plan Optimizer"
-        ]
+        "summary" : "Generate an optimized study plan",
+        "tags" : [ "Study Plan Optimizer" ]
       }
     }
   },
-  "servers": [
-    {
-      "description": "Local Development Environment",
-      "url": "http://localhost:8080"
-    }
-  ],
-  "tags": [
-    {
-      "description": "Endpoints for generating computationally optimized study plans using AI.",
-      "name": "Study Plan Optimizer"
-    }
-  ]
+  "servers" : [ {
+    "description" : "Local Development Environment",
+    "url" : "http://localhost:8080"
+  } ],
+  "tags" : [ {
+    "description" : "Endpoints for generating computationally optimized study plans using AI.",
+    "name" : "Study Plan Optimizer"
+  } ]
 }

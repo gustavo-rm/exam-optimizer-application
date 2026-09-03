@@ -70,6 +70,10 @@ public class EvolutionContextAssembler {
      * @param profile o perfil do estudante, com disponibilidade e estado psicológico
      */
     public EvolutionContext assemble(Exam exam, StudentProfile profile) {
+        // PENDENCIA P7 (docs/revisao-ag/04-robustez.md): ler o relogio aqui e o que torna o
+        // cronograma nao reprodutivel — a mesma requisicao em dias diferentes gera planos
+        // diferentes. Fechar exige injetar um Clock e mexer no wiring do Spring; a sobrecarga
+        // abaixo ja permite que quem precisa de data fixa (os benchmarks) a informe.
         return assemble(exam, profile, LocalDate.now());
     }
 
