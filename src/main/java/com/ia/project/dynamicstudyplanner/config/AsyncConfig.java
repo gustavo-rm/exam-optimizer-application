@@ -24,20 +24,44 @@ public class AsyncConfig {
 
     @Value("${optimizer.thread-pool-size:0}")
     private int configuredPoolSize;
+
     /**
-     * Creates a task executor tuned specifically for CPU-intensive work.
-     * Core pool size is based on available CPU cores.
+     * Cria o executor das otimizações, dimensionado pelo número de núcleos da máquina.
+     *
+     * <h2>Por que uma thread por núcleo, e não metade</h2>
+     *
+     * O trabalho é ligado a CPU: uma otimização não espera disco nem rede, então uma thread só
+     * libera o núcleo quando termina. Para carga assim o ponto ótimo fica em torno de uma thread
+     * por núcleo — abaixo disso sobra núcleo ocioso, acima disso as threads se revezam no mesmo
+     * núcleo e pagam troca de contexto sem ganhar capacidade.
+     *
+     * <p>Isso foi <b>medido</b> na etapa 05b, a 16 requisições simultâneas, medianas de 3 baterias
+     * alternadas entre as configurações para não confundir diferença com deriva da máquina:
+     *
+     * <pre>
+     *   pool = 2 (o padrão anterior, núcleos/2) ... 142 req/s
+     *   pool = 4 (núcleos) ........................ 170 req/s
+     *   pool = 6 .................................. 155 req/s
+     *   pool = 8 (o valor fixo em arquivo) ........ 138 req/s
+     * </pre>
+     *
+     * <p>O padrão anterior era {@code núcleos / 2}, herdado de quando a avaliação de fitness era
+     * sempre paralela: cada requisição já ocupava vários núcleos por dentro, e um pool grande só
+     * aumentava a disputa. Com o limiar do achado F3, uma requisição de população típica passou a
+     * ser monothread, e o pool voltou a ser o que de fato limita a concorrência.
+     *
+     * <p>{@code availableProcessors()} respeita o limite de CPU do contêiner desde o JDK 10, então
+     * o número lido é a fatia realmente disponível, não os núcleos da máquina hospedeira.
      */
     @Bean(name = "optimizerTaskExecutor")
     public Executor optimizerTaskExecutor() {
-        int workerThreads = configuredPoolSize > 0
-                ? configuredPoolSize
-                : Math.max(1,
-                Runtime.getRuntime().availableProcessors() / 2);
-        log.info("Configuring optimizerTaskExecutor with {} cores", workerThreads);
+        int availableCores = Runtime.getRuntime().availableProcessors();
+        int workerThreads = configuredPoolSize > 0 ? configuredPoolSize : availableCores;
+        log.info("Configuring optimizerTaskExecutor with {} worker threads ({} cores available, "
+                + "configured override: {})", workerThreads, availableCores,
+                configuredPoolSize > 0 ? configuredPoolSize : "none");
 
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        // Since it's CPU bound, ideal thread count is near the core count.
         executor.setCorePoolSize(workerThreads);
         executor.setMaxPoolSize(workerThreads);
         // Bounded queue: If the queue fills up, new tasks will be rejected immediately (fail-fast),
