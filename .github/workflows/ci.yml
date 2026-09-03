@@ -7,6 +7,9 @@ name: CI
 # alguém digitava `./mvnw test` na própria máquina, e não havia registro de que tivessem rodado
 # antes de qualquer um dos merges já feitos.
 #
+# Desde a etapa 04b o job também roda o Checkstyle, com a convenção de escrita medida do próprio
+# repositório (config/checkstyle/checkstyle.xml). Ele roda na fase `validate`, antes de compilar.
+#
 # ATENÇÃO — este arquivo sozinho NÃO bloqueia merge. Ele faz a verificação existir e reportar. Para
 # que ela vire um bloqueio de verdade, o job `build` precisa ser marcado como *required status
 # check* na proteção da branch, o que é configuração do repositório e não pode ser feita por commit.
@@ -48,10 +51,23 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # `verify` roda a suíte E o goal `check` do JaCoCo, que reprova a build se a cobertura cair
-      # abaixo do piso registrado no pom. Falha de teste e queda de cobertura reprovam o mesmo job.
-      - name: Build, testes e piso de cobertura
+      # `verify` roda, em sequência: o Checkstyle na fase `validate` (etapa 04b), a suíte de
+      # testes, e o goal `check` do JaCoCo, que reprova a build se a cobertura cair abaixo do piso
+      # registrado no pom. Violação de estilo, falha de teste e queda de cobertura reprovam o mesmo
+      # job — o Checkstyle primeiro, porque falha em segundos em vez de minutos.
+      - name: Build, estilo, testes e piso de cobertura
         run: ./mvnw -B --no-transfer-progress verify
+
+      # Publicado mesmo quando a etapa anterior falha: lista as violações de estilo com
+      # arquivo e linha, sem exigir que alguém releia o log inteiro.
+      - name: Publica relatorio de estilo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkstyle-report
+          path: target/checkstyle-result.xml
+          retention-days: 14
+          if-no-files-found: warn
 
       # Publicado mesmo quando a etapa anterior falha: é o relatório que explica a falha.
       - name: Publica relatorios de teste

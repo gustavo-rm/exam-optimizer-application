@@ -3,7 +3,9 @@ import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 
 /**
  * Implements a creep mutation strategy.
@@ -71,7 +73,7 @@ public class CreepMutation extends AbstractMutationStrategy {
         // RandomProvider rather than ThreadLocalRandom: the latter cannot be seeded, which made
         // the evolution irreproducible even with a fixed seed.
         int creepValue =
-                com.ia.project.dynamicstudyplanner.util.RandomProvider
+                RandomProvider
                         .getInstance()
                         .nextInt(-maxCreepDistance,
                                 maxCreepDistance + 1);

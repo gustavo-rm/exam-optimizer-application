@@ -6,8 +6,10 @@ import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 /**
  * Base implementation for mutation strategies used in the genetic algorithm.
  *

@@ -27,7 +27,8 @@ class CognitiveLoadCalculatorTest {
     void shouldCalculateLoadBasedOnAvailabilityAndPressure() {
         // Arrange
         // Total weekly hours = 14 (Avg 2 per day). Base capacity = 2 * 3.0 = 6.0
-        StudentProfile profile = new StudentProfile("Test", Map.of(), Map.of(DayOfWeek.MONDAY, 7, DayOfWeek.TUESDAY, 7));
+        StudentProfile profile = new StudentProfile("Test", Map.of(), Map.of(DayOfWeek.MONDAY, 7,
+                DayOfWeek.TUESDAY, 7));
 
         // Avg cognitive load = 4.0. Pressure factor = 1.1 - ((4-1)/4)*0.2 = 1.1 - 0.15 = 0.95
         Exam exam = new Exam("Test", EXAM_DATE, 100.0, List.of(new Subject("Math", 10, 4)), List.of());

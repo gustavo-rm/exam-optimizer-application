@@ -15,7 +15,8 @@ import org.springframework.context.annotation.Configuration;
         info = @Info(
                 title = "Dynamic Study Planner API",
                 version = "v1",
-                description = "A stateless REST API that uses Genetic Algorithms to orchestrate an optimized and mathematically superior study plan. Built with Spring Boot.",
+                description = "A stateless REST API that uses Genetic Algorithms to orchestrate an optimized and " +
+                        "mathematically superior study plan. Built with Spring Boot.",
                 contact = @Contact(
                         name = "Engineering Team",
                         email = "engineering@example.com"

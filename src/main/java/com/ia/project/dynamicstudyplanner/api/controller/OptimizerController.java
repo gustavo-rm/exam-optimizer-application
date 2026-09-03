@@ -27,7 +27,8 @@ import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/v1/optimizer")
-@Tag(name = "Study Plan Optimizer", description = "Endpoints for generating computationally optimized study plans using AI.")
+@Tag(name = "Study Plan Optimizer",
+        description = "Endpoints for generating computationally optimized study plans using AI.")
 public class OptimizerController {
 
     private final GenerateStudyPlanUseCase plannerUseCase;
@@ -51,25 +52,39 @@ public class OptimizerController {
      * @return A ResponseEntity containing the full PlannerResponseDto with the generated plan.
      */
     @PostMapping("/generate")
-    @Operation(summary = "Generate an optimized study plan", description = "Runs a Genetic Algorithm to find the optimal allocation of study days, then generates a day-by-day tactical schedule.")
+    @Operation(summary = "Generate an optimized study plan",
+            description = "Runs a Genetic Algorithm to find the optimal allocation of study days, then generates a " +
+                    "day-by-day tactical schedule.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully generated the optimized study plan.", content = {
-                    @Content(mediaType = "application/json", schema = @Schema(implementation = PlannerResponseDto.class))
+            @ApiResponse(responseCode = "200",
+                    description = "Successfully generated the optimized study plan.", content = {
+                    @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = PlannerResponseDto.class))
             }),
-            @ApiResponse(responseCode = "400", description = "Bad Request. Validation failed for the input payload.", content = {
-                    @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
+            @ApiResponse(responseCode = "400",
+                    description = "Bad Request. Validation failed for the input payload.", content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
             }),
-            @ApiResponse(responseCode = "408", description = "Request Timeout. The algorithm took too long to compute.", content = {
-                    @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
+            @ApiResponse(responseCode = "408",
+                    description = "Request Timeout. The algorithm took too long to compute.", content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
             }),
-            @ApiResponse(responseCode = "422", description = "Unprocessable Entity. The business logic failed (e.g., impossible constraints).", content = {
-                    @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
+            @ApiResponse(responseCode = "422",
+                    description = "Unprocessable Entity. The business logic failed (e.g., impossible constraints).",
+                    content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
             }),
-            @ApiResponse(responseCode = "500", description = "Internal Server Error. An unexpected exception occurred.", content = {
-                    @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))
+            @ApiResponse(responseCode = "500",
+                    description = "Internal Server Error. An unexpected exception occurred.", content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
             })
     })
-    public CompletableFuture<ResponseEntity<PlannerResponseDto>> generateFullStudyPlan(@Valid @RequestBody OptimizationRequest request) {
+    public CompletableFuture<ResponseEntity<PlannerResponseDto>> generateFullStudyPlan(
+            @Valid @RequestBody OptimizationRequest request) {
         // 1. Map from API DTOs to Domain Objects
         Exam exam = examMapper.toDomain(request.exam());
         StudentProfile profile = studentProfileMapper.toDomain(request.studentProfile(), exam.getAllSubjects());

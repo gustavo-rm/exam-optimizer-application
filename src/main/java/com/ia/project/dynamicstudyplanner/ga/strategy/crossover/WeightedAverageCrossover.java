@@ -4,7 +4,8 @@ import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 /**
  * Implements a Weighted Average Crossover strategy.
@@ -24,14 +25,18 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
      * @return A new Individual representing the child.
      */
     @Override
-    public Individual crossover(Individual parent1, Individual parent2, double crossoverRate, EvolutionContext context) {
+    public Individual crossover(Individual parent1, Individual parent2, double crossoverRate,
+            EvolutionContext context) {
         if (RandomProvider.getInstance().nextDouble() > crossoverRate) {
-            return parent1.getFitness() > parent2.getFitness() ? new Individual(parent1.getPlan()) : new Individual(parent2.getPlan());
+            return parent1.getFitness() > parent2.getFitness()
+                    ? new Individual(parent1.getPlan())
+                    : new Individual(parent2.getPlan());
         }
         // Step 1: Create the initial child genes using a weighted average.
         Map<Subject, Integer> childGenes = createWeightedAverageGenes(parent1, parent2);
         // Step 2: Repair the child's genes to ensure the total day sum is correct.
-        ChildGeneRepair.repairToTargetSum(childGenes, parent1.getPlan().getTotalDays(), context.minimumDaysPerSubject());
+        ChildGeneRepair.repairToTargetSum(childGenes, parent1.getPlan().getTotalDays(),
+                context.minimumDaysPerSubject());
         return new Individual(new StudyPlan(childGenes));
     }
     /**

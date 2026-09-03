@@ -29,7 +29,8 @@ public class DefaultPopulationGenerator implements PopulationGenerator {
         var allSubjects = exam.getAllSubjects();
 
         for (int i = 0; i < populationSize; i++) {
-            population.addIndividual(new Individual(planFactory.createRandomPlan(allSubjects, totalDays, context.minimumDaysPerSubject())));
+            population.addIndividual(new Individual(planFactory.createRandomPlan(allSubjects,
+                    totalDays, context.minimumDaysPerSubject())));
         }
 
         population.calculateFitness(context);

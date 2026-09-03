@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import com.ia.project.dynamicstudyplanner.domain.StudentState;
+import com.ia.project.dynamicstudyplanner.domain.Chronotype;
 
 @Component
 public class StudentProfileMapper {
@@ -55,13 +57,13 @@ public class StudentProfileMapper {
         Map<Subject, Double> knowledgeGaps = new HashMap<>(dto.knowledgeGaps().size());
         dto.knowledgeGaps().forEach((name, gap) -> knowledgeGaps.put(subjectMap.get(name), gap));
 
-        com.ia.project.dynamicstudyplanner.domain.StudentState state = null;
+        StudentState state = null;
         if (dto.state() != null) {
-            com.ia.project.dynamicstudyplanner.domain.Chronotype chronotype = dto.state().chronotype() != null
+            Chronotype chronotype = dto.state().chronotype() != null
                     ? dto.state().chronotype()
-                    : com.ia.project.dynamicstudyplanner.domain.Chronotype.INTERMEDIATE;
+                    : Chronotype.INTERMEDIATE;
 
-            state = new com.ia.project.dynamicstudyplanner.domain.StudentState(
+            state = new StudentState(
                     dto.state().stressLevel(),
                     dto.state().fatigueLevel(),
                     dto.state().motivationLevel(),

@@ -70,7 +70,8 @@ public class BaselineCalculator {
      *
      * @return A numeric score representing the perceived difficulty for this specific student.
      */
-    private double calculatePerceivedDifficulty(Subject subject, Map<Subject, Double> importanceScores, StudentProfile profile) {
+    private double calculatePerceivedDifficulty(Subject subject, Map<Subject, Double> importanceScores,
+            StudentProfile profile) {
         double knowledgeGapFactor = profile.getKnowledgeGapFactor(subject);
         double objectiveWeight = importanceScores.getOrDefault(subject, 0.0) / knowledgeGapFactor;
 

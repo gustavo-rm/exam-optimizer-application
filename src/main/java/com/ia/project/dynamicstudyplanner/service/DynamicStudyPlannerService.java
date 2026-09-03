@@ -1,6 +1,8 @@
 package com.ia.project.dynamicstudyplanner.service;
 
-import com.ia.project.dynamicstudyplanner.domain.*;
+import com.ia.project.dynamicstudyplanner.domain.FullPlannerResult;
+import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
+import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleResult;
 import com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator;
@@ -24,7 +26,8 @@ public class DynamicStudyPlannerService implements GenerateStudyPlanUseCase {
     private final StudyScheduleGenerator scheduleGenerator;
     private final CognitiveLoadCalculator cognitiveLoadCalculator;
 
-    public DynamicStudyPlannerService(StudyOptimizerService optimizerService, StudyScheduleGenerator scheduleGenerator, CognitiveLoadCalculator cognitiveLoadCalculator) {
+    public DynamicStudyPlannerService(StudyOptimizerService optimizerService,
+            StudyScheduleGenerator scheduleGenerator, CognitiveLoadCalculator cognitiveLoadCalculator) {
         this.optimizerService = optimizerService;
         this.scheduleGenerator = scheduleGenerator;
         this.cognitiveLoadCalculator = cognitiveLoadCalculator;

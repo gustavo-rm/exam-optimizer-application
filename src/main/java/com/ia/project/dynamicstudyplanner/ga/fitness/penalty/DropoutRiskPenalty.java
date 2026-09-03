@@ -30,7 +30,8 @@ public class DropoutRiskPenalty implements FitnessPenalty {
         }
 
         // Calculate the risk score (0.0 to 1.0)
-        double riskScore = riskPredictor.calculateRiskScore(tacticalPlan, context.engagementProfile(), context.studentState());
+        double riskScore = riskPredictor.calculateRiskScore(tacticalPlan, context.engagementProfile(),
+                context.studentState());
 
         if (riskScore < 0.4) {
             return 1.0; // Healthy student, no penalty for intense schedules.

@@ -134,11 +134,14 @@ class FatigueAndEnergyModelTest {
         @Test
         @DisplayName("a fadiga inicial do aluno desloca a rampa para baixo")
         void aFadigaInicialDeslocaARampa() {
-            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(4, StudyMethodology.ACTIVE_RECALL), estadoComFadiga(1.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(4, StudyMethodology.ACTIVE_RECALL),
+                    estadoComFadiga(1.0)))
                     .isCloseTo(0.8533, within(1e-4));
-            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(4, StudyMethodology.ACTIVE_RECALL), estadoComFadiga(3.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(4, StudyMethodology.ACTIVE_RECALL),
+                    estadoComFadiga(3.0)))
                     .isCloseTo(0.7200, within(1e-4));
-            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(4, StudyMethodology.ACTIVE_RECALL), estadoComFadiga(5.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(4, StudyMethodology.ACTIVE_RECALL),
+                    estadoComFadiga(5.0)))
                     .isCloseTo(0.5867, within(1e-4));
         }
 
@@ -146,12 +149,14 @@ class FatigueAndEnergyModelTest {
         @DisplayName("a funcao e descontinua: a rampa para em 0.5 e o degrau agudo cai para 0.1")
         void aFuncaoEDescontinuaEntreMeioEUmDecimo() {
             // Piso da rampa, alcancavel com entrada valida (fadiga 5, 12h num dia).
-            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(12, StudyMethodology.ACTIVE_RECALL), estadoComFadiga(5.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(12, StudyMethodology.ACTIVE_RECALL),
+                    estadoComFadiga(5.0)))
                     .as("a rampa e limitada por baixo em 0.5")
                     .isEqualTo(0.5);
 
             // Mais carga no mesmo dia nao desce suavemente: pula para 0.1.
-            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(18, StudyMethodology.ACTIVE_RECALL), estadoComFadiga(5.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(18, StudyMethodology.ACTIVE_RECALL),
+                    estadoComFadiga(5.0)))
                     .as("nenhuma entrada produz valor entre 0.1 e 0.5: e um salto, nao uma curva")
                     .isEqualTo(0.1);
         }
@@ -174,11 +179,13 @@ class FatigueAndEnergyModelTest {
         @Test
         @DisplayName("esgotamento cronico devolve 0.2 — mas so com fadiga fora da faixa que a API aceita")
         void esgotamentoCronicoExigeFadigaAcimaDoQueAApiPermite() {
-            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(2, StudyMethodology.PASSIVE_READING), estadoComFadiga(10.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(2,
+                    StudyMethodology.PASSIVE_READING), estadoComFadiga(10.0)))
                     .as("com fadiga 10 o ramo cronico responde")
                     .isEqualTo(0.2);
 
-            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(2, StudyMethodology.PASSIVE_READING), estadoComFadiga(5.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeUmDia(2,
+                    StudyMethodology.PASSIVE_READING), estadoComFadiga(5.0)))
                     .as("com fadiga 5 — o maximo que StudentStateDto aceita — o ramo nao e alcancado")
                     .isNotEqualTo(0.2);
         }
@@ -188,9 +195,11 @@ class FatigueAndEnergyModelTest {
         void cargaEspalhadaConverge() {
             // A fadiga acumulada e multiplicada por FATIGUE_CARRYOVER_RATE a cada virada de dia, o
             // que a faz convergir em vez de crescer. Um bloco por dia estabiliza em ~0.975.
-            assertThat(modelo.calculateBurnoutRisk(planoDeVariosDias(8, StudyMethodology.ACTIVE_RECALL), estadoComFadiga(1.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeVariosDias(8,
+                    StudyMethodology.ACTIVE_RECALL), estadoComFadiga(1.0)))
                     .isCloseTo(0.975, within(1e-3));
-            assertThat(modelo.calculateBurnoutRisk(planoDeVariosDias(16, StudyMethodology.ACTIVE_RECALL), estadoComFadiga(1.0)))
+            assertThat(modelo.calculateBurnoutRisk(planoDeVariosDias(16,
+                    StudyMethodology.ACTIVE_RECALL), estadoComFadiga(1.0)))
                     .isCloseTo(0.975, within(1e-3));
         }
 

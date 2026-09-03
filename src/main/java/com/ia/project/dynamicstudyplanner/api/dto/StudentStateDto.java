@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
+import com.ia.project.dynamicstudyplanner.domain.Chronotype;
 
 /**
  * DTO for the Student's psychological, physical, and emotional state.
@@ -33,5 +34,5 @@ public record StudentStateDto(
         Double motivationLevel,
 
         @Schema(description = "The student's natural circadian rhythm.", example = "INTERMEDIATE")
-        com.ia.project.dynamicstudyplanner.domain.Chronotype chronotype
+        Chronotype chronotype
 ) {}

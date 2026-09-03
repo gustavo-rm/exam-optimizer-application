@@ -37,8 +37,6 @@ import com.ia.project.dynamicstudyplanner.service.calculation.engagement.Dropout
 import com.ia.project.dynamicstudyplanner.service.calculation.fatigue.FatigueAndEnergyModel;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationChains;
-import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.InterleavedCriticalStrategy;
-import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.ReviewFocusedStrategy;
 import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;

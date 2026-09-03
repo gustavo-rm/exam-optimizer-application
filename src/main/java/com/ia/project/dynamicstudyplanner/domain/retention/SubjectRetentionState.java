@@ -23,19 +23,29 @@ public class SubjectRetentionState {
         this.lastReviewDate = lastReviewDate;
     }
 
-    public SubjectRetentionState(int repetitionCount, double easinessFactor, double currentIntervalDays, LocalDate lastReviewDate) {
+    public SubjectRetentionState(int repetitionCount, double easinessFactor, double currentIntervalDays,
+            LocalDate lastReviewDate) {
         this.repetitionCount = repetitionCount;
         this.easinessFactor = easinessFactor;
         this.currentIntervalDays = currentIntervalDays;
         this.lastReviewDate = lastReviewDate;
     }
 
-    public int getRepetitionCount() { return repetitionCount; }
-    public double getEasinessFactor() { return easinessFactor; }
-    public double getCurrentIntervalDays() { return currentIntervalDays; }
-    public LocalDate getLastReviewDate() { return lastReviewDate; }
+    public int getRepetitionCount() {
+        return repetitionCount;
+    }
+    public double getEasinessFactor() {
+        return easinessFactor;
+    }
+    public double getCurrentIntervalDays() {
+        return currentIntervalDays;
+    }
+    public LocalDate getLastReviewDate() {
+        return lastReviewDate;
+    }
 
-    public void updateState(int newRepetitionCount, double newEasinessFactor, double newIntervalDays, LocalDate reviewDate) {
+    public void updateState(int newRepetitionCount, double newEasinessFactor, double newIntervalDays,
+            LocalDate reviewDate) {
         this.repetitionCount = newRepetitionCount;
         this.easinessFactor = newEasinessFactor;
         this.currentIntervalDays = newIntervalDays;

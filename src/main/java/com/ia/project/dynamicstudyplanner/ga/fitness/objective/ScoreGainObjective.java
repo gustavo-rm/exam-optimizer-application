@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 
 /**
  * O1 — expected score gain on the exam, weighted by each subject's share of the syllabus.
@@ -73,6 +74,6 @@ public class ScoreGainObjective implements FitnessObjective {
      */
     @Override
     public double getWeight() {
-        return com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights.SYLLABUS_MASTERY;
+        return FitnessWeights.SYLLABUS_MASTERY;
     }
 }

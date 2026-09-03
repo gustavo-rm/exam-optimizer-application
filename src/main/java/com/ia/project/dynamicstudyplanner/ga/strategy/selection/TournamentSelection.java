@@ -64,7 +64,8 @@ public class TournamentSelection implements SelectionStrategy {
         // 2. Loop through the rest of the tournament contenders.
         // We start the loop from 1 since we already have the first contender.
         for (int i = 1; i < tournamentSize; i++) {
-            Individual currentContender = population.getIndividual(RandomProvider.getInstance().nextInt(population.getSize()));
+            Individual currentContender = population.getIndividual(RandomProvider.getInstance().nextInt(
+                    population.getSize()));
             // 3. If the current contender is fitter, it becomes the new best.
             if (currentContender.getFitness() > bestContender.getFitness()) {
                 bestContender = currentContender;

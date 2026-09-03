@@ -59,7 +59,8 @@ public class HybridRetentionEngine implements RetentionAlgorithm {
     }
 
     @Override
-    public SubjectRetentionState processReview(SubjectRetentionState currentState, LocalDate reviewDate, int performanceGrade) {
+    public SubjectRetentionState processReview(SubjectRetentionState currentState, LocalDate reviewDate,
+            int performanceGrade) {
         // SM-2 Algorithm adaptation
 
         int nextRepetitionCount;
@@ -83,7 +84,8 @@ public class HybridRetentionEngine implements RetentionAlgorithm {
         }
 
         // Update Easiness Factor: EF' = EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
-        nextEasinessFactor = nextEasinessFactor + (0.1 - (5 - performanceGrade) * (0.08 + (5 - performanceGrade) * 0.02));
+        nextEasinessFactor = nextEasinessFactor + (0.1 - (5 - performanceGrade) * (0.08 + (
+                5 - performanceGrade) * 0.02));
         if (nextEasinessFactor < 1.3) {
             nextEasinessFactor = 1.3; // Hard floor to prevent infinite loops of short intervals
         }

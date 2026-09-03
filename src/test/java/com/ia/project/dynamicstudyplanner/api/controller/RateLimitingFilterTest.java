@@ -15,8 +15,11 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 import java.io.IOException;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class RateLimitingFilterTest {
@@ -38,7 +41,7 @@ class RateLimitingFilterTest {
     }
 
     @Test
-    void doFilterInternal_ShouldAllowRequestsUnderLimit() throws ServletException, IOException {
+    void permiteRequisicoesDentroDoLimite() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/v1/optimizer/generate");
         request.setRemoteAddr("127.0.0.1");
@@ -52,7 +55,7 @@ class RateLimitingFilterTest {
     }
 
     @Test
-    void doFilterInternal_ShouldBlockRequestsOverLimit() throws ServletException, IOException {
+    void bloqueiaRequisicoesAcimaDoLimite() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/v1/optimizer/generate");
         request.setRemoteAddr("192.168.1.100");
@@ -71,7 +74,7 @@ class RateLimitingFilterTest {
     }
 
     @Test
-    void doFilterInternal_ShouldNotLimitOtherEndpoints() throws ServletException, IOException {
+    void naoLimitaOutrosEndpoints() throws ServletException, IOException {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/v1/other");
         request.setRemoteAddr("192.168.1.100");

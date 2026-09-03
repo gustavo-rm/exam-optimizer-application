@@ -3,8 +3,8 @@ import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
-
+import java.util.List;
+import java.util.Map;
 /**
  * Implements a simple swap mutation strategy.
  *

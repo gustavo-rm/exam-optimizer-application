@@ -89,7 +89,8 @@ public final class BenchmarkMain {
 
     private static void printFitnessTable(List<BenchmarkInstance> instances, List<StrategyOutcome> outcomes) {
         System.out.println("### Fitness media (maior e melhor) e tempo\n");
-        System.out.println("| Instancia | AG producao | Guloso prioridade | Otimo exato | Melhor de N alea. | Uniforme | Aleatorio | t(AG) ms | t(otimo) ms |");
+        System.out.println("| Instancia | AG producao | Guloso prioridade | Otimo exato "
+                + "| Melhor de N alea. | Uniforme | Aleatorio | t(AG) ms | t(otimo) ms |");
         System.out.println("|---|---|---|---|---|---|---|---|---|");
         for (BenchmarkInstance i : instances) {
             Map<String, StrategyOutcome> byStrategy = index(outcomes, i.id());
@@ -109,7 +110,8 @@ public final class BenchmarkMain {
 
     private static void printBusinessTable(List<BenchmarkInstance> instances, List<StrategyOutcome> outcomes) {
         System.out.println("### Metricas de negocio\n");
-        System.out.println("| Instancia | Estrategia | % na janela de retencao | Retencao media | Dias c/ sobrecarga | Horas entregues / planejadas | Share top-1 |");
+        System.out.println("| Instancia | Estrategia | % na janela de retencao | Retencao media "
+                + "| Dias c/ sobrecarga | Horas entregues / planejadas | Share top-1 |");
         System.out.println("|---|---|---|---|---|---|---|");
         for (BenchmarkInstance i : instances) {
             for (StrategyOutcome o : outcomes) {
@@ -128,7 +130,8 @@ public final class BenchmarkMain {
 
     private static void printRelativeTable(List<BenchmarkInstance> instances, List<StrategyOutcome> outcomes) {
         System.out.println("### AG relativo aos baselines (positivo = AG melhor)\n");
-        System.out.println("| Instancia | vs guloso prioridade | vs melhor de N alea. | vs uniforme | vs aleatorio | gap ate o otimo exato |");
+        System.out.println("| Instancia | vs guloso prioridade | vs melhor de N alea. "
+                + "| vs uniforme | vs aleatorio | gap ate o otimo exato |");
         System.out.println("|---|---|---|---|---|---|");
         for (BenchmarkInstance i : instances) {
             Map<String, StrategyOutcome> byStrategy = index(outcomes, i.id());

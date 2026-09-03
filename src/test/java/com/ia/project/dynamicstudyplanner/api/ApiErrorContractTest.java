@@ -25,7 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code instance}) para todos os erros. Antes da etapa 01b, das nove funções do então único
  * {@code GlobalExceptionHandler} — dividido na etapa 03d em {@code RequestErrorAdvice},
  * {@code BusinessRuleErrorAdvice} e {@code InfrastructureErrorAdvice} — apenas a de validação
- * executava em algum teste; as outras oito tinham zero instruções cobertas. Ou seja, o formato de erro que o cliente recebe não era
+ * executava em algum teste; as outras oito tinham zero instruções cobertas. Ou seja, o formato de erro que o cliente
+ * recebe não era
  * verificado em lugar nenhum, exceto no {@code 400}.
  *
  * <h2>O que fica de fora e por quê</h2>

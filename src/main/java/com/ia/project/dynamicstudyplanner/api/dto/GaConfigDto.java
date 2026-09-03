@@ -16,7 +16,9 @@ public record GaConfigDto(
         @Min(value = 1, message = "Total study days must be at least 1.")
         @Max(value = 365, message = "Total study days cannot exceed 365 days (1 year).")
         int totalStudyDays,
-        @Schema(description = "The number of evolutionary cycles the algorithm will run. Higher yields better results but takes longer.", example = "100")
+        @Schema(description = "The number of evolutionary cycles the algorithm will run. Higher "
+                + "yields better results but takes longer.",
+                example = "100")
         @Min(value = 10, message = "Number of generations must be at least 10.")
         @Max(value = 1000, message = "Number of generations cannot exceed 1000 to prevent CPU exhaustion.")
         int numGenerations,

@@ -171,7 +171,10 @@ class LogPrivacyTest {
         String ip = "203.0.113.77";
         for (int i = 0; i < 3; i++) {
             mockMvc.perform(post("/api/v1/optimizer/generate")
-                    .with(req -> { req.setRemoteAddr(ip); return req; })
+                    .with(req -> {
+                        req.setRemoteAddr(ip);
+                        return req;
+                    })
                     .contentType(MediaType.APPLICATION_JSON).content("{}"));
         }
 

@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.domain.fatigue.FatigueAlgorithm;
 import org.springframework.stereotype.Component;
+import com.ia.project.dynamicstudyplanner.domain.StudentState;
 
 /**
  * Penalizes plans that are unsustainable given the student's psychological and physical state.
@@ -27,7 +28,7 @@ public class FatigueAndSustainabilityPenalty implements FitnessPenalty {
 
     @Override
     public double calculatePenaltyFactor(StudyPlan plan, EvolutionContext context) {
-        com.ia.project.dynamicstudyplanner.domain.StudentState state = context.studentState();
+        StudentState state = context.studentState();
         if (state == null) {
             return 1.0; // No penalty if state is unknown
         }
