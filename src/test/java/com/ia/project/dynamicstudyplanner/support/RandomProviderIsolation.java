@@ -5,7 +5,6 @@ import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
-import java.security.SecureRandom;
 import java.util.Random;
 
 /**
@@ -30,13 +29,15 @@ import java.util.Random;
  * {@code META-INF/services}. Aplica-se a <b>todos</b> os testes do classpath de teste — incluindo os
  * de {@code benchmarks/java} — sem que nenhuma classe precise se anotar.
  *
- * <h2>Limite conhecido</h2>
+ * <h2>Limite conhecido — resolvido na etapa 06b</h2>
  *
- * Isto isola testes executados <b>em sequência</b>. Não torna {@code RandomProvider} seguro para
- * execução paralela: se o Surefire for configurado para rodar testes em paralelo, dois testes
- * disputarão o mesmo campo estático e a restauração de um sobrescreverá a semente do outro. A causa
- * raiz é o próprio singleton mutável, que é código de produção e está registrado como pendência em
- * {@code docs/qualidade/01b-correcao-testes.md}.
+ * Até a etapa 06b esta extensão isolava apenas testes executados <b>em sequência</b>: o campo de
+ * {@code RandomProvider} era um {@code static} do processo, então dois testes em paralelo
+ * disputariam o mesmo campo e a restauração de um sobrescreveria a semente do outro.
+ *
+ * <p>A correção do achado E3 tornou a fonte <b>local à thread</b>. Como {@code beforeEach} e
+ * {@code afterEach} rodam na mesma thread do teste, guardar e repor passou a ser naturalmente
+ * isolado: rodar testes em paralelo deixou de ser um problema para esta extensão.
  */
 public class RandomProviderIsolation implements BeforeEachCallback, AfterEachCallback {
 
@@ -56,6 +57,9 @@ public class RandomProviderIsolation implements BeforeEachCallback, AfterEachCal
         // Se o teste instalou uma semente fixa, devolve a fonte que estava instalada antes dele.
         // Na ausência de valor guardado (caminho que não deveria ocorrer), volta ao padrão de
         // produção em vez de deixar a semente do teste instalada.
-        RandomProvider.setInstance(previous != null ? previous : new SecureRandom());
+        // O padrao de reposicao acompanha o de producao: Random, nao SecureRandom (achado F1 da
+        // etapa 05). Antes desta correcao a extensao reinstalava SecureRandom, que deixaria o
+        // teste seguinte medindo um gerador que producao nao usa mais.
+        RandomProvider.setInstance(previous != null ? previous : new Random());
     }
 }

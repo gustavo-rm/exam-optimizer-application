@@ -3,14 +3,14 @@ package com.ia.project.dynamicstudyplanner.util;
 import java.util.Random;
 
 /**
- * Fonte única de aleatoriedade do algoritmo genético.
+ * Ponto único de acesso à aleatoriedade do algoritmo genético — uma fonte <b>por thread</b>.
  *
- * <h2>Por que um singleton, e não injeção de dependência</h2>
+ * <h2>Por que um ponto de acesso estático, e não injeção de dependência</h2>
  *
  * Os operadores genéticos — seleção, cruzamento, mutação, reparo — sorteiam em pontos muito
  * internos. Injetar a fonte por construtor obrigaria a atravessá-la por toda a hierarquia de
- * estratégias, e o ganho seria só arquitetural. O singleton mantém um <b>ponto único</b> onde a
- * semente pode ser fixada em teste, que é o que de fato importa.
+ * estratégias, e o ganho seria só arquitetural. O acesso estático mantém um <b>lugar único</b> onde
+ * a semente pode ser fixada em teste, que é o que de fato importa.
  *
  * <h2>Por que NÃO é {@code SecureRandom}</h2>
  *
@@ -55,29 +55,69 @@ import java.util.Random;
  *       usam o mesmo gerador, e o número do benchmark passa a valer para produção.</li>
  * </ol>
  *
- * <p>{@code Random} é seguro para uso concorrente (usa <i>compare-and-set</i> sobre a semente), o
- * que importa porque a avaliação de fitness roda em várias threads. A contenção está incluída nos
- * números acima: o A/B foi medido com a fitness paralela ligada.
+ * <h2>Por que uma fonte POR THREAD, e não uma só para o processo (achado E3)</h2>
+ *
+ * Até a etapa 06b esta classe guardava <b>uma única</b> instância {@code static} para o processo
+ * inteiro. {@code Random} é seguro para uso concorrente — sincroniza a semente por
+ * <i>compare-and-set</i> (CAS: a thread lê o valor, calcula o próximo e só grava se ninguém tiver
+ * mudado no meio; se mudou, refaz) — então não havia corrupção. Havia desperdício: sob concorrência,
+ * esse "refaz" é trabalho jogado fora, e o algoritmo sorteia em quinze pontos dos laços mais
+ * quentes.
+ *
+ * <p>O custo foi <b>medido</b> na etapa 06, rodando otimizações completas em paralelo e comparando
+ * a fonte única contra uma por thread (medianas de 5 baterias):
+ *
+ * <pre>
+ *   threads   fonte única   uma por thread   custo da fonte única
+ *         1        233 ms           238 ms   -2 % (ruído)
+ *         2        269 ms           256 ms   +5 %
+ *         4        393 ms           231 ms   +70 %
+ *         8        741 ms           457 ms   +62 %
+ * </pre>
+ *
+ * <p>Repare na coluna do meio: com uma fonte por thread, 4 threads fazem 4× o trabalho no mesmo
+ * tempo que 1 thread — escalonamento praticamente linear. A fonte única destruía isso, e a réplica
+ * entregava ~59 % da capacidade que o hardware permitia.
+ *
+ * <p><b>A reprodutibilidade continua intacta, e é por isso que não se usou
+ * {@code ThreadLocalRandom}.</b> A semente é fixável por thread: um teste que chama
+ * {@link #setInstance} e roda o algoritmo na mesma thread — que é o que todos fazem — obtém
+ * exatamente o mesmo plano de antes. As 9 assinaturas de referência da etapa 05b foram conferidas
+ * depois da mudança e não mudaram.
  */
 public final class RandomProvider {
 
-    private static Random instance = new Random();
+    /**
+     * Uma fonte por thread. Cada thread que pedir a primeira vez recebe a sua, e a mantém — o que
+     * elimina a disputa pela semente sem exigir que ninguém passe a fonte por parâmetro.
+     *
+     * <p>O consumo é limitado pelo número de threads que rodam otimizações (o pool do executor mais
+     * as threads de teste), não pelo número de requisições.
+     */
+    private static final ThreadLocal<Random> POR_THREAD = ThreadLocal.withInitial(Random::new);
 
     private RandomProvider() {
     }
 
     public static Random getInstance() {
-        return instance;
+        return POR_THREAD.get();
     }
 
     /**
-     * Fixa a fonte de aleatoriedade. Usado por testes e benchmarks para tornar uma execução
-     * reproduzível.
+     * Fixa a fonte de aleatoriedade <b>da thread atual</b>. Usado por testes e benchmarks para
+     * tornar uma execução reproduzível.
+     *
+     * <p><b>O alcance mudou na etapa 06b e isso é deliberado.</b> Antes, esta chamada trocava a
+     * fonte do processo inteiro; agora troca só a da thread que chama. Para o uso real não há
+     * diferença — quem semeia roda o algoritmo em seguida, na mesma thread. Para o uso indevido há:
+     * semear numa thread esperando afetar outra deixou de funcionar, e isso é uma correção, não uma
+     * regressão. Duas execuções concorrentes com sementes distintas agora não interferem uma na
+     * outra, o que antes era exatamente o que acontecia.
      *
      * <p>A extensão {@code support/RandomProviderIsolation} restaura a fonte anterior ao fim de
-     * cada teste, para que uma semente não vaze para o teste seguinte.
+     * cada teste, para que uma semente não vaze para o teste seguinte na mesma thread.
      */
     public static void setInstance(Random random) {
-        instance = random;
+        POR_THREAD.set(random);
     }
 }
