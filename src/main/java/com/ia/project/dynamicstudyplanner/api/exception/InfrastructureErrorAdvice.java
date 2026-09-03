@@ -12,7 +12,12 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.core.task.TaskRejectedException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import io.lettuce.core.RedisException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.util.concurrent.TimeoutException;
 
@@ -52,6 +57,84 @@ import java.util.concurrent.TimeoutException;
 public class InfrastructureErrorAdvice {
 
     private static final Logger log = LoggerFactory.getLogger(InfrastructureErrorAdvice.class);
+
+    private final Counter recusasPorCapacidade;
+    private final int retryAfterSegundos;
+
+    public InfrastructureErrorAdvice(MeterRegistry registry,
+                                     @Value("${api.overload.retry-after-seconds:30}")
+                                     int retryAfterSegundos) {
+        this.retryAfterSegundos = retryAfterSegundos;
+        this.recusasPorCapacidade = Counter
+                .builder("dynamicstudyplanner.overload.rejected")
+                .description("Requisicoes recusadas por capacidade esgotada (fila do executor cheia)")
+                .register(registry);
+    }
+
+    /**
+     * Fila do executor cheia. Devolve <b>503</b> com {@code Retry-After} — a correção do achado E2.
+     *
+     * <h2>O que estava errado</h2>
+     *
+     * O {@code ThreadPoolTaskExecutor} tem fila limitada e política de rejeição {@code AbortPolicy}:
+     * quando a fila enche, ele lança {@link TaskRejectedException}. <b>Rejeitar é o comportamento
+     * certo</b> — é o que impede o processo de aceitar trabalho até morrer.
+     *
+     * <p>O problema era como a rejeição chegava ao cliente. Sem tratador dedicado, ela caía no
+     * tratador genérico e virava <b>500 Internal Server Error</b>, registrado em nível ERROR como
+     * "Unexpected error occurred". Medido na etapa 06, com 120 pedidos pesados simultâneos:
+     * <b>66 respostas 500</b> e <b>99 registros de ERROR</b> para uma condição de capacidade.
+     *
+     * <h2>Por que 500 e 503 não são a mesma coisa</h2>
+     *
+     * <ul>
+     *   <li><b>Para o balanceador:</b> 500 diz "esta réplica está quebrada" — ele pode tirá-la do
+     *       rodízio, concentrando a carga nas que sobraram e derrubando-as em cascata. 503 com
+     *       {@code Retry-After} diz "esta réplica está cheia", que é a informação verdadeira.</li>
+     *   <li><b>Para o cliente:</b> muitas bibliotecas repetem automaticamente em 5xx sem recuo,
+     *       amplificando exatamente a carga que causou a rejeição. {@code Retry-After} diz quando
+     *       voltar.</li>
+     *   <li><b>Para quem opera:</b> 99 registros de ERROR fazem um painel de SLO ler taxa de erro de
+     *       55 % e acordar alguém para procurar um defeito que não existe. WARN mais um contador
+     *       dedicado ({@code dynamicstudyplanner.overload.rejected}) dizem a verdade: cheguei ao
+     *       limite.</li>
+     * </ul>
+     */
+    @ExceptionHandler(TaskRejectedException.class)
+    public ResponseEntity<ProblemDetail> handleTaskRejected(
+            TaskRejectedException ex, HttpServletRequest request) {
+        recusasPorCapacidade.increment();
+        // WARN, nao ERROR: capacidade esgotada e uma condicao de carga esperada, nao um defeito.
+        log.warn("Capacity exhausted on path {}: optimizer queue is full, refusing with 503",
+                request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", String.valueOf(retryAfterSegundos))
+                .body(ProblemDetails.of(HttpStatus.SERVICE_UNAVAILABLE, "service-overloaded",
+                        "The service is at capacity and cannot accept new work right now. "
+                                + "Retry after the number of seconds in the Retry-After header.",
+                        request));
+    }
+
+    /**
+     * Redis inalcançável. Devolve <b>503</b> com {@code Retry-After}.
+     *
+     * <p>O limite de taxa é um controle de segurança (etapa 02) e, no modo compartilhado, depende do
+     * Redis. Deixar a requisição passar quando o Redis não responde transformaria uma
+     * indisponibilidade da infraestrutura em <b>ausência total de limite em todas as réplicas ao
+     * mesmo tempo</b> — exatamente a janela que um abuso espera. Recusar é a escolha segura, e o
+     * significado para o cliente é o mesmo da sobrecarga: não consigo te atender agora.
+     */
+    @ExceptionHandler(RedisException.class)
+    public ResponseEntity<ProblemDetail> handleRedisIndisponivel(
+            RedisException ex, HttpServletRequest request) {
+        log.error("Shared state unavailable on path {}: {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", String.valueOf(retryAfterSegundos))
+                .body(ProblemDetails.of(HttpStatus.SERVICE_UNAVAILABLE, "service-unavailable",
+                        "A dependency required to serve this request is unavailable. "
+                                + "Retry after the number of seconds in the Retry-After header.",
+                        request));
+    }
 
     /** Autenticação ausente ou inválida. Devolve <b>401</b> sem dizer qual das duas. */
     @ExceptionHandler(AuthenticationException.class)

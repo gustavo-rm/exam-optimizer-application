@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.api.exception;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -73,7 +74,8 @@ class ErrorAdviceContractTest {
 
     private final RequestErrorAdvice requisicoes = new RequestErrorAdvice();
     private final BusinessRuleErrorAdvice regrasDeNegocio = new BusinessRuleErrorAdvice();
-    private final InfrastructureErrorAdvice infraestrutura = new InfrastructureErrorAdvice();
+    private final InfrastructureErrorAdvice infraestrutura =
+            new InfrastructureErrorAdvice(new SimpleMeterRegistry(), 30);
 
     private MockHttpServletRequest requisicao() {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", CAMINHO);

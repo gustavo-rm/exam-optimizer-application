@@ -25,6 +25,9 @@ public class AsyncConfig {
     @Value("${optimizer.thread-pool-size:0}")
     private int configuredPoolSize;
 
+    @Value("${optimizer.queue-capacity:32}")
+    private int queueCapacity;
+
     /**
      * Cria o executor das otimizações, dimensionado pelo número de núcleos da máquina.
      *
@@ -64,9 +67,12 @@ public class AsyncConfig {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(workerThreads);
         executor.setMaxPoolSize(workerThreads);
-        // Bounded queue: If the queue fills up, new tasks will be rejected immediately (fail-fast),
-        // preventing memory exhaustion and endless waiting.
-        executor.setQueueCapacity(50);
+        // Fila limitada: quando enche, a tarefa e recusada na hora em vez de acumular sem teto.
+        // A recusa chega ao cliente como 503 com Retry-After (InfrastructureErrorAdvice), e nao
+        // mais como 500 — ver o achado E2. A PROFUNDIDADE da fila e uma decisao com aritmetica,
+        // documentada em optimizer.queue-capacity: uma fila mais funda do que o prazo consegue
+        // drenar so produz trabalho descartado (achado E5).
+        executor.setQueueCapacity(queueCapacity);
         executor.setThreadNamePrefix("Optimizer-Async-");
 
         // Ensure correlation IDs (traceId) are copied from the HTTP thread to the Async thread

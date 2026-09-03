@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.api.exception;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
@@ -47,7 +48,7 @@ class AdviceOrderTest {
     void aOrdemDeConsultaVaiDoEspecificoParaOCatchAll() {
         // Fora de ordem de proposito: e a ordenacao que precisa acertar, nao a lista de entrada.
         List<Object> advices = new java.util.ArrayList<>(List.of(
-                new InfrastructureErrorAdvice(),
+                new InfrastructureErrorAdvice(new SimpleMeterRegistry(), 30),
                 new BusinessRuleErrorAdvice(),
                 new RequestErrorAdvice()));
 
