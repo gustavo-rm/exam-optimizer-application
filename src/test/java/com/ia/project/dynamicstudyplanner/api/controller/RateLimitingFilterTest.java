@@ -6,6 +6,9 @@ import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.ia.project.dynamicstudyplanner.infra.ratelimit.LocalRateLimitBuckets;
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.BucketConfiguration;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -13,6 +16,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
+import java.time.Duration;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -36,7 +40,20 @@ class RateLimitingFilterTest {
     void setUp() {
         // Capacidade 2, recarga de 2 a cada minuto. O resolvedor vai sem proxy confiavel
         // declarado, que e o padrao seguro: o endereco da conexao e a unica fonte considerada.
-        filter = new RateLimitingFilter(2, 2, 1, handlerExceptionResolver,
+        //
+        // Desde a etapa 06b o armazenamento dos baldes vem de fora do filtro (achado E1). Este
+        // teste usa o local de proposito: o que ele verifica e a LOGICA do filtro — consumir um
+        // token, recusar quando acabam —, que e a mesma nos dois armazenamentos. Que o modo
+        // compartilhado faz o limite valer entre replicas e verificado por
+        // RateLimitBucketsCompartilhadoTest, contra um Redis de verdade.
+        filter = new RateLimitingFilter(
+                new LocalRateLimitBuckets(() -> BucketConfiguration.builder()
+                        .addLimit(Bandwidth.builder()
+                                .capacity(2)
+                                .refillIntervally(2, Duration.ofMinutes(1))
+                                .build())
+                        .build()),
+                handlerExceptionResolver,
                 new ClientIpResolver(""));
     }
 

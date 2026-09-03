@@ -101,6 +101,46 @@
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
+        <!--
+            Estado compartilhado entre replicas (etapa 06b, achados E1 e E6).
+
+            Ate a etapa 06 o limite de taxa vivia num Caffeine local a cada instancia: com N
+            replicas o limite declarado virava N x o valor configurado — demonstrado com dois
+            processos reais, 10 requisicoes aceitas onde a politica declara 5.
+
+            O Redis e opcional em tempo de execucao: sem `api.shared-state.store=redis` a
+            aplicacao usa os armazenamentos locais e AVISA no log que nao pode ser replicada.
+            Nao ha auto-configuracao de conexao no boot padrao, entao a dependencia nao impoe
+            um Redis a quem roda uma instancia so.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-redis</artifactId>
+            <version>8.10.1</version>
+        </dependency>
+        <!--
+            Redis de verdade, em processo, so para teste.
+
+            O que se quer verificar no achado E1 e que DUAS replicas apontando para o MESMO servidor
+            enxergam o mesmo balde. Um dubl� em memoria compartilhado pelos dois lados provaria
+            apenas que o duble e compartilhado. Este artefato sobe um redis-server real numa porta
+            livre, entao o teste exercita o compare-and-swap do bucket4j sobre o protocolo real —
+            e roda em qualquer maquina, sem exigir Redis instalado nem conteiner.
+        -->
+        <dependency>
+            <groupId>com.github.codemonstur</groupId>
+            <artifactId>embedded-redis</artifactId>
+            <version>1.4.3</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -256,7 +296,7 @@
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.9146</minimum>
+                                            <minimum>0.9167</minimum>
                                         </limit>
                                         <!--
                                             0,7386 ate a etapa 05b. A conversao dos tres objetivos
@@ -270,7 +310,7 @@
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.7385</minimum>
+                                            <minimum>0.7395</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

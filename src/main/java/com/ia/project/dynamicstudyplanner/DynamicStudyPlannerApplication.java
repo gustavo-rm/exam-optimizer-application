@@ -2,8 +2,25 @@ package com.ia.project.dynamicstudyplanner;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration;
 
-@SpringBootApplication
+/**
+ * Aplicação.
+ *
+ * <h2>Por que a auto-configuração de Redis está excluída</h2>
+ *
+ * A etapa 06b passou o estado compartilhado (baldes de limite de taxa e registro de trabalhos) para
+ * um Redis opcional. A auto-configuração do Spring Boot criaria, sempre, uma fábrica de conexões
+ * apontando para {@code localhost:6379} e um indicador de saúde que reporta DOWN quando não há
+ * Redis — fazendo {@code /actuator/health} responder 503 numa instalação de uma réplica só, que é
+ * exatamente o cenário em que Redis não é necessário.
+ *
+ * <p>O cliente é criado por {@code SharedStateConfig}, e só quando
+ * {@code api.shared-state.redis.enabled=true}. Assim a dependência não impõe infraestrutura a quem
+ * roda uma instância só, e quem replica declara isso explicitamente.
+ */
+@SpringBootApplication(exclude = {RedisAutoConfiguration.class, RedisRepositoriesAutoConfiguration.class})
 public class DynamicStudyPlannerApplication {
 
     /**

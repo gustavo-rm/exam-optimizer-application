@@ -1,22 +1,18 @@
 package com.ia.project.dynamicstudyplanner.api.controller;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.ia.project.dynamicstudyplanner.api.exception.RateLimitExceededException;
-import io.github.bucket4j.Bandwidth;
+import com.ia.project.dynamicstudyplanner.infra.ratelimit.RateLimitBuckets;
 import io.github.bucket4j.Bucket;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
-import java.time.Duration;
 
 /**
  * Filter that applies Bucket4j rate limiting to the expensive optimizer endpoints.
@@ -30,31 +26,28 @@ import java.time.Duration;
 @Order(1)
 public class RateLimitingFilter extends OncePerRequestFilter {
 
-    private final Cache<String, Bucket> cache;
-    private final int capacity;
-    private final int refillTokens;
-    private final int refillDurationMinutes;
+    private final RateLimitBuckets buckets;
     private final HandlerExceptionResolver handlerExceptionResolver;
     private final ClientIpResolver clientIpResolver;
 
+    /**
+     * O filtro deixou de construir o próprio armazenamento na etapa 06b (achado E1).
+     *
+     * <p>Antes, o construtor montava um cache Caffeine local. Isso tornava o filtro correto com uma
+     * réplica e <b>silenciosamente incorreto</b> com mais de uma: cada processo contava separado, e
+     * o limite efetivo virava N × o configurado. Agora o armazenamento vem de fora, e
+     * {@code SharedStateConfig} decide — e <b>anuncia no log</b> — se ele é local ou compartilhado.
+     *
+     * <p>A lógica do filtro não mudou: resolver o cliente, consumir um token, recusar se não houver.
+     * O que mudou foi de onde vem o balde.
+     */
     public RateLimitingFilter(
-            @Value("${api.rate-limit.capacity:5}") int capacity,
-            @Value("${api.rate-limit.refill-tokens:5}") int refillTokens,
-            @Value("${api.rate-limit.refill-duration-minutes:1}") int refillDurationMinutes,
+            RateLimitBuckets buckets,
             HandlerExceptionResolver handlerExceptionResolver,
             ClientIpResolver clientIpResolver) {
-
-        this.capacity = capacity;
-        this.refillTokens = refillTokens;
-        this.refillDurationMinutes = refillDurationMinutes;
+        this.buckets = buckets;
         this.handlerExceptionResolver = handlerExceptionResolver;
         this.clientIpResolver = clientIpResolver;
-
-        // Configure Caffeine Cache with an eviction policy to avoid memory leaks
-        this.cache = Caffeine.newBuilder()
-                .maximumSize(10_000) // Maximum 10,000 IPs
-                .expireAfterAccess(Duration.ofMinutes(60)) // Evict if inactive for 1h
-                .build();
     }
 
     @Override
@@ -66,7 +59,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             // Chave do balde: endereco COMPLETO, para nao juntar clientes distintos num mesmo
             // balde. O mascaramento e aplicado so no que sai para log (ver ClientIpResolver).
             String clientIp = clientIpResolver.resolve(request);
-            Bucket bucket = cache.get(clientIp, this::createNewBucket);
+            Bucket bucket = buckets.resolve(clientIp);
 
             if (!bucket.tryConsume(1)) {
                 // A mensagem desta excecao e registrada em log pelo InfrastructureErrorAdvice, entao
@@ -80,14 +73,6 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    private Bucket createNewBucket(String key) {
-        Bandwidth limit = Bandwidth.builder()
-                .capacity(capacity)
-                .refillIntervally(refillTokens, Duration.ofMinutes(refillDurationMinutes))
-                .build();
-        return Bucket.builder().addLimit(limit).build();
     }
 
     // A resolucao do endereco do cliente saiu daqui na etapa 02b e virou ClientIpResolver.
