@@ -249,7 +249,7 @@
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.9145</minimum>
+                                            <minimum>0.9147</minimum>
                                         </limit>
                                         <!--
                                             0,7386 ate a etapa 05b. A conversao dos tres objetivos
