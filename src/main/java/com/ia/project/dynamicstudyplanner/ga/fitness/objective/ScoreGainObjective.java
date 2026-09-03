@@ -49,21 +49,19 @@ public class ScoreGainObjective implements FitnessObjective {
 
     @Override
     public double calculateReward(StudyPlan plan, EvolutionContext context) {
-        double score = 0.0;
         Map<Subject, Double> importanceScores = context.normalizedImportance();
 
-        for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
-            Subject subject = entry.getKey();
-            int days = entry.getValue();
-
+        // forEach, e nao entrySet: ver a nota sobre o custo do involucro em StudyPlan. O acumulador
+        // precisa de um vetor de um elemento porque a lambda nao pode escrever numa variavel local.
+        double[] score = {0.0};
+        plan.getDaysPerSubject().forEach((subject, days) -> {
             double importance = importanceScores.getOrDefault(subject, 0.0);
             if (importance == 0.0) {
                 log.warn("The subject '{}' does not have an importance score.", subject.name());
             }
-
-            score += importance * LearningModel.mastery(subject, days);
-        }
-        return score;
+            score[0] += importance * LearningModel.mastery(subject, days);
+        });
+        return score[0];
     }
 
     /**

@@ -66,11 +66,9 @@ public class RetentionObjective implements FitnessObjective {
         Map<Subject, Double> requiredPerSubject = context.requiredSessionsPerSubject();
         int horizon = context.planningHorizonDays();
 
-        double score = 0.0;
-        for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
-            Subject subject = entry.getKey();
-            int days = entry.getValue();
-
+        // forEach, e nao entrySet: ver a nota sobre o custo do involucro em StudyPlan.
+        double[] score = {0.0};
+        plan.getDaysPerSubject().forEach((subject, days) -> {
             double weight = importance.getOrDefault(subject, 0.0);
             // Pre-calculado uma vez por execucao no contexto (achado F4). A busca com retorno para
             // o calculo direto cobre a disciplina que esteja no plano e nao no edital — caso em que
@@ -79,9 +77,9 @@ public class RetentionObjective implements FitnessObjective {
             double required = emCache != null ? emCache : LearningModel.requiredSessions(subject, horizon);
             double coverage = Math.min(1.0, days / required);
 
-            score += weight * coverage;
-        }
-        return score;
+            score[0] += weight * coverage;
+        });
+        return score[0];
     }
 
     @Override

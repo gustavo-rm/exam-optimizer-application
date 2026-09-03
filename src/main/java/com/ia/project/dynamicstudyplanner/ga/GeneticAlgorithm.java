@@ -74,7 +74,29 @@ public final class GeneticAlgorithm {
             newPopulation.addIndividual(currentPopulation.getFittest());
         }
 
-        // 2. Fill the rest of the new population with offspring.
+        // 2. Preenche o resto da nova populacao com descendentes.
+        //
+        // ESTE LACO E SEQUENCIAL DE PROPOSITO. Ele e o trecho mais caro do algoritmo — 817 ms de
+        // 1592 ms no pior caso medido, 51 % do tempo de parede — e a tentacao obvia e paralelizar.
+        // Foi tentado e medido na etapa 05b (achado F2), e nao pode ser feito assim:
+        //
+        //   - selecao, crossover e mutacao consomem UMA fonte de aleatoriedade compartilhada, e o
+        //     numero de sorteios por descendente varia. Nao da para repartir a sequencia entre
+        //     threads sem saber de antemao quantos numeros cada um vai consumir.
+        //   - com o laco paralelo, DUAS EXECUCOES COM A MESMA SEMENTE deixam de coincidir: quem
+        //     pega qual numero passa a depender do escalonamento. GaResultadoInalteradoTest reprova
+        //     (2 dos 4 testes), e as 9 assinaturas de referencia mudam todas.
+        //   - e o ganho nem seria consistente: 1244 -> 1088 ms no pior caso (12 %), mas 50 -> 83 ms
+        //     em 15 disciplinas / 500 geracoes / populacao 50 — 66 % MAIS LENTO, pelo mesmo motivo
+        //     que levou ao limiar de Population.calculateFitness.
+        //
+        // O custo real esta na representacao do cromossomo: Map<Subject, Integer> paga hash,
+        // boxing e alocacao de no por gene, ~72 ns por gene sobre 474 mil recombinacoes. O laco de
+        // reparo, o suspeito obvio, foi instrumentado e e gratuito (0,025 voltas por chamada), e a
+        // pausa de GC e ~1 % do tempo. Trocar o mapa por um vetor indexado eliminaria as tres
+        // coisas, mas muda o tipo de dominio usado no sistema inteiro e altera a ordem de iteracao
+        // (logo, o resultado): e mudanca estrutural com decisao de produto, registrada como
+        // pendencia P18, nao ajuste de otimizacao.
         int startIndex = elitism ? 1 : 0;
         for (int i = startIndex; i < currentPopulation.getSize(); i++) {
             Individual offspring = createOffspring(currentPopulation, context, currentMutationRate);

@@ -10,6 +10,36 @@ import java.util.Map;
  * Represents the chromosome: a complete allocation of study days for each subject.
  * This class is an immutable value object. Once a StudyPlan is created, it cannot be changed,
  * which ensures the integrity of the genetic algorithm's solutions.
+ *
+ * <h2>Como percorrer os genes sem pagar pelo invólucro</h2>
+ *
+ * O mapa sai daqui embrulhado em {@link Collections#unmodifiableMap}, que é o que impede um
+ * chamador de alterar um plano já construído. O embrulho não custa nada por si só — mas
+ * percorrer {@code entrySet()} através dele, sim: a implementação cria um objeto de entrada
+ * novo <b>por gene</b> só para bloquear {@code setValue}. Isso acontece a cada avaliação de
+ * fitness, de cada indivíduo, de cada geração: dezenas de milhões de vezes numa otimização.
+ *
+ * <p>{@code forEach} do mapa envolto <b>delega direto</b> ao mapa de baixo, sem criar entrada
+ * nenhuma. Medido em percursos de 24 genes, mediana de 3 baterias de 3 milhões de voltas:
+ *
+ * <pre>
+ *   entrySet() no HashMap cru ..... 199 ns por percurso
+ *   entrySet() no mapa envolto .... 272 ns por percurso   (+37 %)
+ *   forEach()  no mapa envolto ..... 61 ns por percurso   (-69 %)
+ * </pre>
+ *
+ * <p>O {@code forEach} é mais rápido que percorrer o próprio {@code HashMap} sem proteção
+ * alguma. Ou seja: a escolha entre <i>imutabilidade</i> e <i>velocidade</i>, que o achado F8 do
+ * diagnóstico apresentava como troca inevitável, não existe — bastava percorrer de outro jeito.
+ *
+ * <p>Medido no algoritmo completo, com resultado idêntico nas 9 assinaturas de referência e em
+ * 4 baterias pareadas: 15 disciplinas / 500 gerações / população 50 caiu de 49,5 para 43,5 ms
+ * (-12 %), e 40 disciplinas / 100 gerações de 22 para 19,5 ms (-13 %). No pior caso
+ * (24 disciplinas, 1000 gerações, população 500) não houve diferença mensurável: lá a fitness
+ * já roda em 4 threads e o cruzamento domina o tempo.
+ *
+ * <p>Os três objetivos de fitness usam {@code forEach} por isso. Quem escrever um objetivo novo
+ * deve fazer o mesmo; {@code entrySet()} continua correto, só é mais caro no caminho quente.
  */
 @SuppressWarnings("ClassCanBeRecord")
 @Getter

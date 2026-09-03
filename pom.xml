@@ -249,12 +249,21 @@
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.9135</minimum>
+                                            <minimum>0.9145</minimum>
                                         </limit>
+                                        <!--
+                                            0,7386 ate a etapa 05b. A conversao dos tres objetivos
+                                            de fitness para forEach (achado F8) removeu tres lacos
+                                            for, e com eles tres ramos que ESTAVAM cobertos. Tirar
+                                            ramos cobertos de um conjunto coberto em 74 % abaixa a
+                                            razao: 390/527 = 0,7401 virou 387/524 = 0,7385. Nao ha
+                                            teste a menos — a cobertura de instrucoes subiu no
+                                            mesmo commit, de 0,9135 para 0,9145.
+                                        -->
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.7386</minimum>
+                                            <minimum>0.7385</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
