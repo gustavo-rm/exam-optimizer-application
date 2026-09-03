@@ -22,17 +22,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * O {@code README.md} promete RFC 7807 (<i>Problem Details for HTTP APIs</i>, o padrão que define um
  * corpo de erro com os campos {@code type}, {@code title}, {@code status}, {@code detail} e
- * {@code instance}) para todos os erros. Antes da etapa 01b, das nove funções do
- * {@code GlobalExceptionHandler} apenas a de validação executava em algum teste — as outras oito
- * tinham zero instruções cobertas. Ou seja, o formato de erro que o cliente recebe não era
+ * {@code instance}) para todos os erros. Antes da etapa 01b, das nove funções do então único
+ * {@code GlobalExceptionHandler} — dividido na etapa 03d em {@code RequestErrorAdvice},
+ * {@code BusinessRuleErrorAdvice} e {@code InfrastructureErrorAdvice} — apenas a de validação
+ * executava em algum teste; as outras oito tinham zero instruções cobertas. Ou seja, o formato de erro que o cliente recebe não era
  * verificado em lugar nenhum, exceto no {@code 400}.
  *
  * <h2>O que fica de fora e por quê</h2>
  *
  * O {@code 408} e o {@code 500} exigem substituir o caso de uso por um dublê e estão em
- * {@code ApiFailureContractTest}. O {@code 422}, o {@code 401} e o {@code 403} não são alcançáveis
- * pela porta HTTP com a configuração atual — a razão está documentada em
- * {@code GlobalExceptionHandlerTest}, que os cobre diretamente.
+ * {@code ApiFailureContractTest}. O {@code 401} e o {@code 403} não são alcançáveis pela porta HTTP
+ * com a configuração atual — a razão está documentada em
+ * {@code api.exception.ErrorAdviceContractTest}, que os cobre diretamente.
+ *
+ * <p>O {@code 422} estava nessa mesma lista até a etapa 03d, quando a reclassificação do achado E3
+ * tornou o caminho alcançável; ele passou a ter cobertura de ponta a ponta em
+ * {@code security.BusinessRuleStatusTest}.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

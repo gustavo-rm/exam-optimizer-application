@@ -70,7 +70,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             Bucket bucket = cache.get(clientIp, this::createNewBucket);
 
             if (!bucket.tryConsume(1)) {
-                // A mensagem desta excecao e registrada em log pelo GlobalExceptionHandler, entao
+                // A mensagem desta excecao e registrada em log pelo InfrastructureErrorAdvice, entao
                 // carrega o endereco ja mascarado: rede o suficiente para reconhecer abuso, sem
                 // identificar o assinante (achado S1).
                 handlerExceptionResolver.resolveException(request, response, null,

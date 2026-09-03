@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.net.URI;
@@ -28,23 +30,21 @@ import static org.mockito.Mockito.when;
  *
  * <h2>Por que estes casos são testados aqui, e não por MockMvc</h2>
  *
- * Os demais códigos do contrato de erro têm teste de ponta a ponta em {@code ApiErrorContractTest} e
- * {@code ApiFailureContractTest}. Os três desta classe não têm, e o motivo é o mesmo em cada caso:
- * <b>não existe requisição HTTP capaz de provocá-los na configuração atual</b>.
+ * Os demais códigos do contrato de erro têm teste de ponta a ponta em {@code ApiErrorContractTest},
+ * {@code ApiFailureContractTest} e {@code security/ClientErrorStatusTest}. Os desta classe não têm,
+ * e o motivo é o mesmo em cada caso: <b>não existe requisição HTTP capaz de provocá-los na
+ * configuração atual</b>.
  *
  * <ul>
- *   <li><b>422 ({@code DomainException}).</b> A única origem em todo o código de produção é
- *       {@code Exam.calculateBaseImportance}, que exige {@code totalGKQuestions <= 0}. Como
- *       {@code SubjectDto.questionCount} é validado com {@code @Min(1)}, a soma sobre uma lista não
- *       vazia é sempre positiva — e sobre uma lista vazia o ramo nem é alcançado, porque
- *       {@code generalKnowledgeSubjects.contains(subject)} é falso. O {@code 422} anunciado no
- *       README é, hoje, inalcançável pela API.</li>
  *   <li><b>401 e 403.</b> {@code SecurityConfig} aplica {@code permitAll()} a todo
  *       {@code /api/v1/**} e à Swagger UI. Nenhuma rota sob o contrato público chega a produzir
  *       {@code AuthenticationException} ou {@code AccessDeniedException}.</li>
- *   <li><b>{@code ConstraintViolationException}.</b> Só surge de validação em parâmetros de rota ou
- *       de consulta. O único endpoint recebe apenas corpo, validado por
- *       {@code MethodArgumentNotValidException}.</li>
+ *   <li><b>Tudo que depende de parâmetro de rota ou de consulta</b> —
+ *       {@code ConstraintViolationException}, parâmetro obrigatório ausente e parâmetro de tipo
+ *       incompatível. O único endpoint da API recebe apenas corpo, validado por
+ *       {@code MethodArgumentNotValidException}; nenhuma requisição chega a produzi-las.</li>
+ *   <li><b>{@code AsyncRequestTimeoutException} e o catch-all de {@code Exception}.</b> Dependem de
+ *       o contêiner ou um defeito nosso dispararem — não há entrada de cliente que os produza.</li>
  * </ul>
  *
  * <p>Testar o tratador diretamente é o recorte honesto: garante que o formato RFC 7807 está certo
@@ -52,13 +52,28 @@ import static org.mockito.Mockito.when;
  * situações inalcançáveis está registrado como pendência P6 em
  * {@code docs/qualidade/01b-correcao-testes.md} — a decisão sobre removê-los ou tornar o caminho
  * alcançável é de estrutura e de segurança, não de teste.
+ *
+ * <h2>O que mudou na etapa 03d</h2>
+ *
+ * O {@code 422} <b>saiu</b> da lista de inalcançáveis. Até a etapa 03c a única origem de
+ * {@code DomainException} em produção era {@code Exam.calculateBaseImportance}, num ramo que a
+ * validação {@code @Min(1)} tornava impossível. A reclassificação do achado E3 passou duas
+ * verificações de {@code StudyPlanFactory} de {@code IllegalArgumentException} para
+ * {@code DomainException}, e {@code security/BusinessRuleStatusTest} prova o caminho de ponta a
+ * ponta. O teste de formato continua aqui por proximidade com os demais.
+ *
+ * <p>Esta classe se chamava {@code GlobalExceptionHandlerTest} e instanciava um único tratador. Com
+ * a divisão do achado E7 em três {@code @RestControllerAdvice}, ela passou a instanciar os três —
+ * o recorte dela nunca foi "uma classe de produção", e sim "o que o MockMvc não alcança".
  */
-@DisplayName("GlobalExceptionHandler: os tratadores fora do alcance da porta HTTP")
-class GlobalExceptionHandlerTest {
+@DisplayName("Contrato de erro: os tratadores fora do alcance da porta HTTP")
+class ErrorAdviceContractTest {
 
     private static final String CAMINHO = "/api/v1/optimizer/generate";
 
-    private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    private final RequestErrorAdvice requisicoes = new RequestErrorAdvice();
+    private final BusinessRuleErrorAdvice regrasDeNegocio = new BusinessRuleErrorAdvice();
+    private final InfrastructureErrorAdvice infraestrutura = new InfrastructureErrorAdvice();
 
     private MockHttpServletRequest requisicao() {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", CAMINHO);
@@ -66,7 +81,7 @@ class GlobalExceptionHandlerTest {
         return request;
     }
 
-    /** Asserções comuns a todo corpo RFC 7807 produzido por este tratador. */
+    /** Asserções comuns a todo corpo RFC 7807, venha de qual dos três tratadores vier. */
     private void verificaFormatoComum(ProblemDetail problema, HttpStatus esperado,
                                       String titulo, String sufixoDoTipo) {
         assertThat(problema.getStatus()).isEqualTo(esperado.value());
@@ -83,10 +98,10 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("422: DomainException vira Unprocessable Entity, com a mensagem de dominio no detail")
     void domainExceptionVira422() {
-        String mensagem = "General Knowledge total questions must be positive to calculate importance.";
+        String mensagem = "Total minimum study days required (375) exceeds total available days (365).";
 
         ResponseEntity<ProblemDetail> resposta =
-                handler.handleDomainException(new DomainException(mensagem), requisicao());
+                regrasDeNegocio.handleDomainException(new DomainException(mensagem), requisicao());
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
         ProblemDetail problema = resposta.getBody();
@@ -101,7 +116,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("401: AuthenticationException vira Unauthorized sem repetir a causa interna")
     void authenticationExceptionVira401() {
-        ResponseEntity<ProblemDetail> resposta = handler.handleAuthenticationException(
+        ResponseEntity<ProblemDetail> resposta = infraestrutura.handleAuthenticationException(
                 new BadCredentialsException("senha do usuario tecnico invalida"), requisicao());
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -117,7 +132,7 @@ class GlobalExceptionHandlerTest {
     @Test
     @DisplayName("403: AccessDeniedException vira Forbidden sem repetir a causa interna")
     void accessDeniedExceptionVira403() {
-        ResponseEntity<ProblemDetail> resposta = handler.handleAccessDeniedException(
+        ResponseEntity<ProblemDetail> resposta = infraestrutura.handleAccessDeniedException(
                 new AccessDeniedException("falta a role ADMIN"), requisicao());
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -138,7 +153,7 @@ class GlobalExceptionHandlerTest {
         when(violacao.getPropertyPath()).thenReturn(caminho);
         when(violacao.getMessage()).thenReturn("deve ser no maximo 365");
 
-        ResponseEntity<ProblemDetail> resposta = handler.handleConstraintViolationException(
+        ResponseEntity<ProblemDetail> resposta = requisicoes.handleConstraintViolationException(
                 new ConstraintViolationException(Set.of(violacao)), requisicao());
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -152,22 +167,63 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("400: IllegalArgumentException devolve a mensagem — e por aqui que passa o piso de dias")
-    void illegalArgumentVira400() {
-        // Caminho realmente alcancavel em producao: StudyOptimizerService lanca
-        // IllegalArgumentException quando o orcamento fica abaixo do piso de dias minimos
-        // (GaEdgeCasesTest.budgetBelowMinimumDaysFloorFails prova que a situacao ocorre).
-        String mensagem = "Total minimum study days required (375) exceeds total available days (365).";
+    @DisplayName("400: parametro obrigatorio ausente e nomeado em invalid_params")
+    void parametroAusenteVira400() {
+        // O nome do parametro e contrato publico — vem da assinatura do endpoint, nao do usuario —,
+        // entao pode ir tanto para a resposta quanto para o log.
+        ResponseEntity<ProblemDetail> resposta = requisicoes.handleMissingParameter(
+                new MissingServletRequestParameterException("totalStudyDays", "int"), requisicao());
 
-        ResponseEntity<ProblemDetail> resposta =
-                handler.handleIllegalArgumentException(new IllegalArgumentException(mensagem), requisicao());
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        ProblemDetail problema = resposta.getBody();
+        assertThat(problema).isNotNull();
+        verificaFormatoComum(problema, HttpStatus.BAD_REQUEST, "Bad Request", "missing-parameter");
+        assertThat(problema.getProperties().get("invalid_params"))
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.list(InvalidParam.class))
+                .containsExactly(new InvalidParam("totalStudyDays", "Required parameter is missing."));
+    }
+
+    @Test
+    @DisplayName("400: parametro de tipo incompativel diz o tipo esperado, nunca o valor recebido")
+    void tipoIncompativelDeParametroVira400SemOValor() {
+        String valorDoUsuario = "VALOR_PESSOAL_DO_ALUNO";
+
+        ResponseEntity<ProblemDetail> resposta = requisicoes.handleTypeMismatch(
+                new MethodArgumentTypeMismatchException(
+                        valorDoUsuario, Integer.class, "totalStudyDays", null, null),
+                requisicao());
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        ProblemDetail problema = resposta.getBody();
+        assertThat(problema).isNotNull();
+        verificaFormatoComum(problema, HttpStatus.BAD_REQUEST, "Bad Request", "type-mismatch");
+        assertThat(problema.getProperties().get("invalid_params"))
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.list(InvalidParam.class))
+                .as("o cliente precisa do tipo esperado para corrigir")
+                .containsExactly(new InvalidParam("totalStudyDays", "Expected type: Integer."));
+        assertThat(problema.getDetail())
+                .as("o valor recusado e entrada do usuario e nao volta na resposta (achado S2)")
+                .doesNotContain(valorDoUsuario);
+    }
+
+    @Test
+    @DisplayName("400: IllegalArgumentException segue devolvendo a mensagem — agora so para defeito de chamada")
+    void illegalArgumentVira400() {
+        // Depois da etapa 03d este tratador NAO recebe mais o piso de dias minimos: aquilo virou
+        // regra de negocio (422) e esta no teste de 422 acima. O que resta aqui e defeito de quem
+        // chama — por exemplo dias disponiveis negativos, que a validacao declarativa da borda nao
+        // ve quando o valor chega por um caminho interno. Ver ADR-0005.
+        String mensagem = "Total available days cannot be negative (received -1).";
+
+        ResponseEntity<ProblemDetail> resposta = requisicoes.handleIllegalArgumentException(
+                new IllegalArgumentException(mensagem), requisicao());
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         ProblemDetail problema = resposta.getBody();
         assertThat(problema).isNotNull();
         verificaFormatoComum(problema, HttpStatus.BAD_REQUEST, "Bad Request", "illegal-argument");
         assertThat(problema.getDetail())
-                .as("a mensagem precisa ser acionavel: diz o piso e o teto")
+                .as("a mensagem precisa ser acionavel: diz o que estava errado")
                 .isEqualTo(mensagem);
     }
 
@@ -180,7 +236,8 @@ class GlobalExceptionHandlerTest {
         for (Exception excecao : new Exception[]{
                 new TimeoutException("futuro estourou"), new AsyncRequestTimeoutException()}) {
 
-            ResponseEntity<ProblemDetail> resposta = handler.handleTimeoutException(excecao, requisicao());
+            ResponseEntity<ProblemDetail> resposta =
+                    infraestrutura.handleTimeoutException(excecao, requisicao());
 
             assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.REQUEST_TIMEOUT);
             ProblemDetail problema = resposta.getBody();
@@ -196,7 +253,7 @@ class GlobalExceptionHandlerTest {
         String segredo = "jdbc:postgresql://interno:5432 senha=abc123";
 
         ResponseEntity<ProblemDetail> resposta =
-                handler.handleAllUncaughtException(new IllegalStateException(segredo), requisicao());
+                infraestrutura.handleAllUncaughtException(new IllegalStateException(segredo), requisicao());
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         ProblemDetail problema = resposta.getBody();

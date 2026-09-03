@@ -7,6 +7,7 @@ import com.ia.project.dynamicstudyplanner.domain.StudentState;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleResult;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleStatus;
 import com.ia.project.dynamicstudyplanner.ga.config.DefaultGeneticAlgorithmFactory;
@@ -92,8 +93,11 @@ class GaEdgeCasesTest {
             Exam exam = examWithSubjects(10);
             StudentProfile profile = profile(exam, 4);
 
+            // Passou a ser DomainException na etapa 03d: a requisicao e bem formada e compreendida,
+            // e o edital que exige mais dias do que o aluno tem. O cliente recebe 422, nao 400.
+            // Ver ADR-0005 e docs/qualidade/03d-correcao-contrato-de-erro.md.
             assertThatThrownBy(() -> optimizer().optimize(exam, profile, 5, 20, 10))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(DomainException.class)
                     .hasMessageContaining("Total minimum study days required")
                     .hasMessageContaining("exceeds total available days");
         }
@@ -105,8 +109,9 @@ class GaEdgeCasesTest {
             // nothing about the actual problem. See 04-robustez.md, correcao C2.
             StudyPlanFactory factory = new StudyPlanFactory();
 
+            // Idem: regra de negocio sobre o edital, nao argumento malformado (etapa 03d).
             assertThatThrownBy(() -> factory.createRandomPlan(List.of(), 10, Map.of()))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(DomainException.class)
                     .hasMessageContaining("no subjects")
                     .hasMessageNotContaining("bound must be positive");
         }

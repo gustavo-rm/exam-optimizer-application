@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * tornar o prazo configurável — mudança em código de produção, fora do escopo de uma etapa de
  * testes. Substituir o {@code GenerateStudyPlanUseCase} por um dublê que já devolve o futuro
  * fracassado exercita exatamente o que interessa aqui: o transporte da falha pelo redespacho
- * assíncrono do Servlet e a tradução dela em RFC 7807 pelo {@code GlobalExceptionHandler}.
+ * assíncrono do Servlet e a tradução dela em RFC 7807 pelo {@code InfrastructureErrorAdvice}.
  *
  * <p>O que este recorte <b>não</b> cobre é o próprio {@code orTimeout} disparar no prazo certo. Isso
  * está registrado como pendência P4 em {@code docs/qualidade/01b-correcao-testes.md}.

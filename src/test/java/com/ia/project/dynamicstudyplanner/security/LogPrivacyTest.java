@@ -34,8 +34,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code LogstashEncoder}, explicitamente preparado para ingestão em ELK ou Datadog. O que entra
  * nele <b>sai do processo</b> e é indexado e retido por um sistema de terceiros.
  *
- * <p>Estes testes anexam um coletor ao logger do {@code GlobalExceptionHandler} e inspecionam a
- * mensagem formatada <b>e</b> a pilha — porque era pela pilha que o vazamento acontecia.
+ * <p>Estes testes anexam um coletor ao logger do <b>pacote</b> {@code api.exception} e inspecionam
+ * a mensagem formatada <b>e</b> a pilha — porque era pela pilha que o vazamento acontecia.
+ *
+ * <p>O alvo é o pacote, e não uma classe, desde a etapa 03d: o tratamento de erro passou de um
+ * {@code GlobalExceptionHandler} único para três {@code @RestControllerAdvice} separados por
+ * natureza da causa. Como o Logback propaga cada evento para o logger pai, um coletor no pacote
+ * recebe os três. Isso é mais do que conveniência: a regra de privacidade vale para <b>qualquer</b>
+ * tratador de erro, inclusive um que venha a ser criado depois — apontar para uma classe deixaria o
+ * tratador novo fora da rede.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -46,8 +53,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("S1, S2, S3: dado pessoal nao vaza pelo log")
 class LogPrivacyTest {
 
-    private static final String LOGGER_ALVO =
-            "com.ia.project.dynamicstudyplanner.api.exception.GlobalExceptionHandler";
+    /** Logger do pacote: recebe, por propagacao, os eventos dos tres tratadores de erro. */
+    private static final String LOGGER_ALVO = "com.ia.project.dynamicstudyplanner.api.exception";
 
     @Autowired
     private MockMvc mockMvc;
@@ -186,7 +193,7 @@ class LogPrivacyTest {
         StringWriter sw = new StringWriter();
         new RuntimeException("marcador").printStackTrace(new PrintWriter(sw));
 
-        assertThat(com.ia.project.dynamicstudyplanner.api.exception.GlobalExceptionHandler.class
+        assertThat(com.ia.project.dynamicstudyplanner.api.exception.InfrastructureErrorAdvice.class
                 .getDeclaredMethods())
                 .as("o catch-all e a rede de seguranca do 500 e precisa continuar existindo")
                 .anyMatch(m -> m.getName().equals("handleAllUncaughtException"));

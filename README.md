@@ -86,7 +86,7 @@ The directory organization reflects a clear separation of responsibilities:
 
 ```text
 src/main/java/com/ia/project/dynamicstudyplanner/
-├── api/                             # Controllers, DTOs, Mappers, Global Exception Handling (RFC 7807)
+├── api/                             # Controllers, DTOs, Mappers, Error Handling advices (RFC 7807)
 ├── config/                          # Global Config (Async, Security, OpenAPI)
 ├── domain/                          # Pure Domain Models (Entities, Value Objects, Domain Exceptions)
 ├── ga/                              # Genetic Algorithm Engine (Factories, Strategies, Context, Individual, Population)
@@ -159,7 +159,19 @@ Contains details about the exam, student profile, and Genetic Algorithm configur
 Returns a detailed daily study schedule along with the genetic algorithm's optimization metadata.
 
 **Error Handling:**
-The API uses a centralized exception handling strategy via `@RestControllerAdvice`, returning standardized **RFC 7807 Problem Details** for all errors (e.g., `400 Bad Request` for validation failures, `408 Request Timeout` if the algorithm takes too long, `429 Too Many Requests` for rate limiting).
+Every error is returned as a standardized **RFC 7807 Problem Detail**. Handling is split across three
+ordered `@RestControllerAdvice` classes, separated by the *nature of the cause* rather than by status
+code:
+
+| Advice | Covers | Typical statuses |
+|---|---|---|
+| `RequestErrorAdvice` | The request itself is not acceptable: malformed JSON, wrong type, unknown route, unsupported verb, failed validation | `400`, `404`, `405`, `415` |
+| `BusinessRuleErrorAdvice` | The request is well-formed, but the domain cannot fulfil it — e.g. the exam's subjects require more days than remain before the exam date | `422` |
+| `InfrastructureErrorAdvice` | Security, rate limiting, deadlines, and the `500` safety net | `401`, `403`, `408`, `429`, `500` |
+
+The distinction between `400` and `422` follows RFC 9110: a `400` is fixed by changing *how* you send
+the request, a `422` by changing *what* you are asking for. The criterion used to classify each check
+is recorded in [ADR-0005](./docs/adr/0005-criterio-de-classificacao-de-erro.md).
 
 ## 🗄️ Database
 

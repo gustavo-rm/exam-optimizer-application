@@ -25,8 +25,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <h2>Os cinco cenários</h2>
  *
  * São exatamente os cinco medidos em {@code docs/qualidade/02-diagnostico-seguranca.md} §4.2, todos
- * devolvendo <b>500</b> antes da etapa 02b, porque o {@code GlobalExceptionHandler} não tinha
- * tratador para as exceções padrão de erro de cliente do Spring MVC e todas caíam no catch-all.
+ * devolvendo <b>500</b> antes da etapa 02b, porque o então único {@code GlobalExceptionHandler}
+ * não tinha tratador para as exceções padrão de erro de cliente do Spring MVC e todas caíam no
+ * catch-all. Esses tratadores vivem hoje em {@code api.exception.RequestErrorAdvice}, e
+ * {@code api.exception.AdviceOrderTest} trava a ordem que impede o catch-all de voltar a engoli-los.
  *
  * <p>Cada 500 indevido tinha três custos: informava o cliente errado, despejava pilha completa no
  * log de ERRO — que é o veículo dos vazamentos S2 e S3 — e inutilizava qualquer alerta baseado em
