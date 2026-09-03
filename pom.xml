@@ -246,10 +246,17 @@
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
+                                        <!--
+                                            Cuidado ao subir estes numeros: o JaCoCo TRUNCA a razao
+                                            antes de comparar, nao arredonda. A medicao real e
+                                            0,91469, que ele le como 0,9146 — um piso de 0,9147
+                                            reprova um build que nao regrediu em nada. Tire o valor
+                                            do relatorio com precisao, nao de um printf arredondado.
+                                        -->
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.9147</minimum>
+                                            <minimum>0.9146</minimum>
                                         </limit>
                                         <!--
                                             0,7386 ate a etapa 05b. A conversao dos tres objetivos
