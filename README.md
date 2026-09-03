@@ -208,8 +208,13 @@ The project uses JUnit 5, Mockito and AssertJ.
 ```
 
 `verify` is the meaningful command: it runs **Checkstyle** (`config/checkstyle/checkstyle.xml`) in
-the `validate` phase, then the suite, then the **JaCoCo coverage floor**, which fails the build if
-coverage drops below the recorded threshold. `test` alone runs neither gate.
+the `validate` phase, then the suite, then the **JaCoCo coverage floor**. `test` alone runs neither
+gate.
+
+The floor is a ratchet set flush against the current measurement — **0.9109 instructions and 0.7288
+branches** — so losing a single covered instruction fails the build. Adding covered code does *not*
+raise it automatically: read the new numbers from `target/site/jacoco/jacoco.csv` and bump both
+values in `pom.xml`, where the reasoning is documented alongside the rule.
 
 Continuous integration runs `verify` on every push and pull request
 (`.github/workflows/ci.yml`). Note that the workflow reports but does not yet *block* merges — that
@@ -268,8 +273,9 @@ Gustavo Malacarne (Software Engineer) - dynamic-study-planner
   conventions the codebase already follows (4-space indent, 120-column lines, no star imports, no
   brace-less `if`). It runs in the `validate` phase, so a style violation fails in seconds rather
   than at the end of the build. `.editorconfig` mirrors the same rules for editors.
-* **Coverage floor:** JaCoCo `check` fails the build when coverage regresses. Current floors are in
-  `pom.xml`.
+* **Coverage floor:** JaCoCo `check` fails the build when coverage regresses. The floors sit flush
+  against the measurement (0.9109 / 0.7288), so any drop is caught — see `pom.xml` for how to move
+  them.
 * **Architectural boundaries:** enforced by test, not by convention — `arquitetura/ModuleBoundaryTest`
   fails on a dependency cycle between top-level modules and on any framework import inside `domain`.
 * **API contract:** `contract/OpenApiContractTest` compares the generated OpenAPI spec against a

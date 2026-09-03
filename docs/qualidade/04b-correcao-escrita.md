@@ -26,6 +26,7 @@
 | Spring Boot | 3.5.5 (22 releases atrás) | **3.5.16** (11 atrás, só majors) |
 | Testes | 173 | **203** (+30) |
 | Cobertura (BUNDLE) | 84,04 % instr. / 61,80 % ramos | **91,09 % / 72,88 %** |
+| Piso de cobertura | 0,77 / 0,55 (folga de 14 pontos) | **0,9109 / 0,7288** — colado na medição |
 | Suíte | verde | **verde** (`mvn clean verify`) |
 
 **Nenhum comportamento de produção mudou**, com uma exceção deliberada: o OpenAPI passou a
@@ -447,6 +448,56 @@ commits que podem ser lidos — e revertidos — separadamente:
 | `5b8609f` | ferramenta de estilo e as correções para o gate passar |
 | `19d5912` | comentários, README, contrato de API, dependências |
 
+### 9.1 O piso de cobertura foi colado na medição
+
+O piso estava em **0,77 de instruções e 0,55 de ramos** desde a etapa 01b, enquanto a cobertura
+subia para 0,9109 — uma folga de quatorze pontos. Elevá-lo foi recomendado ao fim da 03e e de novo
+ao fim desta etapa; agora foi feito.
+
+| | Antes | Depois |
+|---|---|---|
+| Instruções | 0,77 | **0,9109** (6290 de 6905) |
+| Ramos | 0,55 | **0,7288** (379 de 520) |
+
+**Sem folga, e isso exigiu verificar uma coisa antes.** Um piso colado na medição só é seguro se a
+medição for determinística — caso contrário o *gate* falharia de forma intermitente, que é o pior
+tipo de portão. Três execuções limpas consecutivas deram **os mesmos números absolutos**, não apenas
+a mesma razão:
+
+```
+execucao 1: instrucoes 6290/6905   ramos 379/520
+execucao 2: instrucoes 6290/6905   ramos 379/520
+execucao 3: instrucoes 6290/6905   ramos 379/520
+```
+
+A aleatoriedade do algoritmo genético é sempre semeada nos testes, e `RandomProviderIsolation`
+restaura a fonte original entre eles — é o que torna o resultado repetível.
+
+**Verificação nos dois sentidos.** Com `FatigueAndEnergyModelTest` removido:
+
+```
+[WARNING] Rule violated for bundle: instructions covered ratio is 0.8764, but expected minimum is 0.9109
+[WARNING] Rule violated for bundle: branches covered ratio is 0.6826, but expected minimum is 0.7288
+[INFO] BUILD FAILURE
+```
+
+Restaurado, `BUILD SUCCESS` com 203 testes. **O piso antigo teria aprovado essa mesma sabotagem** —
+0,8764 é confortavelmente acima de 0,77. É a demonstração concreta de por que a folga importava: uma
+catraca que não trava não é catraca.
+
+> **Nota de método.** As duas primeiras tentativas de sabotagem *não* reprovaram o build, e isso é
+> informação. Remover um teste individual de `DayBoundaryCrossoverTest` e depois um de
+> `SpacedRepetitionRepairerTest` deixou a cobertura **idêntica**: os demais testes da mesma classe
+> percorrem as mesmas linhas. Os testes de caracterização são redundantes em cobertura porque fixam
+> *comportamento*, não linhas — cada um pinça um caso distinto sobre código compartilhado. Só a
+> remoção de uma classe de teste inteira derrubou o número. Registrado porque um piso de cobertura
+> mede o que foi *executado*, nunca o que foi *verificado*, e essa distinção é fácil de esquecer.
+
+**O que isso passa a exigir de quem mantém o repositório:** acrescentar código coberto não atualiza
+o piso sozinho — é preciso ler `target/site/jacoco/jacoco.csv` e subir os dois valores. Acrescentar
+código sem teste reprova o build, que é a função. O comentário no `pom.xml` explica as duas coisas,
+junto com o histórico dos pisos e a razão de cada um.
+
 ---
 
 ## 10. O que ficou de fora, e por quê
@@ -455,7 +506,6 @@ commits que podem ser lidos — e revertidos — separadamente:
 |---|---|
 | **P11, P12, P13** — as três limitações medidas | **Preservadas de propósito**, travadas por teste. São decisões de domínio: qual carga deveria caracterizar esgotamento crônico, se o cronotipo deveria influenciar a fadiga, se o cruzamento deveria considerar os dois pais. Mudar qualquer uma altera o plano de todos os usuários |
 | **P14, P15, P16** — as três *majors* | Documentadas com o motivo e ignoradas no Dependabot. Cada uma exige plano de teste próprio (§8) |
-| **Elevar o piso de cobertura** | O piso está em 77 % de instruções e a medição é **91,09 %**. A folga cresceu por quatro etapas. Já foi recomendado ao fim da 03e e **continua sem ser feito**, pela mesma razão: mexer no *gate* afeta trabalho em curso de outras pessoas. É a recomendação mais antiga ainda aberta desta varredura |
 | **Achados E9 e E10** — seis sufixos para o mesmo papel, dois critérios de organização de pastas | Renomear classes e mover pacotes é exatamente o "repositório inteiro de uma vez" que a instrução excluiu. Continuam abertos em `03-diagnostico-estrutura.md` |
 | **Traduzir os 88 Javadoc em inglês** | Recusado pelo ADR-0007: maior *diff* possível, sem ganho de leitura, apagando o `git blame` |
 | **As 13 referências de linha quebradas em documentos** | Mantidas. São relatórios datados; a única que era rastreamento vivo (a tabela de P6) foi corrigida |

@@ -206,6 +206,35 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
+                    <!--
+                        Piso de cobertura: uma CATRACA, nao uma meta.
+
+                        Os valores sao a medicao exata do estado atual — 6290 de 6905 instrucoes e
+                        379 de 520 ramos —, nao um numero escolhido com folga. A regra e uma so, no
+                        elemento BUNDLE (o projeto inteiro somado); nao existe regra por classe.
+
+                        Historico dos pisos:
+                          etapa 01b  0,77 / 0,55  medicao era 0,79 / 0,57 — folga proposital, para
+                                                  o gate nascer sem reprovar trabalho em andamento
+                          etapa 04b  0,9109 / 0,7288  medicao exata, sem folga
+
+                        POR QUE SEM FOLGA. A cobertura subiu de 0,77 para 0,91 em quatro etapas, e o
+                        piso ficou onde estava — uma catraca que nao trava nao e catraca. Com o piso
+                        colado na medicao, remover UMA instrucao coberta reprova o build: 6289/6905
+                        da 0,91079, abaixo de 0,9109.
+
+                        ISSO E SEGURO PORQUE A MEDICAO E DETERMINISTICA. Verificado na etapa 04b com
+                        tres execucoes limpas consecutivas: 6290/6905 e 379/520 nas tres, identicas
+                        instrucao por instrucao. A aleatoriedade do AG e sempre semeada nos testes, e
+                        RandomProviderIsolation restaura a fonte original entre eles.
+
+                        COMO MEXER NISTO. Ao acrescentar codigo coberto, o piso NAO se atualiza
+                        sozinho: rode `mvn clean verify`, leia os numeros em target/site/jacoco/
+                        jacoco.csv e suba os dois valores. Ao acrescentar codigo sem teste, o build
+                        reprova — e essa e a funcao. Baixar o piso para fazer um build passar deve
+                        ser uma decisao explicita, registrada na mensagem do commit; e o unico
+                        movimento que desfaz a garantia.
+                    -->
                     <execution>
                         <id>check-coverage-floor</id>
                         <phase>verify</phase>
@@ -220,12 +249,12 @@
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.77</minimum>
+                                            <minimum>0.9109</minimum>
                                         </limit>
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.55</minimum>
+                                            <minimum>0.7288</minimum>
                                         </limit>
                                     </limits>
                                 </rule>
