@@ -63,6 +63,7 @@ public class RetentionObjective implements FitnessObjective {
     @Override
     public double calculateReward(StudyPlan plan, EvolutionContext context) {
         Map<Subject, Double> importance = context.retentionWeights();
+        Map<Subject, Double> requiredPerSubject = context.requiredSessionsPerSubject();
         int horizon = context.planningHorizonDays();
 
         double score = 0.0;
@@ -71,7 +72,11 @@ public class RetentionObjective implements FitnessObjective {
             int days = entry.getValue();
 
             double weight = importance.getOrDefault(subject, 0.0);
-            double required = LearningModel.requiredSessions(subject, horizon);
+            // Pre-calculado uma vez por execucao no contexto (achado F4). A busca com retorno para
+            // o calculo direto cobre a disciplina que esteja no plano e nao no edital — caso em que
+            // o peso e 0.0 e o termo nao contribui, mas o divisor ainda precisa ser valido.
+            Double emCache = requiredPerSubject.get(subject);
+            double required = emCache != null ? emCache : LearningModel.requiredSessions(subject, horizon);
             double coverage = Math.min(1.0, days / required);
 
             score += weight * coverage;

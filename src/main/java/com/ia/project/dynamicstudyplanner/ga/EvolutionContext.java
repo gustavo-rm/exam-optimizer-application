@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
+import com.ia.project.dynamicstudyplanner.ga.fitness.objective.LearningModel;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Encapsulates all the contextual information required for a single evolution step.
@@ -47,6 +49,7 @@ public record EvolutionContext(
         Map<Subject, Double> importanceScores,
         Map<Subject, Double> normalizedImportance,
         Map<Subject, Double> retentionWeights,
+        Map<Subject, Double> requiredSessionsPerSubject,
         Map<Subject, Integer> minimumDaysPerSubject,
         StudentState studentState,
         FitnessEvaluator fitnessEvaluator,
@@ -208,6 +211,7 @@ public record EvolutionContext(
                     importanceScores,
                     normalized,
                     temper(normalized),
+                    requiredSessions(importanceScores.keySet(), planningHorizonDays),
                     minimumDaysPerSubject,
                     studentState,
                     fitnessEvaluator,
@@ -219,6 +223,41 @@ public record EvolutionContext(
                     maxDailyCognitiveLoad
             );
         }
+    }
+
+    /**
+     * Pré-calcula, uma vez por execução, quantas sessões cada disciplina exige.
+     *
+     * <h2>Por que isto está aqui e não no objetivo de fitness</h2>
+     *
+     * {@code LearningModel.requiredSessions(disciplina, horizonte)} depende apenas da carga
+     * cognitiva da disciplina e do horizonte de planejamento — <b>os dois fixos durante toda a
+     * evolução</b>. Era, ainda assim, chamada uma vez por disciplina, por indivíduo, por geração.
+     *
+     * <p>Medido no achado F4 de {@code docs/qualidade/05-diagnostico-performance.md}:
+     * <b>12.012.000 chamadas</b> no pior caso (500 indivíduos × 1000 gerações × 24 disciplinas)
+     * para <b>24 resultados distintos</b>, a 17,29 ns cada — <b>208 ms</b>, cerca de 9 % do tempo
+     * do algoritmo.
+     *
+     * <h2>Estratégia de invalidação</h2>
+     *
+     * O cache vive <b>dentro do contexto</b>, e o contexto é criado uma vez por requisição e nunca
+     * alterado. Ele nasce e morre com a otimização, exatamente como {@code normalizedImportance} e
+     * {@code retentionWeights}, que já seguiam este padrão.
+     *
+     * <p>Essa escolha é deliberada e vale registrar o que ela evita: um cache <i>estático</i> em
+     * {@code LearningModel} seria mais fácil de escrever e seria um defeito. As chaves
+     * ({@code Subject}, horizonte) vêm da requisição, então o mapa cresceria sem limite ao longo da
+     * vida do processo, e um edital com a mesma disciplina sob outro horizonte leria valor de
+     * outra requisição. Amarrar o cache ao ciclo de vida do dado que o originou dispensa política
+     * de expiração: não há como ficar obsoleto aquilo que morre junto com a pergunta.
+     */
+    private static Map<Subject, Double> requiredSessions(Set<Subject> subjects, int planningHorizonDays) {
+        Map<Subject, Double> porDisciplina = new HashMap<>(subjects.size() * 2);
+        for (Subject subject : subjects) {
+            porDisciplina.put(subject, LearningModel.requiredSessions(subject, planningHorizonDays));
+        }
+        return Collections.unmodifiableMap(porDisciplina);
     }
 
     /**
