@@ -33,7 +33,7 @@ public class RepairingCrossover implements CrossoverStrategy {
         // Step 1: Perform the single-point crossover to create the initial child genes.
         Map<Subject, Integer> childGenes = performSinglePointCrossover(parent1, parent2);
         // Step 2: Repair the child's genes to ensure the total day sum is correct.
-        repairChildGenes(childGenes, parent1.getPlan().getTotalDays(), context.minimumDaysPerSubject());
+        ChildGeneRepair.repairToTargetSum(childGenes, parent1.getPlan().getTotalDays(), context.minimumDaysPerSubject());
         return new Individual(new StudyPlan(childGenes));
     }
     /**
@@ -59,35 +59,5 @@ public class RepairingCrossover implements CrossoverStrategy {
             }
         }
         return childGenes;
-    }
-    /**
-     * Adjusts the child's genes by randomly adding or removing days until the sum of
-     * days equals the target total. This ensures the study plan is valid.
-     *
-     * @param childGenes The mutable map of the child's genes to be repaired.
-     * @param targetDaySum The required total number of days for the plan.
-     * @param minimumDaysPerSubject A map of constraints to avoid violating minimums.
-     */
-    private void repairChildGenes(Map<Subject, Integer> childGenes, int targetDaySum, Map<Subject, Integer> minimumDaysPerSubject) {
-        int currentDaySum = childGenes.values().stream().mapToInt(Integer::intValue).sum();
-        int difference = targetDaySum - currentDaySum;
-        List<Subject> subjects = new ArrayList<>(childGenes.keySet());
-        while (difference != 0 && !subjects.isEmpty()) {
-            Subject randomSubject = subjects.get(RandomProvider.getInstance().nextInt(subjects.size()));
-            int currentDays = childGenes.get(randomSubject);
-            if (difference > 0) { // Need to add days
-                childGenes.put(randomSubject, currentDays + 1);
-                difference--;
-            } else { // Need to remove days
-                int minimumDays = minimumDaysPerSubject.getOrDefault(randomSubject, 1);
-                if (currentDays > minimumDays) {
-                    childGenes.put(randomSubject, currentDays - 1);
-                    difference++;
-                } else {
-                    // If we can't subtract from this subject, remove it from consideration to prevent infinite loops.
-                    subjects.remove(randomSubject);
-                }
-            }
-        }
     }
 }

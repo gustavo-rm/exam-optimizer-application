@@ -70,6 +70,34 @@ public class EvolutionContextAssembler {
      * @param profile o perfil do estudante, com disponibilidade e estado psicológico
      */
     public EvolutionContext assemble(Exam exam, StudentProfile profile) {
+        return assemble(exam, profile, LocalDate.now());
+    }
+
+    /**
+     * Igual a {@link #assemble(Exam, StudentProfile)}, com a data de início informada.
+     *
+     * <h2>Por que esta sobrecarga existe</h2>
+     *
+     * Até a etapa 04b, os <i>benchmarks</i> mantinham uma <b>cópia manual</b> desta montagem
+     * ({@code BenchmarkHarness.buildContext}) só porque precisavam de uma data fixa em vez do
+     * relógio: sem uma âncora estável, métricas derivadas do cronograma mudariam conforme o dia em
+     * que a medição rodasse. A cópia tinha as mesmas dez chamadas na mesma ordem, e o CPD não a
+     * enxergava porque os nomes de variável diferiam (achado L3 de
+     * {@code docs/qualidade/04-diagnostico-escrita.md}).
+     *
+     * <p>O risco era concreto: um campo novo no contexto entraria em produção e <b>não</b> na
+     * cópia, sem erro de compilação — o construtor passo a passo do ADR-0004 permite omitir campos.
+     * Como {@code ProductionGeneticAlgorithm} existe justamente para medir a produção como ela é,
+     * os números publicados passariam a medir outro contexto.
+     *
+     * <p>Receber a data como parâmetro elimina a cópia sem abrir mão da reprodutibilidade. É também
+     * um passo na direção da pendência <b>P7</b> de {@code docs/revisao-ag/04-robustez.md}
+     * ({@code LocalDate.now()} dentro da lógica): a decisão de qual "hoje" usar passou a ser de
+     * quem chama.
+     *
+     * @param planStartDate o dia em que o plano começa; a produção passa {@code LocalDate.now()}
+     */
+    public EvolutionContext assemble(Exam exam, StudentProfile profile, LocalDate planStartDate) {
         Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
         Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
 
@@ -82,7 +110,6 @@ public class EvolutionContextAssembler {
         // docs/revisao-ag/05-fitness-function.md: o horizonte governa a estimativa de espacamento
         // por tras do termo de retencao, e o orcamento de carga diaria (que ja incorpora estresse,
         // fadiga e motivacao) limita o termo de carga cognitiva.
-        LocalDate planStartDate = LocalDate.now();
         int planningHorizonDays = Math.max(1,
                 (int) ChronoUnit.DAYS.between(planStartDate, exam.getExamDate()));
         int hoursPerStudyDay = Math.max(1,

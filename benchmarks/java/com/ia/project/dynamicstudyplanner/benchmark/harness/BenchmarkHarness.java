@@ -26,6 +26,7 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjectiv
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.DropoutRiskPenalty;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FitnessPenalty;
+import com.ia.project.dynamicstudyplanner.service.EvolutionContextAssembler;
 import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
@@ -57,6 +58,8 @@ public final class BenchmarkHarness {
     private final MetricsCalculator metricsCalculator = new MetricsCalculator(fitnessEvaluator);
     private final ImportanceCalculator importanceCalculator = new ImportanceCalculator();
     private final BaselineCalculator baselineCalculator = new BaselineCalculator(importanceCalculator);
+    private final EvolutionContextAssembler contextAssembler = new EvolutionContextAssembler(
+            baselineCalculator, importanceCalculator, new CognitiveLoadCalculator(), fitnessEvaluator);
 
     private final List<PlanningStrategy> strategies = List.of(
             new ProductionGeneticAlgorithm(fitnessEvaluator),
@@ -148,43 +151,27 @@ public final class BenchmarkHarness {
     }
 
     /**
-     * Builds the evolution context exactly as {@code StudyOptimizerService.prepareContext} does,
-     * including the two placeholder profiles that method injects. Reproducing them matters: the
-     * empty {@code RetentionProfile} and the perfect {@code EngagementProfile} are what keep
-     * {@code MandatoryReviewConstraint} and {@code DropoutRiskPenalty} neutral (auditoria §2.3.4,
-     * §2.4.4), and a benchmark that quietly supplied richer profiles would not be measuring
-     * production behaviour.
+     * Builds the evolution context by <b>calling production directly</b>.
+     * <p>
+     * Until etapa 04b this method was a hand-copy of the production assembly, kept in sync by
+     * discipline alone — and the discipline had already lapsed: its comment pointed at
+     * {@code StudyOptimizerService.prepareContext}, a method removed in etapa 03e. A field added to
+     * {@code EvolutionContext} would have entered production and silently skipped the benchmark,
+     * because the step builder of ADR-0004 lets callers omit fields.
+     * <p>
+     * {@link EvolutionContextAssembler} now takes the plan start date as a parameter, which was the
+     * only reason the copy existed: the harness needs the instance's fixed anchor rather than the
+     * wall clock, so that schedule-derived metrics stay reproducible on any day (pendencia P7 in
+     * {@code docs/revisao-ag/04-robustez.md}). Everything else — the empty {@code RetentionProfile}
+     * and the baseline {@code EngagementProfile} that keep {@code MandatoryReviewConstraint} and
+     * {@code DropoutRiskPenalty} neutral (auditoria §2.3.4, §2.4.4) — now comes from production by
+     * construction instead of by transcription.
      */
     public EvolutionContext contextFor(BenchmarkInstance instance) {
         return buildContext(instance);
     }
 
     private EvolutionContext buildContext(BenchmarkInstance instance) {
-        Map<Subject, Integer> minimumDays =
-                baselineCalculator.calculateMinimumDays(instance.exam(), instance.profile());
-        Map<Subject, Double> importance =
-                importanceCalculator.calculatePersonalizedImportance(instance.exam(), instance.profile());
-
-        // Mirrors StudyOptimizerService.prepareContext field for field, including the planning data
-        // the corrected fitness terms read. The one deliberate difference is planStartDate: the
-        // service reads the wall clock, the harness uses the instance's fixed anchor so that
-        // schedule-derived metrics stay reproducible on any day (pendencia P7 in 04-robustez.md).
-        int horizonDays = Math.max(1, (int) instance.horizonDays());
-        int hoursPerStudyDay = Math.max(1,
-                (int) Math.ceil(instance.profile().getTotalWeeklyHours() / 7.0));
-        int maxDailyLoad = new CognitiveLoadCalculator().calculate(instance.profile(), instance.exam());
-
-        return EvolutionContext.builder()
-                .importanceScores(importance)
-                .minimumDaysPerSubject(minimumDays)
-                .studentState(instance.profile().getState())
-                .fitnessEvaluator(fitnessEvaluator)
-                .retentionProfile(new RetentionProfile(Map.of()))
-                .planStartDate(instance.planStartDate())
-                .engagementProfile(EngagementProfile.baseline())
-                .planningHorizonDays(horizonDays)
-                .hoursPerStudyDay(hoursPerStudyDay)
-                .maxDailyCognitiveLoad(maxDailyLoad)
-                .build();
+        return contextAssembler.assemble(instance.exam(), instance.profile(), instance.planStartDate());
     }
 }
