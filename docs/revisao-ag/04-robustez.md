@@ -361,6 +361,17 @@ por teste, para que a mudança, quando vier, seja deliberada. Detalhamento em
 | **P12** | A **metodologia de estudo não afeta** o risco de esgotamento | O multiplicador escolhe entre 1,5 e 0,8 comparando carga do bloco com energia esperada; a energia é limitada a 1,5 e o bloco mais leve já custa 2,048. A comparação é sempre verdadeira, e a curva bifásica por cronotipo é calculada e descartada | Ou normalizar as duas grandezas para a mesma escala (fazendo a curva de cronotipo valer de fato), ou assumir que o multiplicador é constante e remover a comparação. Hoje o código sugere que o cronotipo importa, e ele não importa |
 | **P13** | `DayBoundaryCrossover` **descarta o segundo pai** quando o primeiro está vazio | O intervalo de dias vem só do primeiro pai; vazio, o corte vira `Integer.MAX_VALUE` e nenhum bloco do segundo pai passa | Calcular o intervalo a partir dos dois pais. A mudança altera a distribuição de filhos gerados, então exige rodar o harness antes |
 
+### Dependências travadas de propósito (etapa 04b)
+
+Não são esquecimento. Cada uma quebra algo conhecido e exige plano de teste próprio; estão ignoradas
+no `.github/dependabot.yml` com a justificativa no próprio arquivo.
+
+| # | Dependência | Atraso | Por que não foi forçada |
+|---|---|---|---|
+| **P14** | Spring Boot 3.5.16 → 4.1.1 | 11 releases, linha maior | Arrasta Spring Framework 7 e provavelmente Jakarta EE 11. Exige rodar o harness para confirmar que os números publicados não mudam, e revalidar os testes de segurança das etapas 02b e 03d |
+| **P15** | springdoc-openapi 2.8.17 → 3.1.0 | 6 releases, linha maior | Já quebrou esta API uma vez (2.5.0 × Spring 6.2, HTTP 500 em `/v3/api-docs`, etapa 01b). A linha 3.x é a que o Boot 4 exige: migra junto com P14 ou nenhuma |
+| **P16** | logstash-logback-encoder 7.4 → 9.0 | 3 releases, duas linhas maiores | Dá formato ao log JSON. Mudança de formato afeta `LogPrivacyTest`, que inspeciona mensagem e pilha, e qualquer consulta já montada no agregador |
+
 ---
 
 ## 10. Testes adicionados
