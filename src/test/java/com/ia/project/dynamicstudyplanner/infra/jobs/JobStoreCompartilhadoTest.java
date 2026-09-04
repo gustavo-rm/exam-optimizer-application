@@ -137,6 +137,28 @@ class JobStoreCompartilhadoTest {
     }
 
     @Test
+    @DisplayName("um trabalho que ainda nao terminou nao se declara terminado")
+    void trabalhoEmAndamentoNaoSeDeclaraTerminado() {
+        // Propriedade obvia e nao verificada ate agora — e a ausencia dela deixava a cobertura
+        // OSCILAR entre execucoes: o ramo so era exercitado quando uma consulta por acaso pegava o
+        // trabalho em andamento. Um gate que varia com o relogio nao e um gate.
+        JobStore store = new RedisJobStore(client, objectMapper, Duration.ofMinutes(60));
+        String id = UUID.randomUUID().toString();
+
+        OptimizationJob aceito = OptimizationJob.aceito(id, Instant.now());
+        assertThat(aceito.terminado()).as("PENDING nao terminou").isFalse();
+        assertThat(aceito.iniciado(Instant.now()).terminado()).as("RUNNING nao terminou").isFalse();
+
+        store.save(aceito);
+        assertThat(store.find(id)).get().satisfies(job -> {
+            assertThat(job.status()).isEqualTo(JobStatus.PENDING);
+            assertThat(job.terminado()).isFalse();
+            assertThat(job.resultJson()).isNull();
+            assertThat(job.startedAt()).isNull();
+        });
+    }
+
+    @Test
     @DisplayName("identificador inexistente devolve vazio, nao erro")
     void identificadorInexistenteDevolveVazio() {
         JobStore store = new RedisJobStore(client, objectMapper, Duration.ofMinutes(60));
