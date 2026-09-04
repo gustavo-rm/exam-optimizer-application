@@ -16,7 +16,7 @@ São **39 commits e 197 arquivos**, dos quais 104 em `src/main`. A maior parte d
 documentação: quinze relatórios que registram o que foi medido, com os números que sustentam cada
 decisão.
 
-**Suíte: 288 testes, 0 falhas. Cobertura: 92,44 % de instruções, 74,91 % de ramos.**
+**Suíte: 311 testes, 0 falhas. Cobertura: 93,25 % de instruções, 78,61 % de ramos.**
 
 A regra valeu do começo ao fim: **nenhum achado entrou num relatório sem número medido, e nenhuma
 correção entrou sem antes/depois pela mesma metodologia.** Onde a medição contradisse a expectativa,
@@ -93,6 +93,8 @@ Uma tabela de rastreamento ainda listava como aberta uma pendência fechada duas
 
 ### Performance — metade do pior caso, com o resultado idêntico
 
+*(idêntico nesta etapa; a pendência P18, resolvida depois, mudou o plano produzido — ver adiante)*
+
 | Cenário | Antes | Depois |
 |---|---:|---:|
 | 15 disciplinas / 100 gerações / população 50 | 29 ms | **13 ms** |
@@ -119,6 +121,56 @@ recusar cedo libera a máquina para terminar trabalho.
 
 Um pedido pesado deixou de segurar a conexão por 1 527 ms — agora é aceito em **24 ms** com um
 identificador, e o resultado pode ser buscado **em outra réplica**.
+
+### Duas pendências técnicas retomadas no fechamento — e a única mudança de resultado do PR
+
+As duas estavam registradas para "uma próxima rodada" e foram resolvidas antes de fechar.
+
+**P17 — a paralelização da fitness foi removida, não redimensionada.** A pendência propunha dar à
+avaliação de fitness um pool próprio. Antes de escolher o tamanho, foi medido quanto ela ainda
+comprava: **nada**. No maior tamanho de população que o contrato aceita, cinco baterias pareadas
+deram +1,4 % vencendo 3 de 5 — ruído; em populações menores a versão paralela chegou a ser 11 % mais
+lenta. Uma correção anterior (a troca do percurso dos genes) tinha tornado a avaliação ~4,5× mais
+barata por indivíduo, e com tão pouco trabalho o custo de repartir entre threads passou a consumir a
+economia. Ponta a ponta: **+27 % de vazão com 4 concorrentes**, resultado idêntico.
+
+**P18 — o cromossomo virou um vetor indexado.** O plano de estudos deixou de ser um mapa de
+disciplina para dias e passou a ser um vetor de inteiros alinhado a uma ordem única, compartilhada
+por toda a população. Some, a cada gene, um cálculo de hash, um desembrulho de objeto e uma alocação
+de memória; os dados por disciplina que a avaliação consulta gene a gene passaram a ser vetores
+calculados uma vez por otimização. Ponta a ponta, com o mesmo corpo de requisição nos dois lados e
+medição alternada:
+
+| Requisições simultâneas | Latência antes | Latência depois | Vazão antes | Vazão depois |
+|---:|---:|---:|---:|---:|
+| 1 | 91 / 98 ms | **35 / 35 ms** | 11,0 / 10,2 req/s | **28,8 / 28,4 req/s** |
+| 4 | 105 / 104 ms | **51 / 43 ms** | 38,2 / 38,6 req/s | **77,8 / 92,3 req/s** |
+| 16 | 265 / 261 ms | **112 / 108 ms** | 60,4 / 61,3 req/s | **142,6 / 148,7 req/s** |
+
+Latência mediana **~63 % menor**, vazão **~2,4× maior**, zero erros.
+
+> ### ⚠️ Esta é a única mudança de resultado do PR
+>
+> **O plano de estudos produzido mudou.** A ordem dos genes decide onde cai o ponto de corte do
+> cruzamento; antes ela era a ordem de iteração de um `HashMap` — determinística na prática, mas
+> **não especificada** pela biblioteca padrão do Java e livre para mudar numa atualização da
+> plataforma. Hoje é a ordem em que o cliente declara as disciplinas no edital. O plano de um mesmo
+> aluno com os mesmos dados pode sair diferente do que saía na 4.0.
+>
+> Em troca, o resultado deixou de depender de algo fora do nosso controle.
+>
+> Como a instrução era resolver a pendência e não preservar o resultado, a verificação mudou de
+> *"idêntico"* para *"reprodutível e sem perda de qualidade"*. As duas foram medidas:
+>
+> - **Reprodutibilidade:** 150 de 150 execuções deram fitness idêntico entre duas baterias
+>   completas; três execuções da assinatura de referência saíram iguais entre si.
+> - **Qualidade:** comparando a nota final da mesma semente nas duas versões ao longo de **150
+>   pares** (5 configurações × 30 sementes), **62 vitórias contra 52 derrotas** nos 114 pares não
+>   empatados. Teste dos sinais: z = +0,94, longe dos 1,96 que indicariam diferença a 5 %. Toda a
+>   dispersão cabe em **±0,13 %**.
+>
+> É o que se espera de uma renumeração de posições: outro caminho de busca, mesma qualidade de
+> chegada.
 
 ---
 
@@ -181,10 +233,11 @@ não ter sido forçada sem plano de teste.
 | `/actuator/health` público; `/actuator/prometheus` autenticado e **funcionando** | antes os dois respondiam 403 permanente, sem forma de apresentar credencial |
 | Respostas **comprimidas** | 36,3 KB → 2,4 KB |
 | Quatro status que a API já devolvia passaram a ser **documentados** | o OpenAPI descrevia 5 de 9 |
+| **O plano de estudos produzido mudou** | mesma qualidade medida, outra ordem de genes; ver o aviso em §2 |
 
 ---
 
-## 6. Três erros cometidos e corrigidos durante o trabalho
+## 6. Cinco erros cometidos e corrigidos durante o trabalho
 
 Registrados porque cada um teria passado despercebido, e porque mostram o que a rede de testes pegou:
 
@@ -193,13 +246,15 @@ Registrados porque cada um teria passado despercebido, e porque mostram o que a 
 | `@Async` num método chamado de outro método do **mesmo bean** — autoinvocação passa por fora do proxy, e o trabalho rodava na thread da requisição | **a medição**: o envio levava os mesmos 1,5 s do caminho síncrono |
 | Um ciclo `service → api → service` introduzido ao criar o fluxo assíncrono | **`ModuleBoundaryTest`**, criado na etapa de estrutura, reprovou |
 | Cobrar o **máximo** por corpo ilegível no limite por custo | **a suíte**: 14 testes reprovaram. Um corpo que não pode ser precificado também não pode ser executado — cobrar caro puniria quem tem defeito de integração |
+| Uma bateria inteira de carga medindo **o servidor errado**: o roteiro de parada casava pelo nome do arquivo `.jar`, e as cópias comparadas tinham outro nome, então o servidor "antes" sobreviveu e atendeu as quatro rodadas | **os próprios números**: saíram suspeitosamente iguais. O roteiro passou a casar pela flag de lançamento, a só devolver quando a porta estiver livre, e a conferir antes de cada rodada quem está atendendo |
+| Otimizar `MinimumDaysConstraint.isValid` alegando que ele roda uma vez por gene, por indivíduo, por geração | **o relatório de cobertura**: o método inteiro aparecia sem execução. Nada o chama — a avaliação usa só `violationSeverity`. A versão simples voltou |
 
 ---
 
 ## 7. Como verificar
 
 ```bash
-mvn clean verify        # 288 testes, 0 falhas
+mvn clean verify        # 311 testes, 0 falhas
 ```
 
 O gate de cobertura reprova abaixo do piso medido. Há uma armadilha documentada no `pom.xml`, ao

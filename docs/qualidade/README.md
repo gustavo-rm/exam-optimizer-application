@@ -15,9 +15,9 @@ relatório sem número medido, e nenhuma correção entra sem antes/depois pela 
 
 | | Antes da varredura | Agora |
 |---|---:|---:|
-| Testes | **73** | **288** |
-| Cobertura de instruções | 67,1 % | **92,44 %** |
-| Cobertura de ramos | 52,9 % | **74,91 %** |
+| Testes | **73** | **311** |
+| Cobertura de instruções | 67,1 % | **93,25 %** |
+| Cobertura de ramos | 52,9 % | **78,61 %** |
 | Integração contínua | **nenhuma** | gate no GitHub Actions, verificado nos dois sentidos |
 | Ferramenta de estilo | **nenhuma** | Checkstyle na fase `validate`, 0 violações |
 | Varredura de dependências | **nenhuma** | Dependabot configurado (falta 1 clique — ver §7) |
@@ -33,7 +33,7 @@ As exceções estão listadas em §8.
 
 ---
 
-## 1. Testes — de 73 para 288, e de "passa" para "protege"
+## 1. Testes — de 73 para 311, e de "passa" para "protege"
 
 **Documentos:** [`01-diagnostico-testes.md`](./01-diagnostico-testes.md) ·
 [`01b-correcao-testes.md`](./01b-correcao-testes.md)
@@ -193,7 +193,11 @@ token, senha ou material de sessão; a auditoria que sustenta a troca está escr
 
 Nove **assinaturas de referência** — o plano completo para uma semente fixa, disciplina por
 disciplina, mais a fitness com 12 casas — foram capturadas antes da primeira otimização e conferidas
-depois de cada uma. São idênticas do começo ao fim.
+depois de cada uma. São idênticas do começo ao fim **desta etapa**.
+
+> A única correção da varredura que moveu essas assinaturas foi a pendência **P18**, resolvida
+> depois do fechamento: ela troca a representação do cromossomo e, com ela, a ordem dos genes.
+> Está descrita em §7.6, com a medição de qualidade que justifica a troca.
 
 ---
 
@@ -298,8 +302,6 @@ as confunda com trabalho pendente de código.
 
 | Item | Por que não foi feito |
 |---|---|
-| **Pool próprio para a avaliação de fitness** (P17) | Os dois níveis de paralelismo precisam ser dimensionados em conjunto — arquitetura de concorrência, não ajuste local |
-| **Cromossomo como vetor indexado** (P18) | É onde está o custo real do cruzamento. Muda o tipo de domínio no sistema inteiro e **altera o resultado** |
 | **Injetar um `Clock`** (`revisao-ag` P7) | `LocalDate.now()` dentro da lógica de produção; ancorado em `EvolutionContextAssembler:73` |
 | **Bloco de log `TRACE` descoberto** (`01b` P9) | Uma linha que só executa com `TRACE` ligado pode quebrar no dia em que alguém ligar |
 | **Asserções de tempo de parede** (`01b` P2, P4) | Trocar tempo por contagem de operações exige instrumentar o motor |
@@ -314,6 +316,51 @@ Registradas aqui para que ninguém as reabra por engano:
 | `01b` **P1** — `RandomProvider` inseguro para execução paralela | etapa 06b: a fonte passou a ser por thread, e o limite conhecido da extensão de isolamento deixou de existir |
 | `06b` **P20** — limite de taxa por custo | etapa 06b, ao final |
 | `01b` **P10** — nenhum teste de concorrência sobre o executor | etapa 06b: contrato de sobrecarga, dimensionamento do pool e testes de carga |
+| `05b` **P17** — pool próprio para a avaliação de fitness | fechamento: a medição mostrou que não havia o que dimensionar. Ver §7.6 |
+| `05b` **P18** — cromossomo como vetor indexado | fechamento: feito, com verificação de qualidade em 150 pares. Ver §7.6 |
+
+### 7.6 As duas pendências técnicas resolvidas depois do fechamento
+
+Estavam em 7.4 quando este documento foi escrito. Foram retomadas em seguida e
+resolvidas; ficam registradas aqui porque **a segunda mudou o plano entregue ao
+aluno**, e quem ler a versão 5.0 precisa saber disso.
+
+**P17 — pool próprio para a avaliação de fitness.** A pendência propunha resolver o
+achado F6 (o `parallelStream` da fitness usa o `ForkJoinPool` comum e disputa CPU
+com as outras requisições) dando a ela um pool próprio. Antes de escolher o
+tamanho desse pool, foi medido quanto a paralelização ainda comprava: **nada**. Em
+população 500 — o máximo que o contrato aceita — cinco baterias pareadas deram
++1,4 % vencendo 3 de 5, que é ruído; em população 150 a paralela ficou 11 % mais
+lenta. O ganho de 12 % medido na etapa 05b não era erro de medida: o achado F8,
+posterior, tornou a avaliação de um indivíduo ~4,5× mais barata, e com tão pouco
+trabalho por indivíduo repartir entre threads passou a custar o que economizava.
+
+A resposta certa era **remover**, não dimensionar. Some o limiar, some a disputa
+do F6 e some um segundo botão de configuração. Ponta a ponta, com corpo de
+população 200: **+27 % de vazão com 4 concorrentes, +19 % com 16**. Resultado
+idêntico — a assinatura dourada não se moveu.
+
+**P18 — cromossomo como vetor indexado.** Feito. O plano deixou de ser
+`Map<Subject, Integer>` e passou a ser um `int[]` alinhado a uma ordem canônica
+compartilhada por toda a população. Some, por gene, o cálculo de hash, o
+desembrulho de `Integer` e a alocação de nó de mapa; os dados por disciplina que a
+fitness consulta a cada gene passaram a ser vetores projetados uma vez por
+otimização. Ponta a ponta: **latência mediana ~63 % menor e vazão ~2,4× maior**.
+
+> **O plano produzido mudou, uma vez.** A ordem dos genes decide onde cai o ponto
+> de corte do cruzamento. Antes ela era a ordem de iteração de um `HashMap` —
+> determinística na prática, mas **não especificada** pelo contrato de `Map` e
+> livre para mudar numa atualização de JDK. Hoje é a ordem do edital, declarada
+> pelo cliente. O plano de um mesmo aluno com os mesmos dados pode sair diferente
+> do que saía na versão 4.0.
+
+Como a instrução era resolver a pendência, e não preservar o resultado, a
+verificação mudou de *"idêntico"* para *"reprodutível e sem perda de qualidade"*.
+As duas foram medidas: 150/150 fitness idênticos entre duas baterias completas
+(reprodutibilidade), e, comparando a fitness final da mesma semente nas duas
+versões ao longo de 150 pares, **62 vitórias contra 52 derrotas nos 114 pares não
+empatados** — teste dos sinais z = +0,94, longe dos 1,96 que indicariam diferença
+a 5 %. Toda a dispersão cabe em ±0,13 %.
 
 ---
 
@@ -328,6 +375,7 @@ Poucas, e todas deliberadas:
 | Sobrecarga passou de **500** para **503** com `Retry-After` | 06b |
 | **Novos endpoints** `POST /jobs` e `GET /jobs/{id}` (o síncrono continua idêntico) | 06b |
 | Limite de taxa passou de **5 requisições/min** para **650 fichas/min** | 06b |
+| **O plano produzido mudou** — mesma qualidade, outra ordem de genes (P18, §7.6) | fechamento |
 | `/actuator/health` passou a ser público; `/actuator/prometheus` exige credencial e agora **responde** | 06b |
 | Respostas passaram a ser **comprimidas** | 06b |
 
@@ -353,7 +401,7 @@ revisão da função de fitness do algoritmo genético.
 ## 10. Como verificar
 
 ```bash
-mvn clean verify        # 288 testes, 0 falhas; o gate de cobertura reprova abaixo do piso medido
+mvn clean verify        # 311 testes, 0 falhas; o gate de cobertura reprova abaixo do piso medido
 ```
 
 O gate de cobertura tem uma armadilha documentada no `pom.xml`, ao lado do limite: **o JaCoCo trunca
