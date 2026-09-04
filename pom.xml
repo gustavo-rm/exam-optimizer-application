@@ -293,10 +293,19 @@
                                             reprova um build que nao regrediu em nada. Tire o valor
                                             do relatorio com precisao, nao de um printf arredondado.
                                         -->
+                                        <!--
+                                            0,9244 ate a pendencia P17. Remover a avaliacao paralela
+                                            de fitness (Population.calculateFitness) tirou 18
+                                            instrucoes que estavam TODAS cobertas. Tirar codigo 100 %
+                                            coberto de um conjunto coberto em 92 % abaixa a razao:
+                                            7658/8284 = 0,92443 virou 7640/8266 = 0,92426. Nao ha
+                                            teste a menos — o PopulationFitnessTest continua
+                                            travando a avaliacao, agora contra o caminho unico.
+                                        -->
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.9244</minimum>
+                                            <minimum>0.9242</minimum>
                                         </limit>
                                         <!--
                                             0,7386 ate a etapa 05b. A conversao dos tres objetivos
@@ -306,11 +315,16 @@
                                             razao: 390/527 = 0,7401 virou 387/524 = 0,7385. Nao ha
                                             teste a menos — a cobertura de instrucoes subiu no
                                             mesmo commit, de 0,9135 para 0,9145.
+
+                                            Mesmo efeito de novo na P17: o if do limiar de
+                                            paralelizacao era 1 ramo coberto dos dois lados, e sumiu
+                                            junto com a paralelizacao. 433/578 = 0,74913 virou
+                                            431/576 = 0,74826.
                                         -->
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.7491</minimum>
+                                            <minimum>0.7482</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

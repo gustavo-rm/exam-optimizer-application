@@ -103,60 +103,56 @@ public class Population {
     }
 
     /**
-     * Tamanho a partir do qual avaliar em paralelo compensa.
-     *
-     * <p>Não é um palpite. A etapa 05b mediu os dois caminhos variando a população, com 200
-     * gerações e 15 disciplinas (medianas de 15 execuções):
-     *
-     * <pre>
-     *   população   paralela   sequencial   vencedor
-     *          10      15 ms        10 ms   sequencial, por 50 %
-     *          25      19 ms        16 ms   sequencial
-     *          50      27 ms        26 ms   empate
-     *         100      44 ms        47 ms   paralela
-     *         200      85 ms        95 ms   paralela
-     *         500     193 ms       219 ms   paralela, por 12 %
-     * </pre>
-     *
-     * <p>Abaixo de ~50 indivíduos o custo de repartir o trabalho entre threads e recolher o
-     * resultado supera a economia — a avaliação de um indivíduo é curta demais para pagar a
-     * coordenação. O limiar fica em 64 por ser o primeiro valor redondo dentro da faixa em que a
-     * paralela vence com folga.
-     */
-    private static final int TAMANHO_MINIMO_PARA_PARALELIZAR = 64;
-
-    /**
      * Calcula e atribui a fitness de cada indivíduo da população.
      *
-     * <h2>Por que a paralelização é condicional</h2>
+     * <h2>Por que isto é sequencial (pendência P17, resolvida)</h2>
      *
      * A avaliação de fitness é o trecho naturalmente paralelizável do algoritmo: a nota de um
-     * indivíduo depende apenas dele e do contexto, nunca dos vizinhos. Por isso a ordem de execução
-     * não altera o resultado — e é isso que permite paralelizar sem mudar o plano produzido.
+     * indivíduo depende apenas dele e do contexto, nunca dos vizinhos. Por muito tempo ela usou
+     * {@code parallelStream()}, e a etapa 05b ainda a manteve, condicionada a um limiar de 64
+     * indivíduos (achado F3).
      *
-     * <p>Até a etapa 05b a paralelização era incondicional, e o achado F3 mostrou que isso custava
-     * caro nas populações pequenas: com 10 indivíduos, a versão paralela era <b>50 % mais lenta</b>
-     * que a sequencial. Como o DTO aceita populações de 10 a 500, boa parte da faixa admitida caía
-     * no lado ruim. Ver {@link #TAMANHO_MINIMO_PARA_PARALELIZAR} para a tabela medida.
+     * <p>Isso deixou uma pendência aberta: o {@code parallelStream} usa o {@code ForkJoinPool}
+     * comum, compartilhado por todo o processo, então a paralelização de <b>uma</b> otimização
+     * disputava CPU com as <b>outras</b> requisições — o achado F6 mediu que a fitness sequencial
+     * dava 13 % mais vazão com 8 requisições simultâneas. A pendência P17 propunha resolver isso
+     * com um pool próprio, dimensionado junto com o executor de requisições.
      *
-     * <h2>O que isto não resolve</h2>
+     * <h2>A medição respondeu outra coisa: não há o que dimensionar</h2>
      *
-     * O {@code parallelStream} usa o {@code ForkJoinPool} comum, que é compartilhado por todo o
-     * processo. Sob concorrência de requisições, a paralelização de <b>uma</b> otimização disputa
-     * CPU com as <b>outras</b> requisições — achado F6, medido: fitness sequencial dá 13 % mais
-     * vazão com 8 requisições simultâneas, ao custo de 21 % de latência numa requisição isolada.
-     * O limiar reduz essa disputa nas populações pequenas, mas não a elimina nas grandes. Fechar
-     * isso de vez exigiria um pool próprio dimensionado junto com o executor de requisições —
-     * registrado como pendência <b>P17</b>.
+     * Antes de escolher o tamanho de um pool, foi medido quanto a paralelização ainda compra. Em
+     * processo, 5 baterias pareadas de 21 execuções cada, com <b>população 500 — o máximo que o
+     * contrato aceita</b>:
+     *
+     * <pre>
+     *   bateria    sequencial   paralela
+     *         1        140 ms     145 ms
+     *         2        146 ms     142 ms
+     *         3        143 ms     144 ms
+     *         4        148 ms     144 ms
+     *         5        148 ms     139 ms
+     *   mediana        146 ms     144 ms    (+1,4 %, vencendo 3 de 5)
+     * </pre>
+     *
+     * <p>E abaixo do máximo o quadro é o mesmo ou pior: em população 150 a paralela chegou a ser
+     * <b>11 % mais lenta</b>. Não existe tamanho de população, dentro do que a API aceita, em que
+     * a paralelização pague de forma consistente.
+     *
+     * <h2>Por que o ganho de 12 % da etapa 05b evaporou</h2>
+     *
+     * Não é contradição de medida: <b>uma correção anterior removeu a justificativa desta</b>. O
+     * achado F8 trocou a iteração dos genes de {@code entrySet()} para {@code forEach}, e isso
+     * tornou a avaliação de um indivíduo cerca de 4,5× mais barata (61 ns contra 272 ns por
+     * percurso). Com muito menos trabalho por indivíduo, o custo de repartir entre threads e
+     * recolher o resultado passou a consumir o que a paralelização economizava.
+     *
+     * <p>Remover é melhor que dimensionar: some o limiar, some a disputa com as requisições — o
+     * achado F6 deixa de ser parcialmente mitigado e passa a não existir — e some um segundo botão
+     * de configuração que alguém teria de manter coerente com o primeiro.
      *
      * @param context dados da evolução: importâncias, pisos de dias e a função de fitness
      */
     public void calculateFitness(EvolutionContext context) {
-        if (individuals.size() >= TAMANHO_MINIMO_PARA_PARALELIZAR) {
-            individuals.parallelStream().forEach(individual ->
-                    individual.setFitness(individual.calculateFitness(context)));
-            return;
-        }
         for (Individual individual : individuals) {
             individual.setFitness(individual.calculateFitness(context));
         }
