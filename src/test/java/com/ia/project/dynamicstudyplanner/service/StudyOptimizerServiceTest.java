@@ -107,12 +107,22 @@ class StudyOptimizerServiceTest {
                 .contains("Avg Fitness:")
                 .contains("Worst Fitness:");
 
+        // DEBUG, e nao INFO, desde a etapa 06b (achado E10). A linha descreve o resultado de um
+        // calculo interno — util para depurar o algoritmo, inutil para operar o servico —, e a
+        // 172 req/s ela e metade de 449 MB/hora de log por replica saturada. O que uma pessoa de
+        // plantao precisa (saturacao da fila, recusas por capacidade, latencia) esta em metrica,
+        // nao em log de texto.
         assertThat(coletor.list)
-                .as("o encerramento da evolucao e registrado uma vez, em INFO")
-                .filteredOn(evento -> evento.getLevel() == Level.INFO)
+                .as("o encerramento da evolucao e registrado uma vez, em DEBUG")
+                .filteredOn(evento -> evento.getLevel() == Level.DEBUG)
                 .singleElement()
                 .extracting(ILoggingEvent::getFormattedMessage).asString()
                 .contains("Evolution complete after 6 generations");
+
+        assertThat(coletor.list)
+                .as("nada de INFO por requisicao: log de operacao nao pode crescer com o trafego")
+                .filteredOn(evento -> evento.getLevel() == Level.INFO)
+                .isEmpty();
     }
 
     @Test

@@ -34,7 +34,7 @@ public class DefaultPopulationGenerator implements PopulationGenerator {
         }
 
         population.calculateFitness(context);
-        log.info("Initial Population created. Best fitness: {}", population.getFittest().getFitness());
+        log.debug("Initial Population created. Best fitness: {}", population.getFittest().getFitness());
         return population;
     }
 }

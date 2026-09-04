@@ -115,7 +115,7 @@ public class StudyOptimizerService {
                 );
             }
         }
-        log.info("Evolution complete after {} generations. Final best fitness: {}",
+        log.debug("Evolution complete after {} generations. Final best fitness: {}",
                 numGenerations, String.format("%.2f", population.getFittest().getFitness()));
         return population;
     }

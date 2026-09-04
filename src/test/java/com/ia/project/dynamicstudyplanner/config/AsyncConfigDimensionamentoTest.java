@@ -1,5 +1,7 @@
 package com.ia.project.dynamicstudyplanner.config;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -97,6 +99,63 @@ class AsyncConfigDimensionamentoTest {
                         + "so produzem 408 e CPU desperdicada.",
                         esperaDaUltimaVaga, custoDoPedidoPesado, tempoTotalDaUltimaVaga, prazoSegundos)
                 .isLessThan(prazoSegundos);
+    }
+
+    @Test
+    @DisplayName("a saturacao da fila e publicada como razao pronta, de 0 a 1")
+    void aSaturacaoEhPublicadaComoRazao() {
+        // O sinal de que o servico vai comecar a recusar. Publicar a razao pronta e a diferenca
+        // entre um alarme que alguem escreve e um que alguem NAO escreve: com queued_tasks e
+        // remaining_tasks soltas, a aritmetica teria de ser repetida em cada painel.
+        AsyncConfig config = new AsyncConfig();
+        SimpleMeterRegistry registro = new SimpleMeterRegistry();
+        ThreadPoolTaskExecutor executor = executorCom(1, 4);
+
+        try {
+            Gauge saturacao = config.saturacaoDaFilaDeOtimizacao(executor, registro);
+
+            assertThat(saturacao.value())
+                    .as("fila vazia e saturacao zero")
+                    .isZero();
+
+            // Ocupa a unica thread e enche a fila de 4.
+            java.util.concurrent.CountDownLatch segura = new java.util.concurrent.CountDownLatch(1);
+            executor.execute(() -> {
+                try {
+                    segura.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            for (int i = 0; i < 4; i++) {
+                executor.execute(() -> { });
+            }
+
+            assertThat(saturacao.value())
+                    .as("com a fila cheia, a razao chega a 1 — e o proximo pedido recebe 503")
+                    .isEqualTo(1.0);
+            segura.countDown();
+        } finally {
+            executor.shutdown();
+        }
+    }
+
+    @Test
+    @DisplayName("fila de capacidade zero nao produz NaN na metrica")
+    void filaDeCapacidadeZeroNaoProduzNaN() {
+        // Ramo defensivo com motivo concreto: optimizer.queue-capacity e configuravel, e 0 e um
+        // valor que alguem pode escrever. A divisao por zero daria NaN, que o Prometheus rejeita —
+        // e a metrica de saturacao sumiria justamente numa configuracao que recusa tudo.
+        AsyncConfig config = new AsyncConfig();
+        ThreadPoolTaskExecutor executor = executorCom(1, 0);
+
+        try {
+            Gauge saturacao = config.saturacaoDaFilaDeOtimizacao(executor, new SimpleMeterRegistry());
+
+            assertThat(saturacao.value()).isNotNaN().isZero();
+        } finally {
+            executor.shutdown();
+        }
     }
 
     /** Le a propriedade do application.properties, para o teste conferir o valor que vale de fato. */

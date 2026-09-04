@@ -80,4 +80,37 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * Saturação da fila como razão entre 0 e 1 — a métrica que um alarme consegue usar direto.
+     *
+     * <h2>Por que não bastam as métricas que já existiam</h2>
+     *
+     * O Micrometer já publicava {@code executor_queued_tasks} e
+     * {@code executor_queue_remaining_tasks}. Com elas dá para calcular a saturação, mas só quem
+     * souber que a capacidade é a soma das duas — e essa aritmética teria de ser repetida em cada
+     * painel e em cada regra de alarme, com a chance de alguém errar.
+     *
+     * <p>O sinal de que o serviço vai começar a recusar é <b>esta razão chegando a 1</b>. Publicá-la
+     * pronta é a diferença entre um alarme que alguém escreve e um alarme que alguém <i>não</i>
+     * escreve. O achado E2 mostrou o custo de não ter esse sinal: a sobrecarga só aparecia como taxa
+     * de erro de 55 %, indistinguível de um defeito.
+     *
+     * @return o registro do medidor; o valor é lido do executor a cada coleta
+     */
+    @Bean
+    public io.micrometer.core.instrument.Gauge saturacaoDaFilaDeOtimizacao(
+            ThreadPoolTaskExecutor optimizerTaskExecutor,
+            io.micrometer.core.instrument.MeterRegistry registry) {
+        return io.micrometer.core.instrument.Gauge
+                .builder("dynamicstudyplanner.optimizer.queue.saturation", optimizerTaskExecutor,
+                        e -> {
+                            int naFila = e.getThreadPoolExecutor().getQueue().size();
+                            int capacidade = naFila + e.getThreadPoolExecutor().getQueue().remainingCapacity();
+                            return capacidade == 0 ? 0.0 : (double) naFila / capacidade;
+                        })
+                .description("Fracao da fila de otimizacao ocupada, de 0 a 1. Em 1, o servico recusa "
+                        + "novos pedidos com 503")
+                .register(registry);
+    }
 }
