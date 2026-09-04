@@ -1,12 +1,12 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.objective;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
 
 /**
  * O3 — how much of the syllabus is still remembered on exam day (Ebbinghaus).
@@ -62,17 +62,18 @@ public class RetentionObjective implements FitnessObjective {
 
     @Override
     public double calculateReward(StudyPlan plan, EvolutionContext context) {
-        Map<Subject, Double> importance = context.retentionWeights();
-        int horizon = context.planningHorizonDays();
+        // Percurso por posicao (pendencia P18): peso de retencao e sessoes exigidas viraram leitura
+        // de vetor. As sessoes exigidas ja eram pre-calculadas uma vez por execucao desde o achado
+        // F4; agora tambem nao sao mais reprocuradas por gene.
+        GeneVectors vetores = context.geneVectors();
+        SubjectIndex ordem = vetores.index();
+        int genes = ordem.size();
 
         double score = 0.0;
-        for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
-            Subject subject = entry.getKey();
-            int days = entry.getValue();
-
-            double weight = importance.getOrDefault(subject, 0.0);
-            double required = LearningModel.requiredSessions(subject, horizon);
-            double coverage = Math.min(1.0, days / required);
+        for (int i = 0; i < genes; i++) {
+            double weight = vetores.retentionWeight(i);
+            double required = vetores.requiredSessions(i);
+            double coverage = Math.min(1.0, plan.daysAt(ordem, i) / required);
 
             score += weight * coverage;
         }

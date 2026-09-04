@@ -1,13 +1,15 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.objective;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
+import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 
 /**
  * O1 — expected score gain on the exam, weighted by each subject's share of the syllabus.
@@ -48,19 +50,21 @@ public class ScoreGainObjective implements FitnessObjective {
 
     @Override
     public double calculateReward(StudyPlan plan, EvolutionContext context) {
+        // Percurso por posicao, e nao pelo mapa de dias (pendencia P18): tanto o gene quanto a
+        // importancia da disciplina sao leituras de vetor. Antes eram, por gene, uma entrada de mapa
+        // criada no percurso e uma busca com hash na importancia.
+        GeneVectors vetores = context.geneVectors();
+        SubjectIndex ordem = vetores.index();
+        int genes = ordem.size();
+
         double score = 0.0;
-        Map<Subject, Double> importanceScores = context.normalizedImportance();
-
-        for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
-            Subject subject = entry.getKey();
-            int days = entry.getValue();
-
-            double importance = importanceScores.getOrDefault(subject, 0.0);
+        for (int i = 0; i < genes; i++) {
+            Subject subject = ordem.subject(i);
+            double importance = vetores.normalizedImportance(i);
             if (importance == 0.0) {
                 log.warn("The subject '{}' does not have an importance score.", subject.name());
             }
-
-            score += importance * LearningModel.mastery(subject, days);
+            score += importance * LearningModel.mastery(subject, plan.daysAt(ordem, i));
         }
         return score;
     }
@@ -73,6 +77,6 @@ public class ScoreGainObjective implements FitnessObjective {
      */
     @Override
     public double getWeight() {
-        return com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights.SYLLABUS_MASTERY;
+        return FitnessWeights.SYLLABUS_MASTERY;
     }
 }

@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.service.calculation.engagement;
 
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
+import com.ia.project.dynamicstudyplanner.domain.engagement.DropoutRiskAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
@@ -11,7 +12,7 @@ import org.springframework.stereotype.Service;
  * (dropping out or ignoring the schedule) based on behavioral history and proposed schedule intensity.
  */
 @Service
-public class DropoutRiskPredictor {
+public class DropoutRiskPredictor implements DropoutRiskAlgorithm {
 
     /**
      * Calculates a continuous risk score between 0.0 (perfectly safe) and 1.0 (imminent churn).
@@ -21,6 +22,7 @@ public class DropoutRiskPredictor {
      * @param state The student's current psychological and physical state.
      * @return Risk score from 0.0 to 1.0.
      */
+    @Override
     public double calculateRiskScore(TacticalStudyPlan plan, EngagementProfile engagement, StudentState state) {
         if (engagement == null) {
             return 0.0;

@@ -29,11 +29,13 @@ public class DefaultPopulationGenerator implements PopulationGenerator {
         var allSubjects = exam.getAllSubjects();
 
         for (int i = 0; i < populationSize; i++) {
-            population.addIndividual(new Individual(planFactory.createRandomPlan(allSubjects, totalDays, context.minimumDaysPerSubject())));
+            population.addIndividual(new Individual(planFactory.createRandomPlan(
+                    context.geneVectors().index(), allSubjects,
+                    totalDays, context.minimumDaysPerSubject())));
         }
 
         population.calculateFitness(context);
-        log.info("Initial Population created. Best fitness: {}", population.getFittest().getFitness());
+        log.debug("Initial Population created. Best fitness: {}", population.getFittest().getFitness());
         return population;
     }
 }

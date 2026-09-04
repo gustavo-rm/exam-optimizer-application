@@ -23,10 +23,13 @@ public class StudentProfile {
     @Getter
     private final StudentState state;
 
-    public StudentProfile(String name, Map<Subject, Double> knowledgeGaps, Map<DayOfWeek, Integer> weeklyAvailability, StudentState state) {
+    public StudentProfile(String name, Map<Subject, Double> knowledgeGaps, Map<DayOfWeek,
+            Integer> weeklyAvailability, StudentState state) {
         this.name = name;
         this.knowledgeGaps = knowledgeGaps == null ? Map.of() : Collections.unmodifiableMap(knowledgeGaps);
-        this.weeklyAvailability = weeklyAvailability == null ? Map.of() : Collections.unmodifiableMap(weeklyAvailability);
+        this.weeklyAvailability = weeklyAvailability == null
+                ? Map.of()
+                : Collections.unmodifiableMap(weeklyAvailability);
         this.state = state;
         rejectNegativeAvailability(this.weeklyAvailability);
     }

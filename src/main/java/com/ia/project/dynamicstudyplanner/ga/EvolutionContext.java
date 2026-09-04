@@ -1,15 +1,20 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
+import com.ia.project.dynamicstudyplanner.ga.fitness.objective.LearningModel;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Encapsulates all the contextual information required for a single evolution step.
@@ -40,11 +45,16 @@ import java.util.Map;
  *                                student's weekly availability.
  * @param maxDailyCognitiveLoad   Sustainable daily load budget from {@code CognitiveLoadCalculator}.
  *                                Already reflects the student's psychological state.
+ * @param geneVectors             Os mesmos dados por disciplina acima, projetados na ordem canônica
+ *                                do cromossomo (pendência P18). É o que a evolução lê no caminho
+ *                                quente; os mapas ficam para a fronteira e para os testes. Ver
+ *                                {@link GeneVectors}.
  */
 public record EvolutionContext(
         Map<Subject, Double> importanceScores,
         Map<Subject, Double> normalizedImportance,
         Map<Subject, Double> retentionWeights,
+        Map<Subject, Double> requiredSessionsPerSubject,
         Map<Subject, Integer> minimumDaysPerSubject,
         StudentState studentState,
         FitnessEvaluator fitnessEvaluator,
@@ -53,40 +63,229 @@ public record EvolutionContext(
         EngagementProfile engagementProfile,
         int planningHorizonDays,
         int hoursPerStudyDay,
-        int maxDailyCognitiveLoad
+        int maxDailyCognitiveLoad,
+        GeneVectors geneVectors
 ) {
 
     /**
-     * Builds a context, deriving the normalised importance once so the fitness does not recompute
-     * it on every evaluation — the evaluator runs up to half a million times per request.
+     * Inicia a construção de um contexto.
+     *
+     * <h2>Por que existe um construtor passo a passo</h2>
+     *
+     * Até a etapa 03c este contexto era montado por um método fábrica com <b>dez parâmetros
+     * posicionais</b>, quatro deles objetos anuláveis. Era o maior custo de manutenção medido no
+     * repositório ({@code docs/qualidade/03-diagnostico-estrutura.md}, achado E1): a análise de
+     * co-mudança sobre 58 commits apontou {@code EvolutionContext} e {@code StudyOptimizerService}
+     * como o par que mais muda junto, e o motivo era este — acrescentar um campo obrigava a tocar em
+     * nove locais de chamada.
+     *
+     * <p>O sintoma mais visível estava nos testes, que precisavam escrever
+     * {@code of(Map.of(), Map.of(), null, null, null, null, null, 180, 4, 20)}: cinco {@code null}
+     * consecutivos, em que trocar dois argumentos de lugar compilava sem erro.
+     *
+     * <p>Com o construtor passo a passo, cada valor é nomeado no ponto de uso, os campos que só
+     * existem no caminho tático podem simplesmente ser omitidos, e um campo novo não quebra nenhum
+     * chamador existente. Decisão registrada em
+     * {@code docs/adr/0004-construtor-passo-a-passo-do-contexto.md}.
      */
-    public static EvolutionContext of(
-            Map<Subject, Double> importanceScores,
-            Map<Subject, Integer> minimumDaysPerSubject,
-            StudentState studentState,
-            FitnessEvaluator fitnessEvaluator,
-            RetentionProfile retentionProfile,
-            LocalDate planStartDate,
-            EngagementProfile engagementProfile,
-            int planningHorizonDays,
-            int hoursPerStudyDay,
-            int maxDailyCognitiveLoad
-    ) {
-        Map<Subject, Double> normalized = normalize(importanceScores);
-        return new EvolutionContext(
-                importanceScores,
-                normalized,
-                temper(normalized),
-                minimumDaysPerSubject,
-                studentState,
-                fitnessEvaluator,
-                retentionProfile,
-                planStartDate,
-                engagementProfile,
-                planningHorizonDays,
-                hoursPerStudyDay,
-                maxDailyCognitiveLoad
-        );
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Construtor passo a passo do {@link EvolutionContext}.
+     *
+     * <p>Cinco valores são <b>obrigatórios</b>, porque todo caminho de execução os fornece:
+     * {@link #importanceScores}, {@link #minimumDaysPerSubject}, {@link #planningHorizonDays},
+     * {@link #hoursPerStudyDay} e {@link #maxDailyCognitiveLoad}. Omitir qualquer um faz
+     * {@link #build()} falhar dizendo qual falta.
+     *
+     * <p>Os cinco restantes são <b>opcionais</b> e valem {@code null} quando omitidos, que é
+     * exatamente o que os chamadores do caminho macro passavam antes. Não há mudança de
+     * comportamento: {@code studentState}, {@code fitnessEvaluator}, {@code retentionProfile},
+     * {@code planStartDate} e {@code engagementProfile} continuam podendo ser nulos, e os
+     * consumidores continuam guardando contra isso.
+     */
+    public static final class Builder {
+
+        private Map<Subject, Double> importanceScores;
+        private List<Subject> subjects;
+        private Map<Subject, Integer> minimumDaysPerSubject;
+        private StudentState studentState;
+        private FitnessEvaluator fitnessEvaluator;
+        private RetentionProfile retentionProfile;
+        private LocalDate planStartDate;
+        private EngagementProfile engagementProfile;
+        private Integer planningHorizonDays;
+        private Integer hoursPerStudyDay;
+        private Integer maxDailyCognitiveLoad;
+
+        private Builder() {
+        }
+
+        /** Obrigatório. Importância personalizada bruta por disciplina, nas unidades do edital. */
+        public Builder importanceScores(Map<Subject, Double> importanceScores) {
+            this.importanceScores = importanceScores;
+            return this;
+        }
+
+        /**
+         * Opcional. A ordem das disciplinas no edital, que passa a ser <b>a ordem dos genes do
+         * cromossomo</b> (pendência P18).
+         *
+         * <p>Omitir cai na ordem de iteração de {@link #importanceScores}, que é o que os testes
+         * fazem. A produção informa explicitamente, com {@code exam.getAllSubjects()}: é a diferença
+         * entre uma ordem declarada pelo edital e uma ordem que vem de um detalhe interno de
+         * {@code HashMap}, livre para mudar numa atualização de JDK. Ver {@link SubjectIndex}.
+         *
+         * @param subjects as disciplinas na ordem do edital
+         * @return este construtor
+         */
+        public Builder subjects(List<Subject> subjects) {
+            this.subjects = subjects;
+            return this;
+        }
+
+        /** Obrigatório. Piso de cobertura por disciplina, vindo do {@code BaselineCalculator}. */
+        public Builder minimumDaysPerSubject(Map<Subject, Integer> minimumDaysPerSubject) {
+            this.minimumDaysPerSubject = minimumDaysPerSubject;
+            return this;
+        }
+
+        /** Obrigatório. Dias de calendário entre o início do plano e a prova. */
+        public Builder planningHorizonDays(int planningHorizonDays) {
+            this.planningHorizonDays = planningHorizonDays;
+            return this;
+        }
+
+        /** Obrigatório. Horas de estudo que um dia de plano representa. */
+        public Builder hoursPerStudyDay(int hoursPerStudyDay) {
+            this.hoursPerStudyDay = hoursPerStudyDay;
+            return this;
+        }
+
+        /** Obrigatório. Orçamento diário sustentável de carga cognitiva. */
+        public Builder maxDailyCognitiveLoad(int maxDailyCognitiveLoad) {
+            this.maxDailyCognitiveLoad = maxDailyCognitiveLoad;
+            return this;
+        }
+
+        /** Opcional. Estresse, fadiga e motivação autodeclarados. */
+        public Builder studentState(StudentState studentState) {
+            this.studentState = studentState;
+            return this;
+        }
+
+        /** Opcional. O pipeline de fitness configurado. */
+        public Builder fitnessEvaluator(FitnessEvaluator fitnessEvaluator) {
+            this.fitnessEvaluator = fitnessEvaluator;
+            return this;
+        }
+
+        /** Opcional. Histórico de revisões; vazio no caminho macro. */
+        public Builder retentionProfile(RetentionProfile retentionProfile) {
+            this.retentionProfile = retentionProfile;
+            return this;
+        }
+
+        /** Opcional. Primeiro dia do plano. */
+        public Builder planStartDate(LocalDate planStartDate) {
+            this.planStartDate = planStartDate;
+            return this;
+        }
+
+        /** Opcional. Histórico comportamental; linha de base no caminho macro. */
+        public Builder engagementProfile(EngagementProfile engagementProfile) {
+            this.engagementProfile = engagementProfile;
+            return this;
+        }
+
+        /**
+         * Monta o contexto, derivando a importância normalizada e os pesos de retenção uma única
+         * vez — a fitness é avaliada até meio milhão de vezes por requisição e não pode recalcular
+         * isso a cada chamada.
+         *
+         * @throws IllegalStateException se algum valor obrigatório não tiver sido informado; a
+         *                               mensagem nomeia quais faltam
+         */
+        public EvolutionContext build() {
+            List<String> faltando = new ArrayList<>();
+            if (importanceScores == null) {
+                faltando.add("importanceScores");
+            }
+            if (minimumDaysPerSubject == null) {
+                faltando.add("minimumDaysPerSubject");
+            }
+            if (planningHorizonDays == null) {
+                faltando.add("planningHorizonDays");
+            }
+            if (hoursPerStudyDay == null) {
+                faltando.add("hoursPerStudyDay");
+            }
+            if (maxDailyCognitiveLoad == null) {
+                faltando.add("maxDailyCognitiveLoad");
+            }
+            if (!faltando.isEmpty()) {
+                throw new IllegalStateException(
+                        "EvolutionContext incompleto: falta informar " + String.join(", ", faltando));
+            }
+
+            Map<Subject, Double> normalized = normalize(importanceScores);
+            Map<Subject, Double> tempered = temper(normalized);
+            SubjectIndex index = SubjectIndex.of(
+                    subjects != null ? subjects : importanceScores.keySet());
+            return new EvolutionContext(
+                    importanceScores,
+                    normalized,
+                    tempered,
+                    requiredSessions(importanceScores.keySet(), planningHorizonDays),
+                    minimumDaysPerSubject,
+                    studentState,
+                    fitnessEvaluator,
+                    retentionProfile,
+                    planStartDate,
+                    engagementProfile,
+                    planningHorizonDays,
+                    hoursPerStudyDay,
+                    maxDailyCognitiveLoad,
+                    new GeneVectors(index, minimumDaysPerSubject, normalized, tempered, planningHorizonDays)
+            );
+        }
+    }
+
+    /**
+     * Pré-calcula, uma vez por execução, quantas sessões cada disciplina exige.
+     *
+     * <h2>Por que isto está aqui e não no objetivo de fitness</h2>
+     *
+     * {@code LearningModel.requiredSessions(disciplina, horizonte)} depende apenas da carga
+     * cognitiva da disciplina e do horizonte de planejamento — <b>os dois fixos durante toda a
+     * evolução</b>. Era, ainda assim, chamada uma vez por disciplina, por indivíduo, por geração.
+     *
+     * <p>Medido no achado F4 de {@code docs/qualidade/05-diagnostico-performance.md}:
+     * <b>12.012.000 chamadas</b> no pior caso (500 indivíduos × 1000 gerações × 24 disciplinas)
+     * para <b>24 resultados distintos</b>, a 17,29 ns cada — <b>208 ms</b>, cerca de 9 % do tempo
+     * do algoritmo.
+     *
+     * <h2>Estratégia de invalidação</h2>
+     *
+     * O cache vive <b>dentro do contexto</b>, e o contexto é criado uma vez por requisição e nunca
+     * alterado. Ele nasce e morre com a otimização, exatamente como {@code normalizedImportance} e
+     * {@code retentionWeights}, que já seguiam este padrão.
+     *
+     * <p>Essa escolha é deliberada e vale registrar o que ela evita: um cache <i>estático</i> em
+     * {@code LearningModel} seria mais fácil de escrever e seria um defeito. As chaves
+     * ({@code Subject}, horizonte) vêm da requisição, então o mapa cresceria sem limite ao longo da
+     * vida do processo, e um edital com a mesma disciplina sob outro horizonte leria valor de
+     * outra requisição. Amarrar o cache ao ciclo de vida do dado que o originou dispensa política
+     * de expiração: não há como ficar obsoleto aquilo que morre junto com a pergunta.
+     */
+    private static Map<Subject, Double> requiredSessions(Set<Subject> subjects, int planningHorizonDays) {
+        Map<Subject, Double> porDisciplina = new HashMap<>(subjects.size() * 2);
+        for (Subject subject : subjects) {
+            porDisciplina.put(subject, LearningModel.requiredSessions(subject, planningHorizonDays));
+        }
+        return Collections.unmodifiableMap(porDisciplina);
     }
 
     /**

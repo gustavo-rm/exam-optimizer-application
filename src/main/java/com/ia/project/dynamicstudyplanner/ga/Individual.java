@@ -1,13 +1,11 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import lombok.Getter;
 import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
 
 /**
  * Represents a single individual in the population.
@@ -39,7 +37,8 @@ public final class Individual implements Comparable<Individual> {
     /**
      * Calculates the fitness of this individual based on a given context.
      * <p>
-     * This method delegates the calculation to the injected {@link com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator}
+     * This method delegates the calculation to the injected {@link
+     * com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator}
      * provided in the context, allowing for a fully modular Multi-Objective Optimization pipeline.
      *
      * @param context The {@link EvolutionContext} containing all data needed for the calculation,

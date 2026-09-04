@@ -57,7 +57,9 @@ public class Population {
      * @return The individual with the highest fitness score.
      */
     public Individual getFittest() {
-        if (individuals.isEmpty()) return null;
+        if (individuals.isEmpty()) {
+            return null;
+        }
         return individuals.stream()
                 .max(Comparator.comparingDouble(Individual::getFitness))
                 .orElse(null);
@@ -68,7 +70,9 @@ public class Population {
      * @return The individual with the lowest fitness score.
      */
     public Individual getWorst() {
-        if (individuals.isEmpty()) return null;
+        if (individuals.isEmpty()) {
+            return null;
+        }
         return individuals.stream()
                 .min(Comparator.comparingDouble(Individual::getFitness))
                 .orElse(null);
@@ -99,19 +103,58 @@ public class Population {
     }
 
     /**
-     * Calculates and sets the fitness for every individual in the population
-     * using the provided importance scores.
+     * Calcula e atribui a fitness de cada indivíduo da população.
      *
-     * @param context An EvolutionContext object containing all contextual data required for
-     * the evolution, such as:
-     * - Importance scores for fitness calculation.
-     * - Minimum day constraints for crossover repair logic.
+     * <h2>Por que isto é sequencial (pendência P17, resolvida)</h2>
+     *
+     * A avaliação de fitness é o trecho naturalmente paralelizável do algoritmo: a nota de um
+     * indivíduo depende apenas dele e do contexto, nunca dos vizinhos. Por muito tempo ela usou
+     * {@code parallelStream()}, e a etapa 05b ainda a manteve, condicionada a um limiar de 64
+     * indivíduos (achado F3).
+     *
+     * <p>Isso deixou uma pendência aberta: o {@code parallelStream} usa o {@code ForkJoinPool}
+     * comum, compartilhado por todo o processo, então a paralelização de <b>uma</b> otimização
+     * disputava CPU com as <b>outras</b> requisições — o achado F6 mediu que a fitness sequencial
+     * dava 13 % mais vazão com 8 requisições simultâneas. A pendência P17 propunha resolver isso
+     * com um pool próprio, dimensionado junto com o executor de requisições.
+     *
+     * <h2>A medição respondeu outra coisa: não há o que dimensionar</h2>
+     *
+     * Antes de escolher o tamanho de um pool, foi medido quanto a paralelização ainda compra. Em
+     * processo, 5 baterias pareadas de 21 execuções cada, com <b>população 500 — o máximo que o
+     * contrato aceita</b>:
+     *
+     * <pre>
+     *   bateria    sequencial   paralela
+     *         1        140 ms     145 ms
+     *         2        146 ms     142 ms
+     *         3        143 ms     144 ms
+     *         4        148 ms     144 ms
+     *         5        148 ms     139 ms
+     *   mediana        146 ms     144 ms    (+1,4 %, vencendo 3 de 5)
+     * </pre>
+     *
+     * <p>E abaixo do máximo o quadro é o mesmo ou pior: em população 150 a paralela chegou a ser
+     * <b>11 % mais lenta</b>. Não existe tamanho de população, dentro do que a API aceita, em que
+     * a paralelização pague de forma consistente.
+     *
+     * <h2>Por que o ganho de 12 % da etapa 05b evaporou</h2>
+     *
+     * Não é contradição de medida: <b>uma correção anterior removeu a justificativa desta</b>. O
+     * achado F8 trocou a iteração dos genes de {@code entrySet()} para {@code forEach}, e isso
+     * tornou a avaliação de um indivíduo cerca de 4,5× mais barata (61 ns contra 272 ns por
+     * percurso). Com muito menos trabalho por indivíduo, o custo de repartir entre threads e
+     * recolher o resultado passou a consumir o que a paralelização economizava.
+     *
+     * <p>Remover é melhor que dimensionar: some o limiar, some a disputa com as requisições — o
+     * achado F6 deixa de ser parcialmente mitigado e passa a não existir — e some um segundo botão
+     * de configuração que alguém teria de manter coerente com o primeiro.
+     *
+     * @param context dados da evolução: importâncias, pisos de dias e a função de fitness
      */
     public void calculateFitness(EvolutionContext context) {
-        // Run parallel stream to improve performance
-        individuals.parallelStream().forEach(individual -> {
-            double score = individual.calculateFitness(context);
-            individual.setFitness(score);
-        });
+        for (Individual individual : individuals) {
+            individual.setFitness(individual.calculateFitness(context));
+        }
     }
 }

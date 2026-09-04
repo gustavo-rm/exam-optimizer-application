@@ -37,7 +37,8 @@ public record ExamDto(
         @Size(max = 50, message = "Cannot have more than 50 general knowledge subjects.")
         @Valid
         List<@NotNull @Valid SubjectDto> generalKnowledgeSubjects,
-        @Schema(description = "List of thematic axes, which group specific knowledge subjects and define their weights.")
+        @Schema(description = "List of thematic axes, which group specific knowledge subjects "
+                + "and define their weights.")
         @NotNull(message = "Specific knowledge axes list cannot be null (can be empty).")
         @Size(max = 50, message = "Cannot have more than 50 specific knowledge axes.")
         @Valid

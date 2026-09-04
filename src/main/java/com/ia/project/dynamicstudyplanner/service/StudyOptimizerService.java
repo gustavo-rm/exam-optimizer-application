@@ -3,78 +3,70 @@ package com.ia.project.dynamicstudyplanner.service;
 import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
-import com.ia.project.dynamicstudyplanner.ga.*;
+import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneticAlgorithm;
+import com.ia.project.dynamicstudyplanner.ga.Individual;
+import com.ia.project.dynamicstudyplanner.ga.Population;
 import com.ia.project.dynamicstudyplanner.ga.config.GeneticAlgorithmFactory;
 import com.ia.project.dynamicstudyplanner.ga.generator.PopulationGenerator;
-import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
-import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 /**
- * Service layer that orchestrates the entire optimization process.
- * It acts as a Facade, hiding the complexity of the genetic algorithm
- * from the main application.
+ * Orquestra uma otimização: prepara, popula, evolui e empacota o resultado.
+ *
+ * <h2>O que esta classe faz — e o que ela deixou de fazer</h2>
+ *
+ * O diagnóstico de estrutura registrou como achado <b>E8</b> que esta classe, com 192 linhas,
+ * misturava quatro assuntos: cálculo de domínio, orquestração do AG, observabilidade e montagem do
+ * contexto da evolução. Três motivos independentes de mudança disputavam o mesmo arquivo.
+ *
+ * <p>Restou aqui <b>a orquestração</b>, e só ela: a sequência de passos e o laço de gerações. Os
+ * outros assuntos foram para colaboradores com um motivo de mudança cada:
+ *
+ * <ul>
+ *   <li>{@link EvolutionContextAssembler} — o que a evolução precisa saber (absorveu também as
+ *       calculadoras de domínio, que existiam apenas para alimentá-lo).</li>
+ *   <li>{@link OptimizationMetrics} — quantas rodaram e quanto demoraram.</li>
+ * </ul>
+ *
+ * <p>O teste de leitura: um método público de dez linhas em que cada passo é uma chamada nomeada.
+ * Quem precisa saber <i>como</i> o contexto é montado abre a outra classe; quem precisa entender a
+ * sequência não é obrigado a passar por ela.
  */
 @Service
 public class StudyOptimizerService {
 
     private static final Logger log = LoggerFactory.getLogger(StudyOptimizerService.class);
 
-    private final BaselineCalculator baselineCalculator;
-    private final ImportanceCalculator importanceCalculator;
-    private final com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator cognitiveLoadCalculator =
-            new com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator();
+    /** A cada quantas gerações o progresso vai para o log de rastreio. */
+    private static final int INTERVALO_DE_RASTREIO = 5;
+
+    private final EvolutionContextAssembler contextAssembler;
     private final GeneticAlgorithmFactory gaFactory;
     private final PopulationGenerator populationGenerator;
-    private final com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator;
+    private final OptimizationMetrics metrics;
 
-    // Custom Micrometer Metrics
-    private final Counter optimizationRunsCounter;
-    private final Timer optimizationTimer;
-
-    public StudyOptimizerService(BaselineCalculator baselineCalculator,
-                                 ImportanceCalculator importanceCalculator,
+    public StudyOptimizerService(EvolutionContextAssembler contextAssembler,
                                  GeneticAlgorithmFactory gaFactory,
                                  PopulationGenerator populationGenerator,
-                                 com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator fitnessEvaluator,
-                                 MeterRegistry meterRegistry) {
-        this.baselineCalculator = baselineCalculator;
-        this.importanceCalculator = importanceCalculator;
+                                 OptimizationMetrics metrics) {
+        this.contextAssembler = contextAssembler;
         this.gaFactory = gaFactory;
         this.populationGenerator = populationGenerator;
-        this.fitnessEvaluator = fitnessEvaluator;
-
-        this.optimizationRunsCounter = Counter.builder("dynamicstudyplanner.optimization.runs")
-                .description("Total number of study plan optimization runs executed")
-                .register(meterRegistry);
-
-        this.optimizationTimer = Timer.builder("dynamicstudyplanner.optimization.duration")
-                .description("Time taken to execute the full genetic algorithm optimization")
-                .register(meterRegistry);
+        this.metrics = metrics;
     }
 
     /**
-     * Runs the genetic algorithm to find an optimal study plan.
-     * This method orchestrates all steps: preparing the context, configuring the GA,
-     * creating the initial population, running the evolution, and packaging the final result.
+     * Roda o algoritmo genético em busca do melhor plano de estudos.
      *
-     * @param exam The complete Exam object, defining all rules and subjects.
-     * @param profile The StudentProfile object, defining all personal factors.
-     * @param totalDays The total number of "ideal" days the GA can allocate.
-     * @param numGenerations The number of generations the algorithm will run.
-     * @param populationSize The size of the population in each generation.
-     * @return An OptimizationResult containing the best plan found and its fitness.
+     * @param exam           o edital, com todas as regras e disciplinas
+     * @param profile        o perfil do estudante, com todos os fatores pessoais
+     * @param totalDays      total de dias "ideais" que o AG pode alocar
+     * @param numGenerations número de gerações que o algoritmo vai rodar
+     * @param populationSize tamanho da população em cada geração
+     * @return o melhor plano encontrado, sua fitness e os dados da execução
      */
     public OptimizationResult optimize(
             Exam exam,
@@ -83,111 +75,48 @@ public class StudyOptimizerService {
             int numGenerations,
             int populationSize
     ) {
-        optimizationRunsCounter.increment();
-        long startTime = System.nanoTime(); // Use nanoTime for more accurate metric duration
-
-        try {
-            // Step 1: Prepare all necessary data for the evolution.
-            EvolutionContext context = prepareContext(exam, profile);
-
-            // Step 2: Configure the GA engine with the chosen strategies via DI.
+        OptimizationMetrics.Timed<Individual> melhor = metrics.recordRun(() -> {
+            EvolutionContext context = contextAssembler.assemble(exam, profile);
             GeneticAlgorithm ga = gaFactory.create();
+            Population inicial = populationGenerator.generate(exam, totalDays, populationSize, context);
+            return runEvolution(inicial, ga, numGenerations, context).getFittest();
+        });
 
-            // Step 3: Create the randomized initial population.
-            Population population = populationGenerator.generate(exam, totalDays, populationSize, context);
-
-            // Step 4: Run the evolution process.
-            population = runEvolution(population, ga, numGenerations, context);
-
-            // Step 5: Package and return the final, optimized result.
-            long endTime = System.nanoTime();
-            long executionTimeMs = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-
-            Individual bestIndividual = population.getFittest();
-            return new OptimizationResult(
-                    bestIndividual.getPlan(),
-                    bestIndividual.getFitness(),
-                    numGenerations,
-                    executionTimeMs
-            );
-        } finally {
-            // Record the metric regardless of success or failure
-            optimizationTimer.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-        }
-    }
-
-    /**
-     * Prepares all contextual data needed for the genetic algorithm to run.
-     * It calculates minimum day constraints and subject importance scores.
-     *
-     * @param exam The exam configuration.
-     * @param profile The student's profile.
-     * @return An EvolutionContext object containing all prepared data.
-     */
-    private EvolutionContext prepareContext(Exam exam, StudentProfile profile) {
-        Map<Subject, Integer> minimumDaysPerSubject = baselineCalculator.calculateMinimumDays(exam, profile);
-        Map<Subject, Double> importanceScores = importanceCalculator.calculatePersonalizedImportance(exam, profile);
-
-        // Dummy retention profile for macro-GA evaluation (will be properly hydrated in the tactical layer)
-        com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile retentionProfile = new com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile(java.util.Map.of());
-
-        // Dummy engagement profile for macro-GA evaluation (will be properly hydrated in the tactical layer)
-        com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile engagementProfile = com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile.baseline();
-
-        // Planning data the corrected fitness terms need. See docs/revisao-ag/05-fitness-function.md:
-        // the horizon drives the spacing estimate behind the retention term, and the daily load
-        // budget (which already folds in stress, fatigue and motivation) bounds the cognitive-load
-        // term. Both are properties of the request, computed once per optimisation.
-        LocalDate planStartDate = LocalDate.now();
-        int planningHorizonDays = Math.max(1,
-                (int) ChronoUnit.DAYS.between(planStartDate, exam.getExamDate()));
-        int hoursPerStudyDay = Math.max(1,
-                (int) Math.ceil(profile.getTotalWeeklyHours() / 7.0));
-        int maxDailyCognitiveLoad = cognitiveLoadCalculator.calculate(profile, exam);
-
-        return EvolutionContext.of(
-                importanceScores,
-                minimumDaysPerSubject,
-                profile.getState(),
-                fitnessEvaluator,
-                retentionProfile,
-                planStartDate,
-                engagementProfile,
-                planningHorizonDays,
-                hoursPerStudyDay,
-                maxDailyCognitiveLoad
+        return new OptimizationResult(
+                melhor.resultado().getPlan(),
+                melhor.resultado().getFitness(),
+                numGenerations,
+                melhor.duracaoMs()
         );
     }
 
     /**
-     * Runs the main evolution loop for a specified number of generations.
+     * Roda o laço principal da evolução pelo número de gerações pedido.
      *
-     * @param initialPopulation The starting population.
-     * @param ga The configured genetic algorithm engine.
-     * @param numGenerations The number of generations to run.
-     * @param context The evolution context.
-     * @return The final, most evolved population.
+     * @param initialPopulation a população inicial
+     * @param ga                o motor genético já configurado
+     * @param numGenerations    o número de gerações a rodar
+     * @param context           o contexto da evolução
+     * @return a população final, mais evoluída
      */
-    private Population runEvolution(Population initialPopulation, GeneticAlgorithm ga, int numGenerations, EvolutionContext context) {
+    private Population runEvolution(Population initialPopulation, GeneticAlgorithm ga,
+                                    int numGenerations, EvolutionContext context) {
         Population population = initialPopulation;
         for (int i = 0; i < numGenerations; i++) {
             population = ga.evolvePopulation(population, context);
 
-            if (i % 5 == 0 && log.isTraceEnabled()) {
-                double bestFitness = population.getFittest().getFitness();
-                double averageFitness = population.getAverageFitness();
-                double worstFitness = population.getWorst().getFitness();
-
+            if (i % INTERVALO_DE_RASTREIO == 0 && log.isTraceEnabled()) {
                 log.trace(
                         "Generation {} | Best Fitness: {} | Avg Fitness: {} | Worst Fitness: {}",
                         String.format("%-4d", i),
-                        String.format("%-8.2f", bestFitness),
-                        String.format("%-8.2f", averageFitness),
-                        String.format("%-8.2f", worstFitness)
+                        String.format("%-8.2f", population.getFittest().getFitness()),
+                        String.format("%-8.2f", population.getAverageFitness()),
+                        String.format("%-8.2f", population.getWorst().getFitness())
                 );
             }
         }
-        log.info("Evolution complete after {} generations. Final best fitness: {}", numGenerations, String.format("%.2f", population.getFittest().getFitness()));
+        log.debug("Evolution complete after {} generations. Final best fitness: {}",
+                numGenerations, String.format("%.2f", population.getFittest().getFitness()));
         return population;
     }
 }

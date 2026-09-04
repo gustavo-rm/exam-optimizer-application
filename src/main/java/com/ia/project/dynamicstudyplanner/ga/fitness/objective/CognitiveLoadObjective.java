@@ -1,12 +1,11 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.objective;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
 
 /**
  * O4 — how sustainable the plan's daily mental effort is (Sweller).
@@ -68,9 +67,11 @@ public class CognitiveLoadObjective implements FitnessObjective {
             return 1.0;
         }
 
+        // Percurso por posicao (pendencia P18): sem entrada de mapa criada por gene.
+        SubjectIndex ordem = context.geneVectors().index();
         double weightedLoad = 0.0;
-        for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
-            weightedLoad += entry.getValue() * (double) entry.getKey().cognitiveLoad();
+        for (int i = 0; i < ordem.size(); i++) {
+            weightedLoad += plan.daysAt(ordem, i) * (double) ordem.subject(i).cognitiveLoad();
         }
 
         double expectedDailyLoad = context.hoursPerStudyDay() * weightedLoad / totalDays;

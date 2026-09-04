@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.5</version>
+        <version>3.5.16</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.ia.project</groupId>
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.5.0</version>
+            <version>2.8.17</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -101,6 +101,46 @@
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
+        <!--
+            Estado compartilhado entre replicas (etapa 06b, achados E1 e E6).
+
+            Ate a etapa 06 o limite de taxa vivia num Caffeine local a cada instancia: com N
+            replicas o limite declarado virava N x o valor configurado — demonstrado com dois
+            processos reais, 10 requisicoes aceitas onde a politica declara 5.
+
+            O Redis e opcional em tempo de execucao: sem `api.shared-state.store=redis` a
+            aplicacao usa os armazenamentos locais e AVISA no log que nao pode ser replicada.
+            Nao ha auto-configuracao de conexao no boot padrao, entao a dependencia nao impoe
+            um Redis a quem roda uma instancia so.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-redis</artifactId>
+            <version>8.10.1</version>
+        </dependency>
+        <!--
+            Redis de verdade, em processo, so para teste.
+
+            O que se quer verificar no achado E1 e que DUAS replicas apontando para o MESMO servidor
+            enxergam o mesmo balde. Um dubl� em memoria compartilhado pelos dois lados provaria
+            apenas que o duble e compartilhado. Este artefato sobe um redis-server real numa porta
+            livre, entao o teste exercita o compare-and-swap do bucket4j sobre o protocolo real —
+            e roda em qualquer maquina, sem exigir Redis instalado nem conteiner.
+        -->
+        <dependency>
+            <groupId>com.github.codemonstur</groupId>
+            <artifactId>embedded-redis</artifactId>
+            <version>1.4.3</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -117,7 +157,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>build-helper-maven-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>3.6.1</version>
                 <executions>
                     <execution>
                         <id>add-benchmark-test-source</id>
@@ -147,6 +187,162 @@
                     <target>24</target>
                     <compilerArgs>--enable-preview</compilerArgs>
                 </configuration>
+            </plugin>
+            <!--
+                Cobertura de testes. Antes da etapa 01b nenhuma ferramenta de cobertura estava
+                configurada: o numero existia apenas quando alguem invocava o JaCoCo a mao.
+
+                O piso do goal `check` e um catraca, nao uma meta: esta fixado logo abaixo do valor
+                medido no commit que o introduziu, para que a cobertura possa subir livremente e nao
+                possa cair sem que alguem decida baixar o piso de proposito, no mesmo commit e a
+                vista do revisor. Os numeros e a justificativa estao em
+                docs/qualidade/01b-correcao-testes.md.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>3.6.0</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>10.21.1</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configLocation>config/checkstyle/checkstyle.xml</configLocation>
+                    <consoleOutput>true</consoleOutput>
+                    <failOnViolation>true</failOnViolation>
+                    <violationSeverity>error</violationSeverity>
+                    <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <!-- Roda no validate: um erro de estilo aparece em segundos, antes de
+                             compilar e testar, em vez de no fim de um build de minutos. -->
+                        <id>checkstyle-validation</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.15</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <!--
+                        Piso de cobertura: uma CATRACA, nao uma meta.
+
+                        Os valores sao a medicao exata do estado atual — 6290 de 6905 instrucoes e
+                        379 de 520 ramos —, nao um numero escolhido com folga. A regra e uma so, no
+                        elemento BUNDLE (o projeto inteiro somado); nao existe regra por classe.
+
+                        Historico dos pisos:
+                          etapa 01b  0,77 / 0,55  medicao era 0,79 / 0,57 — folga proposital, para
+                                                  o gate nascer sem reprovar trabalho em andamento
+                          etapa 04b  0,9109 / 0,7288  medicao exata, sem folga
+
+                        POR QUE SEM FOLGA. A cobertura subiu de 0,77 para 0,91 em quatro etapas, e o
+                        piso ficou onde estava — uma catraca que nao trava nao e catraca. Com o piso
+                        colado na medicao, remover UMA instrucao coberta reprova o build: 6289/6905
+                        da 0,91079, abaixo de 0,9109.
+
+                        ISSO E SEGURO PORQUE A MEDICAO E DETERMINISTICA. Verificado na etapa 04b com
+                        tres execucoes limpas consecutivas: 6290/6905 e 379/520 nas tres, identicas
+                        instrucao por instrucao. A aleatoriedade do AG e sempre semeada nos testes, e
+                        RandomProviderIsolation restaura a fonte original entre eles.
+
+                        COMO MEXER NISTO. Ao acrescentar codigo coberto, o piso NAO se atualiza
+                        sozinho: rode `mvn clean verify`, leia os numeros em target/site/jacoco/
+                        jacoco.csv e suba os dois valores. Ao acrescentar codigo sem teste, o build
+                        reprova — e essa e a funcao. Baixar o piso para fazer um build passar deve
+                        ser uma decisao explicita, registrada na mensagem do commit; e o unico
+                        movimento que desfaz a garantia.
+                    -->
+                    <execution>
+                        <id>check-coverage-floor</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <!--
+                                            Cuidado ao subir estes numeros: o JaCoCo TRUNCA a razao
+                                            antes de comparar, nao arredonda. A medicao real e
+                                            0,91469, que ele le como 0,9146 — um piso de 0,9147
+                                            reprova um build que nao regrediu em nada. Tire o valor
+                                            do relatorio com precisao, nao de um printf arredondado.
+                                        -->
+                                        <!--
+                                            0,9244 ate a pendencia P17. Remover a avaliacao paralela
+                                            de fitness (Population.calculateFitness) tirou 18
+                                            instrucoes que estavam TODAS cobertas. Tirar codigo 100 %
+                                            coberto de um conjunto coberto em 92 % abaixa a razao:
+                                            7658/8284 = 0,92443 virou 7640/8266 = 0,92426. Nao ha
+                                            teste a menos — o PopulationFitnessTest continua
+                                            travando a avaliacao, agora contra o caminho unico.
+
+                                            0,9242 ate a pendencia P18, que trocou o cromossomo de
+                                            Map<Subject, Integer> por vetor indexado. Codigo novo
+                                            (SubjectIndex, GeneVectors, os construtores do
+                                            StudyPlan) entrou junto com o CromossomoIndexadoTest,
+                                            que o cobre: 8128/8716 = 0,93253.
+                                        -->
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.9325</minimum>
+                                        </limit>
+                                        <!--
+                                            0,7386 ate a etapa 05b. A conversao dos tres objetivos
+                                            de fitness para forEach (achado F8) removeu tres lacos
+                                            for, e com eles tres ramos que ESTAVAM cobertos. Tirar
+                                            ramos cobertos de um conjunto coberto em 74 % abaixa a
+                                            razao: 390/527 = 0,7401 virou 387/524 = 0,7385. Nao ha
+                                            teste a menos — a cobertura de instrucoes subiu no
+                                            mesmo commit, de 0,9135 para 0,9145.
+
+                                            Mesmo efeito de novo na P17: o if do limiar de
+                                            paralelizacao era 1 ramo coberto dos dois lados, e sumiu
+                                            junto com a paralelizacao. 433/578 = 0,74913 virou
+                                            431/576 = 0,74826.
+
+                                            A P18 subiu os dois: 511/650 = 0,78615. Os ramos novos
+                                            (alinhado ou nao, disciplina presente ou nao, entrada
+                                            degenerada) nascem cobertos porque o teste veio no mesmo
+                                            commit que o codigo.
+                                        -->
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.7861</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

@@ -9,7 +9,8 @@ import java.util.Map;
 
 /**
  * Interface for generating the tactical micro-plan.
- * It takes the macro-plan (days/hours per subject) from the GA and packs it into actual real-world availability windows.
+ * It takes the macro-plan (days/hours per subject) from the GA and packs it into actual real-world availability
+ * windows.
  */
 public interface TacticalScheduler {
     /**
@@ -18,5 +19,6 @@ public interface TacticalScheduler {
      * @param emergencyMode If true, overrides standard spaced-repetition logic.
      * @return A detailed tactical schedule.
      */
-    TacticalStudyPlan schedule(Map<Subject, Integer> macroPlan, List<AvailabilityWindow> windows, boolean emergencyMode);
+    TacticalStudyPlan schedule(Map<Subject, Integer> macroPlan, List<AvailabilityWindow> windows,
+            boolean emergencyMode);
 }

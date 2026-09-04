@@ -14,6 +14,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ImportanceCalculatorTest {
 
+    /** Ancora fixa: ver a nota em {@code CognitiveLoadCalculatorTest}. */
+    private static final LocalDate EXAM_DATE = LocalDate.of(2026, 9, 1);
+
     private final ImportanceCalculator calculator = new ImportanceCalculator();
 
     @Test
@@ -23,7 +26,7 @@ class ImportanceCalculatorTest {
         Subject programming = new Subject("Programming", 20, 5); // Specific
 
         ThematicAxis itAxis = new ThematicAxis(1, "IT", 2.5, List.of(programming));
-        Exam exam = new Exam("Test Exam", LocalDate.now(), 100.0, List.of(math), List.of(itAxis));
+        Exam exam = new Exam("Test Exam", EXAM_DATE, 100.0, List.of(math), List.of(itAxis));
 
         // Math: Base = 10 * (100.0 / 10) = 100.0. Profile gap = 1.0. Final = 100.0
         // Programming: Base = 20 * 2.5 = 50.0. Profile gap = 2.0. Final = 100.0

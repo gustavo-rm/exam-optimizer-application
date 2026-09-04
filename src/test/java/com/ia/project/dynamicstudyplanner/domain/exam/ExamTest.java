@@ -13,6 +13,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ExamTest {
 
+    /**
+     * Ancora fixa em vez de {@code EXAM_DATE}: mantem o horizonte de 30 dias
+     * sem tornar o resultado do teste dependente do dia em que ele roda.
+     */
+    private static final LocalDate EXAM_DATE = LocalDate.of(2026, 10, 1);
+
     @Test
     void shouldCalculateTotalGeneralKnowledgeQuestions() {
         // Arrange
@@ -20,7 +26,7 @@ class ExamTest {
                 new Subject("Math", 10, 3),
                 new Subject("History", 5, 2)
         );
-        Exam exam = new Exam("Test Exam", LocalDate.now().plusDays(30), 100.0, gkSubjects, List.of());
+        Exam exam = new Exam("Test Exam", EXAM_DATE, 100.0, gkSubjects, List.of());
 
         // Act & Assert
         assertThat(exam.getGeneralKnowledgeTotalQuestions()).isEqualTo(15);
@@ -31,7 +37,7 @@ class ExamTest {
         // Arrange
         Subject programming = new Subject("Programming", 20, 5);
         ThematicAxis itAxis = new ThematicAxis(1, "IT", 2.5, List.of(programming));
-        Exam exam = new Exam("Test Exam", LocalDate.now().plusDays(30), 100.0, List.of(), List.of(itAxis));
+        Exam exam = new Exam("Test Exam", EXAM_DATE, 100.0, List.of(), List.of(itAxis));
 
         // Act
         Optional<ThematicAxis> result = exam.findAxisForSubject(programming);
@@ -46,7 +52,7 @@ class ExamTest {
         // Arrange
         Subject math = new Subject("Math", 10, 3);
         List<Subject> gkSubjects = List.of(math, new Subject("History", 10, 2));
-        Exam exam = new Exam("Test Exam", LocalDate.now().plusDays(30), 100.0, gkSubjects, List.of());
+        Exam exam = new Exam("Test Exam", EXAM_DATE, 100.0, gkSubjects, List.of());
 
         // Act
         // Total GK questions = 20. Total Score = 100. Value per question = 5. Math questions = 10. Importance = 50.
@@ -62,7 +68,7 @@ class ExamTest {
         Subject math = new Subject("Math", 0, 3);
         // GK subjects exist but total questions is 0
         List<Subject> gkSubjects = List.of(math);
-        Exam exam = new Exam("Test Exam", LocalDate.now().plusDays(30), 100.0, gkSubjects, List.of());
+        Exam exam = new Exam("Test Exam", EXAM_DATE, 100.0, gkSubjects, List.of());
 
         // Act & Assert
         assertThatThrownBy(() -> exam.calculateBaseImportance(math))
@@ -77,7 +83,7 @@ class ExamTest {
         mutableList.add(new Subject("Math", 10, 3));
 
         // When using List.copyOf() on a mutable ArrayList, a new immutable list is created.
-        Exam exam = new Exam("Test Exam", LocalDate.now().plusDays(30), 100.0, mutableList, List.of());
+        Exam exam = new Exam("Test Exam", EXAM_DATE, 100.0, mutableList, List.of());
 
         // Act
         // Modifying the original list should not affect the Exam's internal state.

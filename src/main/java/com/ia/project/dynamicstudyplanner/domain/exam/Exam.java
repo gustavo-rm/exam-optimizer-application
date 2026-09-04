@@ -35,7 +35,9 @@ public class Exam {
         this.examDate = examDate;
         this.generalKnowledgeTotalScore = generalKnowledgeTotalScore;
         // Defensive copying to prevent external modification
-        this.generalKnowledgeSubjects = generalKnowledgeSubjects == null ? List.of() : List.copyOf(generalKnowledgeSubjects);
+        this.generalKnowledgeSubjects = generalKnowledgeSubjects == null
+                ? List.of()
+                : List.copyOf(generalKnowledgeSubjects);
         this.specificKnowledgeAxes = specificKnowledgeAxes == null ? List.of() : List.copyOf(specificKnowledgeAxes);
     }
 
@@ -92,11 +94,12 @@ public class Exam {
      */
     public double calculateBaseImportance(Subject subject) {
         if (generalKnowledgeSubjects.contains(subject)) {
-            int totalGKQuestions = getGeneralKnowledgeTotalQuestions();
-            if (totalGKQuestions <= 0) {
-                throw new DomainException("General Knowledge total questions must be positive to calculate importance.");
+            int totalGeneralKnowledgeQuestions = getGeneralKnowledgeTotalQuestions();
+            if (totalGeneralKnowledgeQuestions <= 0) {
+                throw new DomainException(
+                        "General Knowledge total questions must be positive to calculate importance.");
             }
-            double valuePerQuestion = generalKnowledgeTotalScore / totalGKQuestions;
+            double valuePerQuestion = generalKnowledgeTotalScore / totalGeneralKnowledgeQuestions;
             return subject.questionCount() * valuePerQuestion;
         } else {
             Optional<ThematicAxis> parentAxis = findAxisForSubject(subject);
@@ -104,7 +107,8 @@ public class Exam {
                 double axisWeight = parentAxis.get().weight();
                 return subject.questionCount() * axisWeight;
             }
-            log.warn("Subject '{}' was not found in any Specific Knowledge axis. Base importance set to 0.", subject.name());
+            log.warn("Subject '{}' was not found in any Specific Knowledge axis. Base importance set to 0.",
+                    subject.name());
             return 0.0;
         }
     }

@@ -245,7 +245,7 @@ O Javadoc do teste foi atualizado com os números atuais.
 
 | # | Caso | Comportamento antes | Ação |
 |---|---|---|---|
-| 1 | Orçamento < piso de dias mínimos | `IllegalArgumentException` com mensagem clara, de `StudyPlanFactory` → HTTP 400 | **Mantido**, testado. Ver P6 sobre 400 vs 422 |
+| 1 | Orçamento < piso de dias mínimos | `DomainException` com mensagem clara, de `StudyPlanFactory` → HTTP **422** | **Mantido**, testado. Era 400 quando esta tabela foi escrita; reclassificado na etapa 03d, fechando P6 |
 | 2 | Exame sem disciplinas | `IllegalArgumentException: bound must be positive` — mensagem crua do JDK, vinda de `Random.nextInt(0)` | **Corrigido (C2)** |
 | 3 | Orçamento negativo | Aceito silenciosamente | **Corrigido (C2)** |
 | 4 | Disponibilidade semanal negativa | Aceita; propaga fator de redução negativo → cronograma vazio rotulado apenas como déficit de tempo | **Corrigido (C3)** |
@@ -336,13 +336,41 @@ estrutural.
 | **P3** | A seed usada não é registrada nem devolvida | `OptimizationResult` é parte do contrato da API | Incluir a seed no resultado e no log. Sem isso, o determinismo recém-conquistado não serve para reproduzir a queixa de um aluno |
 | **P4** | Taxa de mutação 0,05 mal calibrada para instâncias concentradas | Muda o plano de todo usuário; é qualidade, não robustez | Elevar para 0,15–0,30. Dados em §5: em `I4` leva 93,9% → 97,4–98,9% a custo de tempo nulo. Deveria ser validado com o harness de `03` antes de subir |
 | **P5** | O piso `15 × n` inviabiliza exames com muitas disciplinas de peso homogêneo | Mexer em `BaselineCalculator` altera todos os planos | O piso deveria escalar com o orçamento disponível, não ser absoluto por disciplina. Decisão de produto sobre quanto do orçamento a restrição pode consumir |
-| **P6** | Inviabilidade sai como 400 (`IllegalArgumentException`), não 422 | Mudança de status HTTP | Semanticamente é violação de regra de negócio: `DomainException` → 422 é mais correto. Baixo impacto, mas é contrato |
-| **P7** | `LocalDate.now()` dentro da lógica | Injetar `Clock` altera construtores e wiring do Spring | `StudyOptimizerService.prepareContext` e `DynamicStudyPlannerService` leem o relógio. O cronograma gerado depende do dia da execução, então a saída de negócio **continua não reprodutível** apesar de C1 |
+| ~~**P6**~~ | ~~Inviabilidade sai como 400 (`IllegalArgumentException`), não 422~~ | — | **FECHADA na etapa 03d.** Reclassificada para `DomainException` → 422; critério em [ADR-0005](../adr/0005-criterio-de-classificacao-de-erro.md), prova de ponta a ponta em `security/BusinessRuleStatusTest` |
+| **P7** | `LocalDate.now()` dentro da lógica | Injetar `Clock` altera construtores e wiring do Spring | **Parcialmente endereçada na etapa 04b:** `EvolutionContextAssembler.assemble` ganhou sobrecarga que recebe a data, e é por ela que os benchmarks passam sua âncora fixa. O caminho de produção ainda chama `LocalDate.now()`, e `DynamicStudyPlannerService` também — o cronograma que o aluno recebe **continua dependendo do dia da execução** |
 
 > **P7 merece destaque.** As correções desta etapa tornam o *plano macro* reprodutível, mas o
 > *cronograma* — o que o aluno de fato recebe — ainda depende de `LocalDate.now()`. Reprodutibilidade
-> ponta a ponta exige P7. O harness contorna isso usando uma data-âncora fixa, opção que o código de
-> produção não oferece.
+> ponta a ponta exige P7.
+>
+> *Atualização da etapa 04b:* o harness deixou de contornar o problema com uma cópia da montagem do
+> contexto — a produção agora **oferece** a data como parâmetro, e o harness passa a sua. Falta o
+> caminho de produção deixar de ler o relógio, o que é a parte que exige `Clock` injetado e
+> mudança de wiring.
+
+### Pendências abertas na etapa 04b
+
+Encontradas ao escrever testes de caracterização para a refatoração de complexidade. As três são
+**decisões de domínio**, não de legibilidade: o comportamento foi preservado exatamente e travado
+por teste, para que a mudança, quando vier, seja deliberada. Detalhamento em
+[`docs/qualidade/04b-correcao-escrita.md`](../qualidade/04b-correcao-escrita.md).
+
+| # | Pendência | Evidência | Proposta |
+|---|---|---|---|
+| **P11** | O ramo de esgotamento crônico de `FatigueAndEnergyModel` é **inalcançável pela API** | Exige `fatigueLevel >= 8`; `StudentStateDto` valida com `@DecimalMax("5.0")`. Medido por varredura: com fadiga 1–5 nenhuma combinação devolve `0.2` | Reescalar o limiar para a faixa real de entrada, ou remover o ramo. Mesmo padrão do E3, e a decisão é de domínio: qual carga *deveria* caracterizar esgotamento crônico? |
+| **P12** | A **metodologia de estudo não afeta** o risco de esgotamento | O multiplicador escolhe entre 1,5 e 0,8 comparando carga do bloco com energia esperada; a energia é limitada a 1,5 e o bloco mais leve já custa 2,048. A comparação é sempre verdadeira, e a curva bifásica por cronotipo é calculada e descartada | Ou normalizar as duas grandezas para a mesma escala (fazendo a curva de cronotipo valer de fato), ou assumir que o multiplicador é constante e remover a comparação. Hoje o código sugere que o cronotipo importa, e ele não importa |
+| **P13** | `DayBoundaryCrossover` **descarta o segundo pai** quando o primeiro está vazio | O intervalo de dias vem só do primeiro pai; vazio, o corte vira `Integer.MAX_VALUE` e nenhum bloco do segundo pai passa | Calcular o intervalo a partir dos dois pais. A mudança altera a distribuição de filhos gerados, então exige rodar o harness antes |
+
+### Dependências travadas de propósito (etapa 04b)
+
+Não são esquecimento. Cada uma quebra algo conhecido e exige plano de teste próprio; estão ignoradas
+no `.github/dependabot.yml` com a justificativa no próprio arquivo.
+
+| # | Dependência | Atraso | Por que não foi forçada |
+|---|---|---|---|
+| **P14** | Spring Boot 3.5.16 → 4.1.1 | 11 releases, linha maior | Arrasta Spring Framework 7 e provavelmente Jakarta EE 11. Exige rodar o harness para confirmar que os números publicados não mudam, e revalidar os testes de segurança das etapas 02b e 03d |
+| **P15** | springdoc-openapi 2.8.17 → 3.1.0 | 6 releases, linha maior | Já quebrou esta API uma vez (2.5.0 × Spring 6.2, HTTP 500 em `/v3/api-docs`, etapa 01b). A linha 3.x é a que o Boot 4 exige: migra junto com P14 ou nenhuma |
+| **P16** | logstash-logback-encoder 7.4 → 9.0 | 3 releases, duas linhas maiores | Dá formato ao log JSON. Mudança de formato afeta `LogPrivacyTest`, que inspeciona mensagem e pilha, e qualquer consulta já montada no agregador |
 
 ---
 

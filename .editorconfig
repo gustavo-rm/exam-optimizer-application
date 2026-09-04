@@ -1,0 +1,25 @@
+# Convenção de formatação do Dynamic Study Planner.
+#
+# Descreve o que o código já pratica: 4 espaços, sem tabulação, UTF-8, quebra de linha final.
+# O Checkstyle (config/checkstyle/checkstyle.xml) verifica no build; este arquivo faz o editor
+# acertar antes de o build reclamar. Ver docs/qualidade/04b-correcao-escrita.md, seção 1.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.java]
+indent_style = space
+indent_size = 4
+max_line_length = 120
+
+[*.{xml,yml,yaml,json}]
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false

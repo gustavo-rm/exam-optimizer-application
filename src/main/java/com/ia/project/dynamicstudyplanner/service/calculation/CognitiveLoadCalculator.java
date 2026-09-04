@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import org.springframework.stereotype.Service;
+import com.ia.project.dynamicstudyplanner.domain.StudentState;
 
 /**
  * Calculates the maximum sustainable daily cognitive load for a student.
@@ -64,7 +65,7 @@ public final class CognitiveLoadCalculator {
         // Base gap factor: 1.1 -> Very confident, can handle more | 0.8 -> Not confident, can handle less.
         double baseGapFactor = 1.1 - ((averageGap - 1) / 4.0) * 0.3;
 
-        com.ia.project.dynamicstudyplanner.domain.StudentState state = profile.getState();
+        StudentState state = profile.getState();
         if (state != null) {
             // Adjust factor based on psychological state.
             // High stress/fatigue decreases factor, high motivation increases factor.

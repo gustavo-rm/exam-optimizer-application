@@ -12,7 +12,11 @@ import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationS
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -49,10 +53,12 @@ public class StudyScheduleGenerator {
         int hoursPerStudyDay = Math.max(1, (int) Math.ceil(averageDailyHours));
 
         // --- 1. VIABILITY ANALYSIS & PLAN ADJUSTMENT ---
-        ScheduleContext context = prepareScheduleContext(plan, profile, startDate, exam.getExamDate(), hoursPerStudyDay);
+        ScheduleContext context = prepareScheduleContext(plan, profile, startDate, exam.getExamDate(),
+                hoursPerStudyDay);
 
         // --- 2. DAILY SCHEDULE GENERATION LOOP ---
-        Map<LocalDate, List<StudyBlock>> schedule = buildSchedule(profile, exam.getExamDate(), startDate, context, allocationStrategy);
+        Map<LocalDate, List<StudyBlock>> schedule = buildSchedule(profile, exam.getExamDate(),
+                startDate, context, allocationStrategy);
 
         // --- 3. RETURN FINAL RESULT ---
         return new ScheduleResult(schedule, context.status(), context.requiredHours(), context.availableHours());
@@ -95,7 +101,8 @@ public class StudyScheduleGenerator {
             status = ScheduleStatus.WARNING_TIME_DEFICIT;
             double reductionFactor = availableHours / requiredHours;
             hoursToSchedulePerSubject = plan.getDaysPerSubject().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> (e.getValue() * hoursPerStudyDay) * reductionFactor));
+                    .collect(Collectors.toMap(Map.Entry::getKey,
+                            e -> (e.getValue() * hoursPerStudyDay) * reductionFactor));
         }
         return new ScheduleContext(hoursToSchedulePerSubject, status, requiredHours, availableHours);
     }
@@ -111,7 +118,8 @@ public class StudyScheduleGenerator {
      * @return The generated schedule as a map of dates to study blocks.
      */
     private Map<LocalDate, List<StudyBlock>> buildSchedule(
-            StudentProfile profile, LocalDate examDate, LocalDate startDate, ScheduleContext context, AllocationStrategy allocationStrategy
+            StudentProfile profile, LocalDate examDate, LocalDate startDate, ScheduleContext context,
+                    AllocationStrategy allocationStrategy
     ) {
         Map<LocalDate, List<StudyBlock>> schedule = new LinkedHashMap<>();
         LocalDate currentDate = startDate;
@@ -163,7 +171,9 @@ public class StudyScheduleGenerator {
      * @return The total number of available hours.
      */
     private double calculateTotalAvailableHours(StudentProfile profile, LocalDate start, LocalDate end) {
-        if (start.isAfter(end)) return 0;
+        if (start.isAfter(end)) {
+            return 0;
+        }
         long totalDays = DAYS.between(start, end);
         double totalHours = 0;
         for (long i = 0; i < totalDays; i++) {
