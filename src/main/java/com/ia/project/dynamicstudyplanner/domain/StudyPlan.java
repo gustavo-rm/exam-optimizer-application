@@ -1,76 +1,56 @@
 package com.ia.project.dynamicstudyplanner.domain;
 
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
-import lombok.Getter;
 
 import java.util.Collections;
 import java.util.Map;
 
 /**
- * Represents the chromosome: a complete allocation of study days for each subject.
- * This class is an immutable value object. Once a StudyPlan is created, it cannot be changed,
- * which ensures the integrity of the genetic algorithm's solutions.
+ * O cromossomo: uma alocação completa de dias de estudo por disciplina.
  *
- * <h2>Como percorrer os genes sem pagar pelo invólucro</h2>
+ * <p>Objeto de valor imutável. Depois de construído, um plano não muda — é isso que garante a
+ * integridade das soluções que o algoritmo genético carrega de uma geração para a outra.
  *
- * O mapa sai daqui embrulhado em {@link Collections#unmodifiableMap}, que é o que impede um
- * chamador de alterar um plano já construído. O embrulho não custa nada por si só — mas
- * percorrer {@code entrySet()} através dele, sim: a implementação cria um objeto de entrada
- * novo <b>por gene</b> só para bloquear {@code setValue}. Isso acontece a cada avaliação de
- * fitness, de cada indivíduo, de cada geração: dezenas de milhões de vezes numa otimização.
+ * <h2>A representação: vetor indexado, não mapa (pendência P18)</h2>
  *
- * <p>{@code forEach} do mapa envolto <b>delega direto</b> ao mapa de baixo, sem criar entrada
- * nenhuma. Medido em percursos de 24 genes, mediana de 3 baterias de 3 milhões de voltas:
+ * Internamente o plano é um {@code int[]} alinhado a um {@link SubjectIndex} compartilhado:
+ * {@code dias[i]} são os dias da disciplina {@code index.subject(i)}. Ler um gene é ler uma posição
+ * de vetor.
  *
- * <pre>
- *   entrySet() no HashMap cru ..... 199 ns por percurso
- *   entrySet() no mapa envolto .... 272 ns por percurso   (+37 %)
- *   forEach()  no mapa envolto ..... 61 ns por percurso   (-69 %)
- * </pre>
+ * <p>Era um {@code Map<Subject, Integer>}. A troca é o fecho da pendência <b>P18</b>, e o motivo
+ * está medido: com mapa, cada gene custava um cálculo de hash, um desembrulho de {@code Integer} e,
+ * na escrita, a alocação de um nó — ~72 ns por gene, sobre 474 mil recombinações no pior caso que a
+ * API aceita. Como o conjunto de disciplinas é fixo durante toda a otimização, esse custo era
+ * pagamento por uma flexibilidade que a evolução não usa. Ver {@link SubjectIndex} para o que a
+ * mudança fez com a ordem dos genes — e por que ela deixou o resultado <i>menos</i> dependente de
+ * detalhes fora do nosso controle, não mais.
  *
- * <p>O {@code forEach} é mais rápido que percorrer o próprio {@code HashMap} sem proteção
- * alguma. Ou seja: a escolha entre <i>imutabilidade</i> e <i>velocidade</i>, que o achado F8 do
- * diagnóstico apresentava como troca inevitável, não existe — bastava percorrer de outro jeito.
+ * <h2>O mapa continua existindo, na fronteira</h2>
  *
- * <p>Medido no algoritmo completo, com resultado idêntico nas 9 assinaturas de referência e em
- * 4 baterias pareadas: 15 disciplinas / 500 gerações / população 50 caiu de 49,5 para 43,5 ms
- * (-12 %), e 40 disciplinas / 100 gerações de 22 para 19,5 ms (-13 %). No pior caso
- * (24 disciplinas, 1000 gerações, população 500) não houve diferença mensurável: lá a fitness
- * já roda em 4 threads e o cruzamento domina o tempo.
- *
- * <p>Os três objetivos de fitness usam {@code forEach} por isso. Quem escrever um objetivo novo
- * deve fazer o mesmo; {@code entrySet()} continua correto, só é mais caro no caminho quente.
+ * {@link #getDaysPerSubject()} reconstrói o mapa sob demanda, para o mapeador da API, o gerador de
+ * cronograma e os testes. <b>Não o use dentro da evolução</b>: lá ele aloca um mapa por chamada,
+ * que é exatamente o custo que esta representação existe para não pagar. Dentro do laço, use
+ * {@link #daysAt(int)} sobre {@link #getIndex()}.
  */
-@SuppressWarnings("ClassCanBeRecord")
-@Getter
 public class StudyPlan {
 
-    private final Map<Subject, Integer> daysPerSubject;
+    private final SubjectIndex index;
 
-    /** Soma dos dias alocados, calculada na construcao. Ver a nota no construtor. */
+    /** Dias por posição, alinhado a {@link #index}. Nunca sai desta classe. */
+    private final int[] days;
+
+    /** Soma dos dias alocados, calculada na construção. Ver a nota no construtor canônico. */
     private final int totalDays;
 
     /**
-     * Construtor canônico. <b>Recebe a posse do mapa</b>: quem constrói um plano entrega o mapa e
+     * Construtor canônico. <b>Recebe a posse do vetor</b>: quem constrói um plano entrega o vetor e
      * não o altera mais.
      *
-     * <h2>O contrato, e por que ele está escrito aqui</h2>
+     * <h2>Por que a posse, e não uma cópia</h2>
      *
-     * O mapa é exposto apenas por {@link Collections#unmodifiableMap} — uma <i>visão</i>, não uma
-     * cópia. Quem passou o mapa continua tecnicamente podendo alterá-lo por trás. Isso sempre foi
-     * verdade nesta classe; o que mudou na etapa 05b é que agora <b>importa</b>, porque o total de
-     * dias passou a ser calculado uma vez só (achado F5).
-     *
-     * <p>Os dez pontos de construção em {@code src/main} e nos benchmarks passam um mapa local que
-     * sai de escopo em seguida — nenhum retém a referência. O invariante que isso produz está
-     * travado por {@code domain/StudyPlanInvarianteTest}, que verifica, sobre planos produzidos
-     * pelos operadores genéticos reais, que {@code getTotalDays()} bate com a soma do mapa.
-     *
-     * <h2>Por que a cópia defensiva foi rejeitada — com número</h2>
-     *
-     * A versão segura por construção seria copiar o mapa aqui. Foi implementada e <b>medida</b>:
-     * um {@code LinkedHashMap} novo por plano custa mais do que a memoização economiza, porque
-     * planos são construídos uma vez por descendente — 500.500 vezes no pior caso.
+     * A versão segura por construção copiaria o vetor aqui. A cópia defensiva do <i>mapa</i>
+     * equivalente foi implementada e medida na etapa 05b, e custava mais do que economizava —
+     * planos são construídos uma vez por descendente, meio milhão de vezes no pior caso:
      *
      * <pre>
      * pior caso (24 disc., 1000 ger., 500 pop.), mediana de 9 execuções:
@@ -79,62 +59,168 @@ public class StudyPlan {
      *   com memoização, sem cópia .................. 1318 ms   melhor em 4,8 %
      * </pre>
      *
-     * A cópia custaria ~370 ms para proteger contra um uso que nenhum chamador faz. A escolha foi
-     * o contrato explícito mais o teste de invariante, e não a proteção paga em todo descendente.
+     * <p>Um {@code int[]} é mais barato de copiar que um {@code LinkedHashMap}, então o número
+     * exato mudaria; a decisão, não. A escolha foi o contrato explícito mais o teste de invariante
+     * ({@code domain/StudyPlanInvarianteTest}, que verifica sobre planos produzidos pelos operadores
+     * genéticos reais que {@link #getTotalDays()} bate com a soma dos genes), e não a proteção paga
+     * em todo descendente. Os pontos de construção em {@code src/main} passam um vetor recém-criado
+     * que sai de escopo em seguida — nenhum retém a referência.
      *
      * <h2>Estratégia de invalidação do total</h2>
      *
-     * <b>Não existe, e isso é uma afirmação, não um esquecimento.</b> Não há método nesta classe
-     * que altere a alocação: o campo é {@code final}, o mapa só sai por visão não modificável, e o
-     * total é derivado uma vez no construtor. Não há evento capaz de tornar o valor obsoleto, logo
-     * não há o que invalidar.
+     * <b>Não existe, e isso é uma afirmação, não um esquecimento.</b> Não há método nesta classe que
+     * altere a alocação: os campos são {@code final}, o vetor nunca é exposto, e o total é derivado
+     * uma vez aqui. Não há evento capaz de tornar o valor obsoleto, logo não há o que invalidar.
      *
      * <p>O dia em que alguém acrescentar um método que mude a alocação, este cálculo precisa mudar
      * junto — e é por isso que ele mora no construtor, onde é impossível não ver.
      *
-     * @param daysPerSubject dias por disciplina; a posse passa para o plano
+     * @param index ordem canônica dos genes, compartilhada por toda a população
+     * @param days  dias por posição, alinhado ao índice; a posse passa para o plano
+     * @throws IllegalArgumentException se o vetor não tiver o tamanho do índice, o que significa que
+     *                                  os dois falam de conjuntos diferentes de disciplinas
+     */
+    public StudyPlan(SubjectIndex index, int[] days) {
+        this.index = index == null ? SubjectIndex.of(null) : index;
+        this.days = days == null ? new int[0] : days;
+        if (this.days.length != this.index.size()) {
+            throw new IllegalArgumentException(
+                    "Plano incoerente: o indice tem " + this.index.size()
+                            + " disciplina(s) e o vetor de dias tem " + this.days.length + " posicao(oes).");
+        }
+
+        int soma = 0;
+        for (int dia : this.days) {
+            soma += dia;
+        }
+        this.totalDays = soma;
+    }
+
+    /**
+     * Construtor de fronteira: monta um plano a partir de um mapa por disciplina.
+     *
+     * <p>Deriva um {@link SubjectIndex} próprio, na ordem de iteração do mapa recebido. É o caminho
+     * do plano tático, dos mapeadores e dos testes — <b>não</b> o da evolução, que compartilha um
+     * índice único entre todos os indivíduos. Um plano construído por aqui é correto em tudo, mas
+     * seus genes não estão alinhados aos de outro plano, e os operadores genéticos detectam isso
+     * (ver {@code RepairingCrossover}).
+     *
+     * @param daysPerSubject dias por disciplina; {@code null} produz um plano vazio
      */
     public StudyPlan(Map<Subject, Integer> daysPerSubject) {
-        this.daysPerSubject = daysPerSubject == null
-                ? Map.of()
-                : Collections.unmodifiableMap(daysPerSubject);
-        this.totalDays = this.daysPerSubject.values().stream().mapToInt(Integer::intValue).sum();
+        this(SubjectIndex.of(daysPerSubject == null ? null : daysPerSubject.keySet()), daysPerSubject);
     }
 
     /**
-     * Retrieves the number of days allocated to a specific subject.
+     * Ponte entre os dois construtores públicos. Existe para que o índice seja derivado <b>uma
+     * vez</b> e o vetor seja projetado contra essa mesma instância — Java não deixa executar nada
+     * antes de {@code this(...)}, então sem este passo a ordem seria calculada duas vezes.
+     */
+    private StudyPlan(SubjectIndex index, Map<Subject, Integer> daysPerSubject) {
+        this(index, index.projectInts(daysPerSubject, 0));
+    }
+
+    /** @return a ordem canônica dos genes deste plano */
+    public SubjectIndex getIndex() {
+        return index;
+    }
+
+    /**
+     * Lê um gene por posição. É o acesso do caminho quente.
      *
-     * @param subject The subject to query.
-     * @return The number of allocated days, or 0 if the subject is not in the plan.
+     * @param posicao posição do gene, de {@code 0} a {@code getIndex().size() - 1}
+     * @return os dias alocados nessa posição
+     */
+    public int daysAt(int posicao) {
+        return days[posicao];
+    }
+
+    /**
+     * Lê um gene por posição <b>de outra ordem</b>, sem exigir que o plano esteja alinhado a ela.
+     *
+     * <p>É o acesso da avaliação de fitness, que recebe um plano qualquer e percorre as posições do
+     * índice do contexto. Quando o plano já está nessa ordem — o caso de todo indivíduo da evolução
+     * — é uma leitura de vetor; quando não está, cai na busca pela disciplina. A verificação é uma
+     * comparação de referência, não uma busca com hash.
+     *
+     * @param ordem a ordem em que a posição é expressa
+     * @param posicao posição do gene nessa ordem
+     * @return os dias alocados, ou 0 se a disciplina dessa posição não estiver no plano
+     */
+    public int daysAt(SubjectIndex ordem, int posicao) {
+        return ordem == index ? days[posicao] : getDaysForSubject(ordem.subject(posicao));
+    }
+
+    /**
+     * Copia os genes deste plano para um vetor alinhado à ordem pedida.
+     *
+     * <p>Quando o plano já está nessa ordem — o caso de todo indivíduo da evolução, que compartilha
+     * o índice do contexto — é uma cópia de vetor. Quando não está, cada gene é reposicionado pela
+     * disciplina. É o que permite aos operadores genéticos aceitar um plano vindo da fronteira sem
+     * abrir mão do caminho rápido no laço.
+     *
+     * @param ordem a ordem canônica desejada
+     * @return vetor de tamanho {@code ordem.size()}; posições cuja disciplina falte neste plano
+     *         valem 0
+     */
+    public int[] genesAlignedTo(SubjectIndex ordem) {
+        if (ordem == index) {
+            return days.clone();
+        }
+        int[] alinhado = new int[ordem.size()];
+        for (int i = 0; i < alinhado.length; i++) {
+            alinhado[i] = getDaysForSubject(ordem.subject(i));
+        }
+        return alinhado;
+    }
+
+    /**
+     * Dias alocados a uma disciplina específica.
+     *
+     * @param subject a disciplina consultada
+     * @return os dias alocados, ou 0 se a disciplina não estiver no plano
      */
     public int getDaysForSubject(Subject subject) {
-        return this.daysPerSubject.getOrDefault(subject, 0);
+        int posicao = index.positionOf(subject);
+        return posicao < 0 ? 0 : days[posicao];
     }
 
     /**
-     * Calculates the total number of days in the entire study plan.
+     * Total de dias do plano inteiro.
      *
-     * @return The sum of all allocated days across all subjects.
+     * @return a soma dos dias alocados em todas as disciplinas
      */
     public int getTotalDays() {
-        return this.totalDays;
+        return totalDays;
     }
 
     /**
-     * Checks if the plan satisfies all provided minimum day constraints.
-     * This brings validation logic out of the GA framework and into the domain object itself.
+     * Reconstrói o mapa de dias por disciplina, na ordem canônica.
      *
-     * @param minimumDaysPerSubject The map of constraints.
-     * @return {@code true} if all constraints are met, {@code false} if at least one is violated.
+     * <p><b>Aloca um mapa a cada chamada.</b> É para a fronteira — resposta da API, geração de
+     * cronograma, testes. Dentro da evolução, use {@link #daysAt(int)}.
+     *
+     * @return mapa somente leitura, na ordem de {@link #getIndex()}
+     */
+    public Map<Subject, Integer> getDaysPerSubject() {
+        return Collections.unmodifiableMap(index.toMap(days));
+    }
+
+    /**
+     * Verifica se o plano respeita todos os pisos de dias mínimos informados.
+     * <p>
+     * Traz a validação para dentro do objeto de domínio, em vez de deixá-la no arcabouço do AG.
+     *
+     * @param minimumDaysPerSubject pisos por disciplina
+     * @return {@code true} se nenhum piso for violado
      */
     public boolean meetsMinimumConstraints(Map<Subject, Integer> minimumDaysPerSubject) {
-        for (Map.Entry<Subject, Integer> entry : daysPerSubject.entrySet()) {
-            int allocatedDays = entry.getValue();
-            int minimumDays = minimumDaysPerSubject.getOrDefault(entry.getKey(), 1);
-            if (allocatedDays < minimumDays) {
-                return false; // Found a violation.
+        for (int i = 0; i < days.length; i++) {
+            int minimo = minimumDaysPerSubject.getOrDefault(index.subject(i), 1);
+            if (days[i] < minimo) {
+                return false;
             }
         }
-        return true; // No violations found.
+        return true;
     }
 }

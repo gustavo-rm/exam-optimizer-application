@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
@@ -44,6 +45,10 @@ import java.util.Set;
  *                                student's weekly availability.
  * @param maxDailyCognitiveLoad   Sustainable daily load budget from {@code CognitiveLoadCalculator}.
  *                                Already reflects the student's psychological state.
+ * @param geneVectors             Os mesmos dados por disciplina acima, projetados na ordem canônica
+ *                                do cromossomo (pendência P18). É o que a evolução lê no caminho
+ *                                quente; os mapas ficam para a fronteira e para os testes. Ver
+ *                                {@link GeneVectors}.
  */
 public record EvolutionContext(
         Map<Subject, Double> importanceScores,
@@ -58,7 +63,8 @@ public record EvolutionContext(
         EngagementProfile engagementProfile,
         int planningHorizonDays,
         int hoursPerStudyDay,
-        int maxDailyCognitiveLoad
+        int maxDailyCognitiveLoad,
+        GeneVectors geneVectors
 ) {
 
     /**
@@ -103,6 +109,7 @@ public record EvolutionContext(
     public static final class Builder {
 
         private Map<Subject, Double> importanceScores;
+        private List<Subject> subjects;
         private Map<Subject, Integer> minimumDaysPerSubject;
         private StudentState studentState;
         private FitnessEvaluator fitnessEvaluator;
@@ -119,6 +126,23 @@ public record EvolutionContext(
         /** Obrigatório. Importância personalizada bruta por disciplina, nas unidades do edital. */
         public Builder importanceScores(Map<Subject, Double> importanceScores) {
             this.importanceScores = importanceScores;
+            return this;
+        }
+
+        /**
+         * Opcional. A ordem das disciplinas no edital, que passa a ser <b>a ordem dos genes do
+         * cromossomo</b> (pendência P18).
+         *
+         * <p>Omitir cai na ordem de iteração de {@link #importanceScores}, que é o que os testes
+         * fazem. A produção informa explicitamente, com {@code exam.getAllSubjects()}: é a diferença
+         * entre uma ordem declarada pelo edital e uma ordem que vem de um detalhe interno de
+         * {@code HashMap}, livre para mudar numa atualização de JDK. Ver {@link SubjectIndex}.
+         *
+         * @param subjects as disciplinas na ordem do edital
+         * @return este construtor
+         */
+        public Builder subjects(List<Subject> subjects) {
+            this.subjects = subjects;
             return this;
         }
 
@@ -207,10 +231,13 @@ public record EvolutionContext(
             }
 
             Map<Subject, Double> normalized = normalize(importanceScores);
+            Map<Subject, Double> tempered = temper(normalized);
+            SubjectIndex index = SubjectIndex.of(
+                    subjects != null ? subjects : importanceScores.keySet());
             return new EvolutionContext(
                     importanceScores,
                     normalized,
-                    temper(normalized),
+                    tempered,
                     requiredSessions(importanceScores.keySet(), planningHorizonDays),
                     minimumDaysPerSubject,
                     studentState,
@@ -220,7 +247,8 @@ public record EvolutionContext(
                     engagementProfile,
                     planningHorizonDays,
                     hoursPerStudyDay,
-                    maxDailyCognitiveLoad
+                    maxDailyCognitiveLoad,
+                    new GeneVectors(index, minimumDaysPerSubject, normalized, tempered, planningHorizonDays)
             );
         }
     }

@@ -110,7 +110,7 @@ class GaEdgeCasesTest {
             StudyPlanFactory factory = new StudyPlanFactory();
 
             // Idem: regra de negocio sobre o edital, nao argumento malformado (etapa 03d).
-            assertThatThrownBy(() -> factory.createRandomPlan(List.of(), 10, Map.of()))
+            assertThatThrownBy(() -> factory.createRandomPlan(null, List.of(), 10, Map.of()))
                     .isInstanceOf(DomainException.class)
                     .hasMessageContaining("no subjects")
                     .hasMessageNotContaining("bound must be positive");
@@ -122,7 +122,7 @@ class GaEdgeCasesTest {
             Subject math = new Subject("Math", 10, 3);
             StudyPlanFactory factory = new StudyPlanFactory();
 
-            assertThatThrownBy(() -> factory.createRandomPlan(List.of(math), -5, Map.of(math, 1)))
+            assertThatThrownBy(() -> factory.createRandomPlan(null, List.of(math), -5, Map.of(math, 1)))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("cannot be negative");
         }

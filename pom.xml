@@ -301,11 +301,17 @@
                                             7658/8284 = 0,92443 virou 7640/8266 = 0,92426. Nao ha
                                             teste a menos — o PopulationFitnessTest continua
                                             travando a avaliacao, agora contra o caminho unico.
+
+                                            0,9242 ate a pendencia P18, que trocou o cromossomo de
+                                            Map<Subject, Integer> por vetor indexado. Codigo novo
+                                            (SubjectIndex, GeneVectors, os construtores do
+                                            StudyPlan) entrou junto com o CromossomoIndexadoTest,
+                                            que o cobre: 8128/8716 = 0,93253.
                                         -->
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.9242</minimum>
+                                            <minimum>0.9325</minimum>
                                         </limit>
                                         <!--
                                             0,7386 ate a etapa 05b. A conversao dos tres objetivos
@@ -320,11 +326,16 @@
                                             paralelizacao era 1 ramo coberto dos dois lados, e sumiu
                                             junto com a paralelizacao. 433/578 = 0,74913 virou
                                             431/576 = 0,74826.
+
+                                            A P18 subiu os dois: 511/650 = 0,78615. Os ramos novos
+                                            (alinhado ou nao, disciplina presente ou nao, entrada
+                                            degenerada) nascem cobertos porque o teste veio no mesmo
+                                            commit que o codigo.
                                         -->
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
-                                            <minimum>0.7482</minimum>
+                                            <minimum>0.7861</minimum>
                                         </limit>
                                     </limits>
                                 </rule>

@@ -1,6 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.objective;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 import org.springframework.stereotype.Component;
@@ -66,12 +67,14 @@ public class CognitiveLoadObjective implements FitnessObjective {
             return 1.0;
         }
 
-        // forEach, e nao entrySet: ver a nota sobre o custo do involucro em StudyPlan.
-        double[] weightedLoad = {0.0};
-        plan.getDaysPerSubject().forEach((subject, days) ->
-                weightedLoad[0] += days * (double) subject.cognitiveLoad());
+        // Percurso por posicao (pendencia P18): sem entrada de mapa criada por gene.
+        SubjectIndex ordem = context.geneVectors().index();
+        double weightedLoad = 0.0;
+        for (int i = 0; i < ordem.size(); i++) {
+            weightedLoad += plan.daysAt(ordem, i) * (double) ordem.subject(i).cognitiveLoad();
+        }
 
-        double expectedDailyLoad = context.hoursPerStudyDay() * weightedLoad[0] / totalDays;
+        double expectedDailyLoad = context.hoursPerStudyDay() * weightedLoad / totalDays;
         double overload = (expectedDailyLoad - budget) / budget;
 
         return 1.0 - Math.clamp(overload, 0.0, OVERLOAD_RATIO_AT_ZERO);

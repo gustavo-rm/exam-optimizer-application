@@ -1,46 +1,42 @@
 package com.ia.project.dynamicstudyplanner.ga.strategy.mutation;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 /**
- * Base implementation for mutation strategies used in the genetic algorithm.
+ * Base das estratégias de mutação do algoritmo genético.
  *
- * <p>
- * This abstract class centralizes the common mutation workflow shared by all
- * mutation strategies:
- * </p>
+ * <p>Centraliza o roteiro comum a todas elas:
  *
  * <ol>
- *     <li>Checks whether mutation should occur based on the mutation rate.</li>
- *     <li>Creates a mutable copy of the individual's genes.</li>
- *     <li>Validates that mutation is possible.</li>
- *     <li>Delegates the mutation behavior to subclasses.</li>
- *     <li>Creates and returns a new mutated {@link Individual}.</li>
+ *     <li>decide, pela taxa de mutação, se a mutação ocorre;</li>
+ *     <li>copia os genes do indivíduo para um vetor alterável;</li>
+ *     <li>verifica que a mutação é possível;</li>
+ *     <li>delega o comportamento específico à subclasse;</li>
+ *     <li>monta o indivíduo mutado.</li>
  * </ol>
  *
- * <p>
- * Subclasses are responsible only for implementing the specific mutation logic.
- * This reduces duplicated orchestration code and improves maintainability.
- * </p>
+ * <p>A subclasse implementa só a mutação em si.
+ *
+ * <h2>Os genes são um vetor, não um mapa (pendência P18)</h2>
+ *
+ * A subclasse recebe {@code int[] genes} alinhado a {@link GeneVectors#index()} e trabalha por
+ * <b>posição</b>: sortear uma disciplina virou sortear um índice, e ler ou escrever os dias dela
+ * virou acessar uma posição de vetor. Antes cada mutação copiava o mapa inteiro do indivíduo —
+ * alocando um nó por gene — para alterar dois números.
  */
 public abstract class AbstractMutationStrategy implements MutationStrategy {
 
     /**
-     * Applies mutation to an individual following the standard mutation workflow.
+     * Aplica a mutação seguindo o roteiro padrão.
      *
-     * @param individual The individual selected for mutation.
-     * @param mutationRate The probability of mutation occurring.
-     * @param context The evolution context containing mutation constraints.
-     * @return A new mutated individual, or the original individual if mutation
-     *         did not occur or failed.
+     * @param individual o indivíduo sorteado para mutação
+     * @param mutationRate probabilidade de a mutação ocorrer
+     * @param context contexto da evolução, com os pisos de dias mínimos
+     * @return um indivíduo novo e mutado, ou o original se a mutação não ocorreu ou não coube
      */
     @Override
     public final Individual mutate(
@@ -49,91 +45,79 @@ public abstract class AbstractMutationStrategy implements MutationStrategy {
             EvolutionContext context
     ) {
 
-        // Routed through RandomProvider so a fixed seed makes the whole evolution reproducible.
-        // Previously Math.random(), whose internal generator no seed can reach.
+        // Passa pelo RandomProvider para que uma semente fixa torne a evolucao inteira reproduzivel.
+        // Antes era Math.random(), cujo gerador interno nenhuma semente alcanca.
         if (RandomProvider.getInstance().nextDouble() > mutationRate) {
             return individual;
         }
 
-        Map<Subject, Integer> mutatedGenes =
-                new HashMap<>(individual.getPlan().getDaysPerSubject());
+        GeneVectors vetores = context.geneVectors();
+        vetores.requireCovers(individual.getPlan());
+        int[] mutatedGenes = individual.getPlan().genesAlignedTo(vetores.index());
 
-        List<Subject> subjects =
-                new ArrayList<>(mutatedGenes.keySet());
-
-        if (subjects.size() < 2) {
+        if (mutatedGenes.length < 2) {
             return individual;
         }
 
-        boolean mutationSuccessful =
-                performMutation(mutatedGenes, subjects, context);
-
-        if (!mutationSuccessful) {
+        if (!performMutation(mutatedGenes, vetores, context)) {
             return individual;
         }
 
-        return new Individual(new StudyPlan(mutatedGenes));
+        return new Individual(new StudyPlan(vetores.index(), mutatedGenes));
     }
 
     /**
-     * Performs the specific mutation behavior for a strategy.
+     * Executa o comportamento específico da estratégia.
      *
-     * <p>
-     * Implementations directly modify the provided mutable genes map.
-     * </p>
+     * <p>A implementação altera o vetor recebido diretamente.
      *
-     * @param genes Mutable representation of the individual's genes.
-     * @param subjects Available subjects participating in mutation.
-     * @param context Evolution constraints and configuration.
-     * @return {@code true} if mutation was successfully applied,
-     *         otherwise {@code false}.
+     * @param genes dias por posição, alteráveis
+     * @param vetores os dados por disciplina já projetados na ordem dos genes
+     * @param context restrições e configuração da evolução
+     * @return {@code true} se a mutação foi aplicada, {@code false} se não coube
      */
     protected abstract boolean performMutation(
-            Map<Subject, Integer> genes,
-            List<Subject> subjects,
+            int[] genes,
+            GeneVectors vetores,
             EvolutionContext context
     );
 
     /**
-     * Selects a random subject from the provided list.
-     * <p>
-     * Draws from {@link RandomProvider} rather than {@code ThreadLocalRandom}, which cannot be
-     * seeded and therefore made the whole optimizer irreproducible. Mutation runs single-threaded
-     * inside the evolution loop, so the shared generator carries no contention cost here.
+     * Sorteia uma posição de gene.
      *
-     * @param subjects Available subjects.
-     * @return A randomly selected subject.
+     * <p>Sorteia do {@link RandomProvider} e não de {@code ThreadLocalRandom}, que não aceita
+     * semente e por isso tornava o otimizador inteiro irreproduzível. A mutação roda numa thread só,
+     * dentro do laço de evolução, então o gerador compartilhado não custa disputa aqui.
+     *
+     * @param genes quantidade de genes disponíveis
+     * @return uma posição entre {@code 0} e {@code genes - 1}
      */
-    protected Subject randomSubject(List<Subject> subjects) {
-        return subjects.get(RandomProvider.getInstance().nextInt(subjects.size()));
+    protected int randomGene(int genes) {
+        return RandomProvider.getInstance().nextInt(genes);
     }
 
     /**
-     * Selects a random subject excluding a specific subject.
+     * Sorteia uma posição de gene diferente da informada.
      *
-     * @param subjects Available subjects. Must contain at least one subject other than
-     *                 {@code excluded}.
-     * @param excluded Subject that cannot be selected.
-     * @return A randomly selected subject different from the excluded one.
-     * @throws IllegalArgumentException if no other subject is available, which would otherwise spin
-     *                                  forever in the rejection loop below.
+     * @param genes quantidade de genes disponíveis; precisa ser ao menos 2
+     * @param excluded posição que não pode sair
+     * @return uma posição diferente de {@code excluded}
+     * @throws IllegalArgumentException se houver menos de dois genes, caso em que o sorteio por
+     *                                  rejeição abaixo giraria para sempre
      */
-    protected Subject randomSubjectExcluding(
-            List<Subject> subjects,
-            Subject excluded
-    ) {
+    protected int randomGeneExcluding(int genes, int excluded) {
 
-        if (subjects.size() < 2) {
+        if (genes < 2) {
             throw new IllegalArgumentException(
-                    "Cannot pick a subject other than '" + excluded.name()
-                            + "': the plan has fewer than two subjects.");
+                    "Cannot pick a subject other than position " + excluded
+                            + ": the plan has fewer than two subjects.");
         }
 
-        Subject selected;
+        int selected;
 
         do {
-            selected = randomSubject(subjects);
-        } while (selected.equals(excluded));
+            selected = randomGene(genes);
+        } while (selected == excluded);
 
         return selected;
     }

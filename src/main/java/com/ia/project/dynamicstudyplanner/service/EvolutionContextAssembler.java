@@ -122,6 +122,10 @@ public class EvolutionContextAssembler {
 
         return EvolutionContext.builder()
                 .importanceScores(importanceScores)
+                // A ordem do edital passa a ser a ordem dos genes do cromossomo (pendencia P18).
+                // Informada explicitamente para que o plano produzido nao dependa da ordem de
+                // iteracao de um HashMap, que o contrato de Map nao especifica.
+                .subjects(exam.getAllSubjects())
                 .minimumDaysPerSubject(minimumDaysPerSubject)
                 .studentState(profile.getState())
                 .fitnessEvaluator(fitnessEvaluator)

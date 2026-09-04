@@ -1,10 +1,10 @@
 package com.ia.project.dynamicstudyplanner.ga.factory;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import com.ia.project.dynamicstudyplanner.util.RandomProvider;
@@ -31,6 +31,8 @@ public final class StudyPlanFactory {
      * This unbiased random distribution is crucial for preventing any initial assumptions from
      * limiting the search space that the genetic algorithm can explore.
      *
+     * @param index A ordem canônica dos genes, compartilhada por toda a população; {@code null}
+     *              deriva uma da lista de disciplinas.
      * @param subjects The list of all subjects to be included in the plan.
      * @param totalDays The total number of days to be allocated in the plan.
      * @param minimumDaysPerSubject A map containing the calculated minimum days for each subject.
@@ -43,6 +45,7 @@ public final class StudyPlanFactory {
      *                                  chama e não situação de negócio
      */
     public StudyPlan createRandomPlan(
+            SubjectIndex index,
             List<Subject> subjects,
             int totalDays,
             Map<Subject, Integer> minimumDaysPerSubject
@@ -81,18 +84,16 @@ public final class StudyPlanFactory {
             );
         }
 
-        Map<Subject, Integer> daysPerSubject = new HashMap<>();
-
-        for (Subject subject : subjects) {
-            daysPerSubject.put(subject, minimumDaysPerSubject.getOrDefault(subject, 1));
-        }
+        // Todos os individuos da populacao compartilham esta ordem de genes (pendencia P18): e o
+        // que permite recombinar dois planos posicao a posicao, sem consultar disciplina nenhuma.
+        SubjectIndex ordem = index != null ? index : SubjectIndex.of(subjects);
+        int[] dias = ordem.projectInts(minimumDaysPerSubject, 1);
 
         int remainingDays = totalDays - totalMinimumDays;
         for (int i = 0; i < remainingDays; i++) {
-            Subject randomSubject = subjects.get(RandomProvider.getInstance().nextInt(subjects.size()));
-            daysPerSubject.computeIfPresent(randomSubject, (k, currentDays) -> currentDays + 1);
+            dias[RandomProvider.getInstance().nextInt(ordem.size())]++;
         }
 
-        return new StudyPlan(daysPerSubject);
+        return new StudyPlan(ordem, dias);
     }
 }

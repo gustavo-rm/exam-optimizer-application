@@ -1,77 +1,59 @@
 package com.ia.project.dynamicstudyplanner.ga.strategy.mutation;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
-import com.ia.project.dynamicstudyplanner.util.RandomProvider;
-
 /**
- * Implements a creep mutation strategy.
+ * Mutação por deslocamento (<i>creep</i>).
  *
- * <p>
- * This mutation applies a small positive or negative adjustment to the
- * study days of one subject while applying the inverse adjustment to
- * another subject.
- * </p>
+ * <p>Aplica um ajuste pequeno, positivo ou negativo, aos dias de uma disciplina, e o ajuste inverso
+ * a outra — o total do plano não muda.
  *
- * <p>
- * Compared to swap mutations, creep mutation introduces smoother and
- * more gradual changes to the chromosome, improving local search
- * capabilities and solution refinement.
- * </p>
+ * <p>Comparada à mutação de troca, produz mudanças mais graduais no cromossomo, o que favorece a
+ * busca local e o refinamento de soluções já boas.
  */
 @Component("creepMutation")
 public class CreepMutation extends AbstractMutationStrategy {
 
-    /**
-     * Maximum absolute variation applied during mutation.
-     */
+    /** Variação máxima, em módulo, aplicada pela mutação. */
     private final int maxCreepDistance;
 
-    /**
-     * Creates a creep mutation strategy with default distance.
-     */
+    /** Cria a estratégia com a distância padrão. */
     public CreepMutation() {
         this(3);
     }
 
     /**
-     * Creates a creep mutation strategy with custom distance.
+     * Cria a estratégia com uma distância própria.
      *
-     * @param maxCreepDistance Maximum mutation variation.
+     * @param maxCreepDistance variação máxima da mutação
      */
     public CreepMutation(int maxCreepDistance) {
         this.maxCreepDistance = Math.max(1, maxCreepDistance);
     }
 
     /**
-     * Performs the creep mutation operation.
+     * Desloca os dias de uma disciplina e compensa em outra.
      *
-     * @param genes Mutable genes map.
-     * @param subjects Available subjects.
-     * @param context Evolution constraints.
-     * @return {@code true} if mutation succeeded, otherwise {@code false}.
+     * @param genes dias por posição, alteráveis
+     * @param vetores os dados por disciplina projetados na ordem dos genes
+     * @param context restrições da evolução
+     * @return {@code true} se o deslocamento coube nos pisos das duas disciplinas
      */
     @Override
     protected boolean performMutation(
-            Map<Subject, Integer> genes,
-            List<Subject> subjects,
+            int[] genes,
+            GeneVectors vetores,
             EvolutionContext context
     ) {
 
-        Subject subjectToMutate =
-                randomSubject(subjects);
+        int mutada = randomGene(genes.length);
+        int compensadora = randomGeneExcluding(genes.length, mutada);
 
-        Subject subjectToBalance =
-                randomSubjectExcluding(
-                        subjects,
-                        subjectToMutate
-                );
-
-        // RandomProvider rather than ThreadLocalRandom: the latter cannot be seeded, which made
-        // the evolution irreproducible even with a fixed seed.
+        // RandomProvider e nao ThreadLocalRandom: o segundo nao aceita semente, o que tornava a
+        // evolucao irreproduzivel mesmo com semente fixa.
         int creepValue =
                 RandomProvider
                         .getInstance()
@@ -82,55 +64,38 @@ public class CreepMutation extends AbstractMutationStrategy {
             creepValue = 1;
         }
 
-        return applyCreep(
-                genes,
-                subjectToMutate,
-                subjectToBalance,
-                creepValue,
-                context.minimumDaysPerSubject()
-        );
+        return applyCreep(genes, vetores, mutada, compensadora, creepValue);
     }
 
     /**
-     * Applies the creep adjustment while validating minimum constraints.
+     * Aplica o deslocamento, verificando antes os pisos de dias mínimos das duas disciplinas.
      *
-     * @param genes Mutable genes map.
-     * @param subjectToMutate Subject receiving the mutation.
-     * @param subjectToBalance Subject balancing the mutation.
-     * @param creepValue Mutation adjustment value.
-     * @param minimumDaysPerSubject Minimum study-day constraints.
-     * @return {@code true} if mutation succeeded, otherwise {@code false}.
+     * @param genes dias por posição, alteráveis
+     * @param vetores os dados por disciplina projetados na ordem dos genes
+     * @param mutada posição que recebe o deslocamento
+     * @param compensadora posição que o compensa
+     * @param creepValue tamanho e sinal do deslocamento
+     * @return {@code true} se as duas posições continuam acima do piso
      */
     private boolean applyCreep(
-            Map<Subject, Integer> genes,
-            Subject subjectToMutate,
-            Subject subjectToBalance,
-            int creepValue,
-            Map<Subject, Integer> minimumDaysPerSubject
+            int[] genes,
+            GeneVectors vetores,
+            int mutada,
+            int compensadora,
+            int creepValue
     ) {
 
-        int mutatedDays =
-                genes.get(subjectToMutate) + creepValue;
+        int mutatedDays = genes[mutada] + creepValue;
+        int balancedDays = genes[compensadora] - creepValue;
 
-        int balancedDays =
-                genes.get(subjectToBalance) - creepValue;
-
-        int minimumMutated =
-                minimumDaysPerSubject
-                        .getOrDefault(subjectToMutate, 1);
-
-        int minimumBalanced =
-                minimumDaysPerSubject
-                        .getOrDefault(subjectToBalance, 1);
-
-        if (mutatedDays < minimumMutated ||
-                balancedDays < minimumBalanced) {
+        if (mutatedDays < vetores.minimumDays(mutada)
+                || balancedDays < vetores.minimumDays(compensadora)) {
 
             return false;
         }
 
-        genes.put(subjectToMutate, mutatedDays);
-        genes.put(subjectToBalance, balancedDays);
+        genes[mutada] = mutatedDays;
+        genes[compensadora] = balancedDays;
 
         return true;
     }

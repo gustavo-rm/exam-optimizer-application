@@ -90,13 +90,20 @@ public final class GeneticAlgorithm {
         //     em 15 disciplinas / 500 geracoes / populacao 50 — 66 % MAIS LENTO, pelo mesmo motivo
         //     que levou ao limiar de Population.calculateFitness.
         //
-        // O custo real esta na representacao do cromossomo: Map<Subject, Integer> paga hash,
-        // boxing e alocacao de no por gene, ~72 ns por gene sobre 474 mil recombinacoes. O laco de
-        // reparo, o suspeito obvio, foi instrumentado e e gratuito (0,025 voltas por chamada), e a
-        // pausa de GC e ~1 % do tempo. Trocar o mapa por um vetor indexado eliminaria as tres
-        // coisas, mas muda o tipo de dominio usado no sistema inteiro e altera a ordem de iteracao
-        // (logo, o resultado): e mudanca estrutural com decisao de produto, registrada como
-        // pendencia P18, nao ajuste de otimizacao.
+        // O custo real estava na representacao do cromossomo, e a pendencia P18 o resolveu: o plano
+        // deixou de ser Map<Subject, Integer> e passou a ser um int[] alinhado a uma ordem canonica
+        // compartilhada (ver StudyPlan e SubjectIndex). Sumiram o hash, o boxing e a alocacao de no
+        // por gene — ~72 ns por gene sobre 474 mil recombinacoes. Medido ponta a ponta, com corpo de
+        // populacao 200: a latencia mediana caiu de 94 para 35 ms e a vazao com 16 concorrentes
+        // subiu de 61 para 146 req/s.
+        //
+        // O laco de reparo, o suspeito obvio, foi instrumentado e e gratuito (0,025 voltas por
+        // chamada), e a pausa de GC e ~1 % do tempo — nao era por ali.
+        //
+        // A troca mudou o plano produzido uma vez, porque a ordem dos genes decide onde cai o ponto
+        // de corte. A qualidade nao mudou: em 150 pares (5 configuracoes x 30 sementes), 62 vitorias
+        // contra 52 derrotas nos 114 pares nao empatados, z = +0,94 no teste dos sinais, e toda a
+        // dispersao dentro de +-0,13 %.
         int startIndex = elitism ? 1 : 0;
         for (int i = startIndex; i < currentPopulation.getSize(); i++) {
             Individual offspring = createOffspring(currentPopulation, context, currentMutationRate);

@@ -1,54 +1,45 @@
 package com.ia.project.dynamicstudyplanner.ga.strategy.mutation;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
 /**
- * Implements a simple swap mutation strategy.
+ * Mutação de transferência.
  *
- * <p>
- * This mutation transfers a single study day from one randomly selected
- * subject to another while respecting minimum study-day constraints.
- * </p>
+ * <p>Move um único dia de estudo de uma disciplina sorteada para outra, respeitando o piso de dias
+ * mínimos da doadora.
  *
- * <p>
- * The strategy preserves the total number of study days and introduces
- * small variations into the chromosome, helping maintain genetic diversity.
- * </p>
+ * <p>Preserva o total de dias do plano e introduz variações pequenas no cromossomo, o que ajuda a
+ * manter diversidade genética sem estragar soluções já boas.
  */
 @Component("transferMutation")
 public class TransferMutation extends AbstractMutationStrategy {
 
     /**
-     * Performs the swap mutation.
+     * Transfere um dia entre duas disciplinas sorteadas.
      *
-     * @param genes Mutable genes map.
-     * @param subjects Available subjects.
-     * @param context Evolution constraints.
-     * @return {@code true} if mutation succeeded, otherwise {@code false}.
+     * @param genes dias por posição, alteráveis
+     * @param vetores os dados por disciplina projetados na ordem dos genes
+     * @param context restrições da evolução
+     * @return {@code true} se a transferência coube, {@code false} se a doadora já está no piso
      */
     @Override
     protected boolean performMutation(
-            Map<Subject, Integer> genes,
-            List<Subject> subjects,
+            int[] genes,
+            GeneVectors vetores,
             EvolutionContext context
     ) {
 
-        Subject subjectFrom = randomSubject(subjects);
-        Subject subjectTo = randomSubjectExcluding(subjects, subjectFrom);
+        int origem = randomGene(genes.length);
+        int destino = randomGeneExcluding(genes.length, origem);
 
-        int minimumDays =
-                context.minimumDaysPerSubject()
-                        .getOrDefault(subjectFrom, 1);
-
-        if (genes.get(subjectFrom) <= minimumDays) {
+        if (genes[origem] <= vetores.minimumDays(origem)) {
             return false;
         }
 
-        genes.computeIfPresent(subjectFrom, (s, d) -> d - 1);
-        genes.computeIfPresent(subjectTo, (s, d) -> d + 1);
+        genes[origem]--;
+        genes[destino]++;
 
         return true;
     }

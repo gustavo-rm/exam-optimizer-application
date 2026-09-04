@@ -1,28 +1,31 @@
 package com.ia.project.dynamicstudyplanner.ga.strategy.crossover;
-import org.springframework.stereotype.Component;
+
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
-import java.util.HashMap;
-import java.util.Map;
 import com.ia.project.dynamicstudyplanner.util.RandomProvider;
+import org.springframework.stereotype.Component;
+
 /**
- * Implements a Weighted Average Crossover strategy.
- * This exploitative method creates a child whose genes are a weighted average of its parents'
- * genes, biased towards the fitter parent. It is excellent for refining existing solutions.
+ * Cruzamento por média ponderada.
+ *
+ * <p>Este operador é refinador: cada gene do filho é a média dos genes dos pais, pesada pela aptidão
+ * de cada um, o que aproxima o filho do pai mais apto. Serve para lapidar soluções já boas, ao
+ * contrário do {@link RepairingCrossover}, que explora combinações novas.
  */
 @Component
 public class WeightedAverageCrossover implements CrossoverStrategy {
+
     /**
-     * Creates a new child by calculating the weighted average of two parents' genes and then
-     * repairing the child's gene sum to ensure its validity.
+     * Cria um filho pela média ponderada dos genes dos pais e repara a soma de dias.
      *
-     * @param parent1 The first parent for recombination.
-     * @param parent2 The second parent for recombination.
-     * @param crossoverRate The probability that crossover will occur.
-     * @param context The evolution context, containing minimum day constraints for the repair step.
-     * @return A new Individual representing the child.
+     * @param parent1 primeiro pai
+     * @param parent2 segundo pai
+     * @param crossoverRate probabilidade de o cruzamento ocorrer
+     * @param context contexto da evolução, com os pisos de dias mínimos usados no reparo
+     * @return o filho
      */
     @Override
     public Individual crossover(Individual parent1, Individual parent2, double crossoverRate,
@@ -32,37 +35,44 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
                     ? new Individual(parent1.getPlan())
                     : new Individual(parent2.getPlan());
         }
-        // Step 1: Create the initial child genes using a weighted average.
-        Map<Subject, Integer> childGenes = createWeightedAverageGenes(parent1, parent2);
-        // Step 2: Repair the child's genes to ensure the total day sum is correct.
-        ChildGeneRepair.repairToTargetSum(childGenes, parent1.getPlan().getTotalDays(),
-                context.minimumDaysPerSubject());
-        return new Individual(new StudyPlan(childGenes));
+
+        GeneVectors vetores = context.geneVectors();
+        vetores.requireCovers(parent1.getPlan());
+        int[] childGenes = createWeightedAverageGenes(parent1, parent2, vetores.index());
+        ChildGeneRepair.repairToTargetSum(childGenes, vetores.minimumDaysVector(),
+                parent1.getPlan().getTotalDays());
+        return new Individual(new StudyPlan(vetores.index(), childGenes));
     }
+
     /**
-     * Creates a new set of genes by calculating the weighted average of the parents' genes.
-     * The fitness of each parent is used as its weight, causing the child to be more
-     * similar to the fitter parent.
+     * Calcula a média ponderada dos genes dos pais, usando a aptidão de cada um como peso.
      *
-     * @param parent1 The first parent.
-     * @param parent2 The second parent.
-     * @return A map representing the newly created, unrepaired child genes.
+     * <p>Sobre o caminho rápido e o de segurança, ver a nota em
+     * {@code RepairingCrossover.performSinglePointCrossover}.
+     *
+     * @param parent1 primeiro pai
+     * @param parent2 segundo pai
+     * @param ordem a ordem canônica dos genes do filho
+     * @return os genes do filho, ainda sem reparo
      */
-    private Map<Subject, Integer> createWeightedAverageGenes(Individual parent1, Individual parent2) {
-        Map<Subject, Integer> parent1Genes = parent1.getPlan().getDaysPerSubject();
-        Map<Subject, Integer> parent2Genes = parent2.getPlan().getDaysPerSubject();
-        Map<Subject, Integer> childGenes = new HashMap<>();
+    private int[] createWeightedAverageGenes(Individual parent1, Individual parent2, SubjectIndex ordem) {
+        StudyPlan plano1 = parent1.getPlan();
+        StudyPlan plano2 = parent2.getPlan();
+        boolean alinhados = plano1.getIndex() == ordem && plano2.getIndex() == ordem;
+
         double weight1 = parent1.getFitness();
         double weight2 = parent2.getFitness();
         double totalFitness = weight1 + weight2;
-        if (totalFitness == 0) { // Avoid division by zero if both fitnesses are 0
+        if (totalFitness == 0) { // Evita divisao por zero quando as duas aptidoes sao 0.
             totalFitness = 1;
         }
-        for (Subject subject : parent1Genes.keySet()) {
-            double p1Value = parent1Genes.getOrDefault(subject, 0);
-            double p2Value = parent2Genes.getOrDefault(subject, 0);
-            double childValue = (p1Value * weight1 + p2Value * weight2) / totalFitness;
-            childGenes.put(subject, (int) Math.round(childValue));
+
+        int genes = ordem.size();
+        int[] childGenes = new int[genes];
+        for (int i = 0; i < genes; i++) {
+            double p1Value = alinhados ? plano1.daysAt(i) : plano1.getDaysForSubject(ordem.subject(i));
+            double p2Value = alinhados ? plano2.daysAt(i) : plano2.getDaysForSubject(ordem.subject(i));
+            childGenes[i] = (int) Math.round((p1Value * weight1 + p2Value * weight2) / totalFitness);
         }
         return childGenes;
     }

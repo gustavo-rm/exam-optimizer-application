@@ -1,13 +1,14 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.objective;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
+import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 
 /**
@@ -49,19 +50,23 @@ public class ScoreGainObjective implements FitnessObjective {
 
     @Override
     public double calculateReward(StudyPlan plan, EvolutionContext context) {
-        Map<Subject, Double> importanceScores = context.normalizedImportance();
+        // Percurso por posicao, e nao pelo mapa de dias (pendencia P18): tanto o gene quanto a
+        // importancia da disciplina sao leituras de vetor. Antes eram, por gene, uma entrada de mapa
+        // criada no percurso e uma busca com hash na importancia.
+        GeneVectors vetores = context.geneVectors();
+        SubjectIndex ordem = vetores.index();
+        int genes = ordem.size();
 
-        // forEach, e nao entrySet: ver a nota sobre o custo do involucro em StudyPlan. O acumulador
-        // precisa de um vetor de um elemento porque a lambda nao pode escrever numa variavel local.
-        double[] score = {0.0};
-        plan.getDaysPerSubject().forEach((subject, days) -> {
-            double importance = importanceScores.getOrDefault(subject, 0.0);
+        double score = 0.0;
+        for (int i = 0; i < genes; i++) {
+            Subject subject = ordem.subject(i);
+            double importance = vetores.normalizedImportance(i);
             if (importance == 0.0) {
                 log.warn("The subject '{}' does not have an importance score.", subject.name());
             }
-            score[0] += importance * LearningModel.mastery(subject, days);
-        });
-        return score[0];
+            score += importance * LearningModel.mastery(subject, plan.daysAt(ordem, i));
+        }
+        return score;
     }
 
     /**
