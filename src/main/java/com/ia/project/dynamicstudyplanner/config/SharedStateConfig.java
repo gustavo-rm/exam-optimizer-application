@@ -3,6 +3,10 @@ package com.ia.project.dynamicstudyplanner.config;
 import com.ia.project.dynamicstudyplanner.infra.ratelimit.LocalRateLimitBuckets;
 import com.ia.project.dynamicstudyplanner.infra.ratelimit.RateLimitBuckets;
 import com.ia.project.dynamicstudyplanner.infra.ratelimit.RedisRateLimitBuckets;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ia.project.dynamicstudyplanner.infra.jobs.JobStore;
+import com.ia.project.dynamicstudyplanner.infra.jobs.LocalJobStore;
+import com.ia.project.dynamicstudyplanner.infra.jobs.RedisJobStore;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.BucketConfiguration;
 import io.lettuce.core.RedisClient;
@@ -121,6 +125,42 @@ public class SharedStateConfig {
                 + "separado. Para replicar, defina api.shared-state.redis.enabled=true.",
                 capacity, refillDurationMinutes, "N", capacity);
         return new LocalRateLimitBuckets(configuracaoDoBalde());
+    }
+
+    /**
+     * Registro de trabalhos assíncronos, no Redis.
+     *
+     * <p>Vai junto com os baldes de propósito: as duas peças de estado compartilhado sobem e descem
+     * pela <b>mesma</b> chave de configuração. Poder ligar uma sem a outra criaria uma configuração
+     * meio replicável — limite compartilhado e trabalhos locais, ou o inverso — que funciona em
+     * teste e falha em produção de forma intermitente.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "api.shared-state.redis.enabled", havingValue = "true")
+    public JobStore redisJobStore(RedisClient redisClient, ObjectMapper objectMapper,
+                                  @Value("${api.jobs.ttl-minutes:60}") int ttlMinutos) {
+        log.info("Registro de trabalhos: COMPARTILHADO no Redis, com prazo de {} min. "
+                + "Enviar numa replica e consultar em outra funciona.", ttlMinutos);
+        return new RedisJobStore(redisClient, objectMapper, Duration.ofMinutes(ttlMinutos));
+    }
+
+    /**
+     * Registro de trabalhos na memória do processo.
+     *
+     * <p>O aviso é mais duro que o do limite de taxa porque a consequência é pior: com N réplicas, a
+     * consulta de resultado tem chance <b>1/N</b> de cair na réplica que conhece o identificador. As
+     * outras respondem 404 para um trabalho que existe — quebra de funcionalidade, não só de limite.
+     */
+    @Bean
+    @ConditionalOnProperty(name = "api.shared-state.redis.enabled", havingValue = "false",
+            matchIfMissing = true)
+    public JobStore localJobStore(@Value("${api.jobs.ttl-minutes:60}") int ttlMinutos,
+                                  @Value("${api.jobs.max-records:10000}") long maximo) {
+        log.warn("Registro de trabalhos: LOCAL a este processo. Com mais de uma replica, a consulta "
+                + "de resultado tem chance 1/N de cair na replica certa — as outras respondem 404 "
+                + "para um trabalho que existe. Para replicar, defina "
+                + "api.shared-state.redis.enabled=true.");
+        return new LocalJobStore(Duration.ofMinutes(ttlMinutos), maximo);
     }
 
     private void registrarModo(MeterRegistry registry, String modo, boolean compartilhado) {

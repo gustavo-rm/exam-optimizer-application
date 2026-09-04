@@ -77,6 +77,65 @@
         },
         "type" : "object"
       },
+      "JobAcceptedDto" : {
+        "description" : "Confirmation that the optimization request was accepted for processing.",
+        "properties" : {
+          "id" : {
+            "description" : "Identifier of the accepted job.",
+            "example" : "3f2b1c44-9a7e-4c1f-8f0d-2a5b6c7d8e9f",
+            "type" : "string"
+          },
+          "status" : {
+            "description" : "Current status of the job.",
+            "example" : "PENDING",
+            "type" : "string"
+          },
+          "statusUrl" : {
+            "description" : "Where to poll for the result.",
+            "example" : "/api/v1/optimizer/jobs/3f2b1c44-9a7e-4c1f-8f0d-2a5b6c7d8e9f",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "JobStatusDto" : {
+        "description" : "Status of an optimization job, including the result once it is ready.",
+        "properties" : {
+          "error" : {
+            "description" : "Why it failed. Present only when FAILED.",
+            "type" : "string"
+          },
+          "finishedAt" : {
+            "description" : "When it finished. Absent while not finished.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "description" : "Job identifier.",
+            "type" : "string"
+          },
+          "result" : {
+            "$ref" : "#/components/schemas/PlannerResponseDto",
+            "description" : "The generated plan. Present only when SUCCEEDED."
+          },
+          "startedAt" : {
+            "description" : "When it left the queue and started running. Absent while PENDING.",
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "description" : "PENDING, RUNNING, SUCCEEDED or FAILED.",
+            "example" : "SUCCEEDED",
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "description" : "When the request was accepted.",
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "OptimizationRequest" : {
         "description" : "The main request payload for generating an optimized study plan.",
         "properties" : {
@@ -514,10 +573,117 @@
               }
             },
             "description" : "Internal Server Error. An unexpected exception occurred."
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Service Unavailable. The service is at capacity and refused the request, or a required dependency is unavailable. Retry after the number of seconds in the Retry-After header."
           }
         },
         "summary" : "Generate an optimized study plan",
         "tags" : [ "Study Plan Optimizer" ]
+      }
+    },
+    "/api/v1/optimizer/jobs" : {
+      "post" : {
+        "description" : "Accepts the request, returns an identifier immediately and runs the genetic algorithm in the background. Poll the returned URL for the result.",
+        "operationId" : "submeter",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/OptimizationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobAcceptedDto"
+                }
+              }
+            },
+            "description" : "Accepted. The Location header and statusUrl point to the job."
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Bad Request. The payload failed validation or could not be parsed."
+          },
+          "429" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Too Many Requests. The per-client rate limit was exceeded."
+          },
+          "503" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "Service Unavailable. The queue is full; retry after the number of seconds in the Retry-After header."
+          }
+        },
+        "summary" : "Submit an optimization request",
+        "tags" : [ "Study Plan Optimizer (asynchronous)" ]
+      }
+    },
+    "/api/v1/optimizer/jobs/{id}" : {
+      "get" : {
+        "operationId" : "consultar",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JobStatusDto"
+                }
+              }
+            },
+            "description" : "The job exists. The result field is present once SUCCEEDED."
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProblemDetail"
+                }
+              }
+            },
+            "description" : "No job with this identifier — never existed, or already expired."
+          }
+        },
+        "summary" : "Read the status and, once ready, the result of a job",
+        "tags" : [ "Study Plan Optimizer (asynchronous)" ]
       }
     }
   },
@@ -526,6 +692,9 @@
     "url" : "http://localhost:8080"
   } ],
   "tags" : [ {
+    "description" : "Submit an optimization request and collect the result later.",
+    "name" : "Study Plan Optimizer (asynchronous)"
+  }, {
     "description" : "Endpoints for generating computationally optimized study plans using AI.",
     "name" : "Study Plan Optimizer"
   } ]

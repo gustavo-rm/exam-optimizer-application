@@ -1,5 +1,9 @@
 package com.ia.project.dynamicstudyplanner.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.ia.project.dynamicstudyplanner.infra.jobs.JobStore;
+import com.ia.project.dynamicstudyplanner.infra.jobs.OptimizationJob;
 import com.ia.project.dynamicstudyplanner.infra.ratelimit.RateLimitBuckets;
 import com.ia.project.dynamicstudyplanner.support.RedisDeTeste;
 import io.lettuce.core.RedisClient;
@@ -13,6 +17,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -96,6 +102,38 @@ class SharedStateConfigTest {
 
         try {
             assertThat(client.getDefaultTimeout()).isEqualTo(Duration.ofMillis(1500));
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    @Test
+    @DisplayName("registro de trabalhos local: grava e le, mas nao atravessa replicas")
+    void registroLocalGravaELe() {
+        JobStore store = configuracao().localJobStore(60, 1000);
+        String id = UUID.randomUUID().toString();
+
+        store.save(OptimizationJob.aceito(id, Instant.now()));
+
+        assertThat(store.find(id)).isPresent();
+        assertThat(store.modo()).isEqualTo("local");
+        assertThat(store.compartilhado()).isFalse();
+    }
+
+    @Test
+    @DisplayName("registro de trabalhos no Redis: e o que faz enviar numa replica e consultar noutra")
+    void registroNoRedisAtravessaReplicas() {
+        RedisClient client = configuracao().redisClient("localhost", redis.porta(), 2000);
+        try {
+            ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+            JobStore store = configuracao().redisJobStore(client, mapper, 60);
+            String id = UUID.randomUUID().toString();
+
+            store.save(OptimizationJob.aceito(id, Instant.now()));
+
+            assertThat(store.find(id)).isPresent();
+            assertThat(store.modo()).isEqualTo("redis");
+            assertThat(store.compartilhado()).isTrue();
         } finally {
             client.shutdown();
         }

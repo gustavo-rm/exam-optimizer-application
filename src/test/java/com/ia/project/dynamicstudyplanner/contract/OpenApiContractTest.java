@@ -125,15 +125,31 @@ class OpenApiContractTest {
                 .as("versao da especificacao OpenAPI")
                 .startsWith("3.");
 
+        // Tres caminhos desde a etapa 06b: o sincrono original, que continua sendo o contrato
+        // publicado, mais o par do fluxo assincrono (achado E6). O sincrono NAO foi substituido —
+        // troca-lo quebraria todo cliente existente de uma vez.
         assertThat(spec.path("paths").fieldNames())
                 .toIterable()
-                .as("o unico endpoint de negocio precisa estar documentado")
-                .containsExactly("/api/v1/optimizer/generate");
+                .as("os endpoints de negocio precisam estar documentados")
+                .containsExactlyInAnyOrder(
+                        "/api/v1/optimizer/generate",
+                        "/api/v1/optimizer/jobs",
+                        "/api/v1/optimizer/jobs/{id}");
 
         assertThat(spec.path("paths").path("/api/v1/optimizer/generate").fieldNames())
                 .toIterable()
-                .as("o endpoint aceita apenas POST")
+                .as("o endpoint sincrono aceita apenas POST")
                 .containsExactly("post");
+
+        assertThat(spec.path("paths").path("/api/v1/optimizer/jobs").fieldNames())
+                .toIterable()
+                .as("enviar um trabalho e POST")
+                .containsExactly("post");
+
+        assertThat(spec.path("paths").path("/api/v1/optimizer/jobs/{id}").fieldNames())
+                .toIterable()
+                .as("consultar um trabalho e GET — e por ser GET nao consome o limite de taxa")
+                .containsExactly("get");
 
         JsonNode esquemas = spec.path("components").path("schemas");
         assertThat(esquemas.fieldNames()).toIterable()

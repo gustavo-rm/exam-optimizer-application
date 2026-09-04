@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.concurrent.Executor;
 
 /**
  * Configuration for asynchronous processing.
@@ -57,7 +56,7 @@ public class AsyncConfig {
      * o número lido é a fatia realmente disponível, não os núcleos da máquina hospedeira.
      */
     @Bean(name = "optimizerTaskExecutor")
-    public Executor optimizerTaskExecutor() {
+    public ThreadPoolTaskExecutor optimizerTaskExecutor() {
         int availableCores = Runtime.getRuntime().availableProcessors();
         int workerThreads = configuredPoolSize > 0 ? configuredPoolSize : availableCores;
         log.info("Configuring optimizerTaskExecutor with {} worker threads ({} cores available, "

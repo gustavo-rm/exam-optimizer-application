@@ -102,6 +102,13 @@ public class OptimizerController {
                     @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class))
             }),
+            @ApiResponse(responseCode = "503",
+                    description = "Service Unavailable. The service is at capacity and refused the "
+                            + "request, or a required dependency is unavailable. Retry after the "
+                            + "number of seconds in the Retry-After header.", content = {
+                    @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))
+            }),
             @ApiResponse(responseCode = "500",
                     description = "Internal Server Error. An unexpected exception occurred.", content = {
                     @Content(mediaType = "application/problem+json",

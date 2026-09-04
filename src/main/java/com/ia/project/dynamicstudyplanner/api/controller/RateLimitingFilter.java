@@ -54,8 +54,13 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Only rate limit the optimizer endpoints
-        if (request.getRequestURI().startsWith("/api/v1/optimizer/")) {
+        // O limite protege a CAPACIDADE DE CALCULO, entao vale para quem PEDE trabalho, nao para
+        // quem consulta o resultado. Desde a etapa 06b existe o fluxo assincrono, em que o cliente
+        // busca o resultado por GET: cobrar essas consultas do mesmo balde faria o cliente gastar
+        // seu limite justamente para descobrir se o trabalho que ele ja pagou terminou — e a
+        // consulta custa uma leitura, nao uma otimizacao.
+        if (request.getRequestURI().startsWith("/api/v1/optimizer/")
+                && !"GET".equalsIgnoreCase(request.getMethod())) {
             // Chave do balde: endereco COMPLETO, para nao juntar clientes distintos num mesmo
             // balde. O mascaramento e aplicado so no que sai para log (ver ClientIpResolver).
             String clientIp = clientIpResolver.resolve(request);

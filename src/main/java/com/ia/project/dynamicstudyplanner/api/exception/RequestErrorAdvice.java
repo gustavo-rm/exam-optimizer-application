@@ -218,6 +218,25 @@ public class RequestErrorAdvice {
     }
 
     /**
+     * Trabalho assíncrono inexistente. Devolve <b>404</b>.
+     *
+     * <p>Duas causas produzem a mesma resposta, e não são distinguidas: o identificador nunca
+     * existiu, ou o registro já expirou. Separá-las revelaria que um identificador <i>existiu</i>,
+     * e não muda nada para quem chama — nos dois casos o caminho é reenviar o pedido.
+     */
+    @ExceptionHandler(JobNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleJobNotFound(
+            JobNotFoundException ex, HttpServletRequest request) {
+
+        log.warn("Optimization job not found on path {}", request.getRequestURI());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ProblemDetails.of(HttpStatus.NOT_FOUND, "job-not-found",
+                        "No optimization job with this identifier. It never existed, or it has "
+                                + "expired.", request));
+    }
+
+    /**
      * Lacuna de conhecimento citando disciplina ausente do edital.
      *
      * <p>É erro de referência, não violação de regra: o cliente apontou para algo que não existe no
