@@ -4,7 +4,8 @@
 - **Branch:** `release/v4.0`
 - **Base:** [`06-diagnostico-escalonamento.md`](./06-diagnostico-escalonamento.md) — 10 achados (E1–E10)
 - **Commits:** `a9829ad` (E3) · `ebb9b3e` (E1) · `8719aa2` (E2, E5) · `38fc207` (E6) · `268a05e` (E7–E10)
-- **Corrigidos:** 9 de 10. **Aberto com análise:** E4 (limite por custo — decisão de produto)
+- **Commit adicional:** `6c77b02` (E4)
+- **Corrigidos:** **10 de 10**
 
 ---
 
@@ -21,12 +22,12 @@
 | **E8** | Threads do conector invisíveis | `tomcat_threads_busy` publicada | scrape contra o jar |
 | **E9** | Resposta de 36,3 KB sem compressão | **2,4 KB** — razão de **15,4×** | medido no fio |
 | **E10** | 2 linhas de INFO por requisição, **449 MB/h** por réplica saturada | 0 linhas de INFO por requisição | teste trava o nível |
-| **E4** | Limite conta requisições, não custo (espalhamento de 119×) | **Aberto**, com desenho proposto (§8) | — |
+| **E4** | Limite conta requisições, não custo: **2 088** clientes típicos contra **17** pesados para saturar | O balde conta custo: **16 contra 12** | grade de 16 medições |
 
 | | Antes | Depois |
 |---|---:|---:|
-| Testes | 222 | **261** (+39) |
-| Cobertura (BUNDLE) | 91,46 % instr. / 73,85 % ramos | **92,18 % / 74,54 %** |
+| Testes | 222 | **287** (+65) |
+| Cobertura (BUNDLE) | 91,46 % instr. / 73,85 % ramos | **92,44 % / 74,91 %** |
 | Suíte | verde | **verde**, rodada após cada mudança |
 
 ---
@@ -415,28 +416,111 @@ respondida com sim, nas §1 e §2.
 
 ---
 
-## 8. E4 — Aberto, com desenho e o motivo de não ter sido feito
+## 8. E4 — O limite passou a contar custo
 
-O limite de taxa conta **requisições**, não custo. O contrato aceita, do mais barato ao mais caro:
+### O defeito
 
-| | Planos/hora por réplica | Custo relativo |
-|---|---:|---:|
-| Pedido típico (15 disc., 100 ger., pop. 50) | 619 200 | 1× |
-| Pedido pesado (24 disc., 1000 ger., pop. 500) | 5 183 | **119×** |
+O balde consumia **uma ficha por requisição**, qualquer que fosse ela. O contrato, porém, aceita
+pedidos com custos muito diferentes — e a consequência era uma assimetria de duas ordens de
+grandeza:
 
-Dezessete clientes obedecendo o limite de 5 por minuto saturam a máquina com pedidos pesados.
+| | Custo | Permitido | Clientes obedientes para saturar |
+|---|---:|---:|---:|
+| Pedido típico (15 disc., 100 ger., pop. 50) | 1× | 5/min | **2 088** |
+| Pedido pesado (24 disc., 1000 ger., pop. 500) | 119× | 5/min | **17** |
 
-**O desenho está claro:** cobrar do balde um número de fichas proporcional a
-`gerações × população`, com o pedido típico valendo 1 e o pesado valendo ~100, e a capacidade
-expressa em fichas em vez de chamadas. O `bucket4j` já suporta consumir N fichas — é uma linha.
+Um cliente de pedidos baratos era barrado depois de gastar **1/123** do recurso que fazia o cliente
+de pedidos pesados ser barrado. Não era abuso — era a política funcionando como escrita.
 
-**Por que não foi feito nesta etapa:** isso muda a **política pública** do serviço, não a mecânica.
-Hoje um cliente pode fazer 5 requisições por minuto, quaisquer que sejam. Depois, poderia fazer 500
-típicas ou 5 pesadas. Isso é melhor, mas é uma decisão de produto sobre o que se promete a quem
-consome a API — e a etapa não pediu mudança de política. Fica registrado com a análise e o custo
-medido, para ser decidido em vez de ser decidido por omissão.
+### A função de custo não foi estimada — foi medida
 
-**Pendência P20.**
+O custo foi levantado numa grade de **16 pontos** cobrindo todo o espaço que o contrato aceita, com
+medianas de 5 a 11 execuções:
+
+| disc | ger | pop | tempo | | disc | ger | pop | tempo |
+|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| 5 | 100 | 50 | 9 ms | | 15 | 100 | 10 | 1 ms |
+| 15 | 100 | 50 | **12 ms** | | 15 | 100 | 100 | 22 ms |
+| 24 | 100 | 50 | 11 ms | | 15 | 100 | 250 | 43 ms |
+| 40 | 100 | 50 | 15 ms | | 15 | 100 | 500 | 84 ms |
+| 15 | 10 | 50 | 1 ms | | 5 | 1000 | 500 | 443 ms |
+| 15 | 250 | 50 | 20 ms | | 24 | 1000 | 500 | 1 069 ms |
+| 15 | 500 | 50 | 40 ms | | 40 | 1000 | 500 | 1 538 ms |
+| 15 | 1000 | 50 | 80 ms | | 24 | 10 | 10 | 0 ms |
+
+Dois fatos saltam da grade:
+
+- **`gerações × população` domina e é linear.** Multiplicar esse produto por 100 multiplica o tempo
+  por ~89. E os dois fatores entram *pelo produto*: 1000×50 e 100×500 custaram 80 e 84 ms — se
+  fosse de outro jeito, bastaria escolher o eixo barato.
+- **Disciplinas entram linearmente sobre uma base fixa.** A 1000 gerações e população 500: 5
+  disciplinas custam 443 ms, 24 custam 1 069, 40 custam 1 538 — uma reta de inclinação 0,313 ms por
+  disciplina.
+
+O modelo que sai daí:
+
+```
+unidades = (gerações × população) / 5.000
+custo_ms = 4,441 + unidades × (2,866 + 0,313 × disciplinas)
+```
+
+A parcela fixa de 4,441 ms é o que a requisição gasta fora do laço evolutivo, e é ela que faz um
+pedido minúsculo não custar zero.
+
+**Ajuste verificado contra a grade: erro abaixo de 5 % em todo pedido a partir de 3 unidades de
+trabalho.** As constantes são de uma máquina específica, mas o que a função devolve é uma **razão** —
+e a razão entre um pedido pesado e um típico é propriedade do algoritmo, não do relógio.
+
+### O resultado
+
+Na escala em que 1 ficha = o pedido típico:
+
+| Pedido | Fichas |
+|---|---:|
+| 15 disc., 100 ger., pop. 50 | **1** |
+| 24 disc., 1000 ger., pop. 500 | **87** |
+| 40 disc., 1000 ger., pop. 500 | **129** (o mais caro aceito) |
+
+Capacidade: **650 fichas por minuto**. Medido exato — numa bateria de 700 pedidos típicos, **650
+aceitos e 50 recusados**.
+
+| | Antes | Depois | Clientes para saturar |
+|---|---:|---:|---:|
+| Pedido típico | 5/min | **650/min** | 2 088 → **16** |
+| Pedido pesado | 5/min | **7/min** | 17 → **12** |
+| Pedido mais caro | 5/min | **5/min** | — |
+
+**A assimetria entre os dois extremos caiu de 123× para 1,3×**, e o pedido mais caro manteve
+exatamente a permissão anterior — a proteção no pior caso não foi afrouxada.
+
+**Isto muda a política pública**, de "5 requisições por minuto, quaisquer que sejam" para "650 fichas
+por minuto". A mudança é deliberada e está escrita no `application.properties`, ao lado do número.
+
+### Ler o corpo sem consumi-lo
+
+Para precificar, o filtro precisa do corpo — e precisa devolvê-lo intacto ao controlador, senão toda
+requisição chegaria vazia ao desserializador e **a API inteira viraria 400**.
+`CachedBodyHttpServletRequest` lê uma vez para memória e serve um fluxo novo a cada chamada, com
+teto de tamanho: guardar um corpo arbitrário seria trocar um problema por outro.
+
+A alternativa — mover o limite para depois da desserialização — seria pior: o trabalho de interpretar
+o JSON aconteceria **antes** de o limite decidir se o pedido é aceito, que é exatamente o que um
+limite de taxa existe para evitar.
+
+### Duas decisões de direção que a suíte corrigiu
+
+| Caso | Primeira versão | Versão final | Por quê |
+|---|---|---|---|
+| Corpo ilegível | cobrava o **máximo** | cobra o **piso** | Para burlar o preço seria preciso um corpo que o cálculo não lê **e** que a desserialização aceita — as duas usam o mesmo Jackson, então esse corpo não existe. Um corpo deformado vira 400 sem rodar o algoritmo; cobrar 129 fichas puniria quem tem defeito de integração |
+| Pedido fora do contrato | precificado pelos valores inválidos | cobra o **piso** | `populationSize: 1000000` drenava o balde inteiro por um pedido que jamais executaria, e o cliente recebia **429 no lugar do 400** que explica o erro dele |
+
+Os limites do contrato viraram constantes em `GaConfigDto`, usadas **tanto** pelas anotações de
+validação **quanto** pelo cálculo do preço: preço e contrato não podem divergir em silêncio.
+
+### Nova métrica
+
+`dynamicstudyplanner.ratelimit.cost` — a distribuição de fichas cobradas por pedido. É como se vê o
+perfil de custo do tráfego real, em vez de supô-lo.
 
 ---
 
@@ -475,6 +559,19 @@ cenário em que Redis não é necessário.
 | `config/ObservabilidadeMinimaTest` | latência, taxa de erro, saturação, replicabilidade, ciclo de vida dos trabalhos, e as chaves de E7/E8/E9 | 8 |
 | `config/SharedStateConfigTest` | os quatro modos de armazenamento e a métrica que os torna visíveis | 6 |
 | `config/AsyncConfigDimensionamentoTest` | fila cabe no prazo; medidor de saturação nos dois ramos | +3 (3 → 6) |
+| `infra/ratelimit/RequestCostTest` | o modelo de custo contra os 13 pontos da grade que **não** o calibraram | 14 |
+| `api/controller/RateLimitingFilterTest` | corpo continua legível; preço acompanha o tamanho; corpo ilegível; corpo acima do teto; fora do contrato; fronteira exata do contrato | 9 (era 3) |
+| `api/controller/CachedBodyHttpServletRequestTest` | leitura repetida, leitor de texto, fim de fluxo, teto de tamanho e sua fronteira | 6 |
+
+### Sabotagens conferidas no E4
+
+Três, porque o preço é o tipo de coisa que se degrada em silêncio:
+
+| Sabotagem | O que reprovou |
+|---|---|
+| Voltar a cobrar 1 ficha por chamada (o defeito) | 2 de 9 em `RateLimitingFilterTest` |
+| Filtro consome o corpo e não o repõe | 2 de 9 — incluindo o teste que diz, na mensagem, que a API inteira viraria 400 |
+| Mexer numa constante do modelo "para arredondar" | 8 de 14 em `RequestCostTest` |
 
 ### Sobre o Redis dos testes
 
@@ -499,4 +596,4 @@ Verificado: a suíte roda **verde com 0 testes pulados** e o Redis da máquina d
 | **P17** | Pool próprio para a avaliação de fitness | `ga/Population.java` | os dois níveis de paralelismo precisam ser dimensionados em conjunto |
 | **P18** | Cromossomo como vetor indexado | `ga/GeneticAlgorithm.java` | muda o tipo de domínio no sistema inteiro e altera o resultado |
 | **P19** | Credencial real para o coletor de métricas | `config/SecurityConfig.java` | decisão de implantação |
-| **P20** | Limite de taxa por **custo**, não por contagem (E4) | §8 | muda a política pública da API — decisão de produto |
+| ~~P20~~ | ~~Limite de taxa por custo~~ | — | **Resolvida** nesta etapa (§8) |
