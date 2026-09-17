@@ -4,8 +4,12 @@ import com.ia.project.dynamicstudyplanner.domain.StudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 
 import java.time.LocalDate;
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 /**
  * An advanced strategy that incorporates Spaced Repetition.
  * It dedicates the first hour of a study day to reviewing the subject that hasn't
@@ -34,7 +38,8 @@ public class ReviewFocusedStrategy implements AllocationStrategy {
 
         // --- 1. Lógica da Repetição Espaçada ---
         // Encontra a matéria que foi estudada há mais tempo (ou nunca)
-        Optional<Subject> reviewSubject = findSubjectForReview(context.hoursToSchedulePerSubject(), context.lastStudiedDateMap());
+        Optional<Subject> reviewSubject = findSubjectForReview(context.hoursToSchedulePerSubject(),
+                context.lastStudiedDateMap());
 
         if (reviewSubject.isPresent()) {
             Subject subjectToReview = reviewSubject.get();
@@ -53,7 +58,8 @@ public class ReviewFocusedStrategy implements AllocationStrategy {
         // Para as horas restantes, usa a estratégia de fallback
         int remainingHours = context.availableHoursToday() - dailyBlocks.size();
         if (remainingHours > 0) {
-            dailyBlocks.addAll(fallbackStrategy.allocateHours(new AllocationContext(remainingHours, context.hoursToSchedulePerSubject(), context.lastStudiedDateMap())));
+            dailyBlocks.addAll(fallbackStrategy.allocateHours(new AllocationContext(remainingHours,
+                    context.hoursToSchedulePerSubject(), context.lastStudiedDateMap())));
         }
 
         return dailyBlocks;
@@ -62,7 +68,8 @@ public class ReviewFocusedStrategy implements AllocationStrategy {
     /**
      * Finds the subject that has gone the longest without being studied.
      */
-    private Optional<Subject> findSubjectForReview(Map<Subject, Double> hoursToSchedule, Map<Subject, LocalDate> lastStudied) {
+    private Optional<Subject> findSubjectForReview(Map<Subject, Double> hoursToSchedule, Map<Subject,
+            LocalDate> lastStudied) {
         return hoursToSchedule.keySet().stream()
                 .filter(subject -> hoursToSchedule.get(subject) > 0.5)
                 // Compara as datas, tratando as nunca estudadas (nulas) como as mais antigas

@@ -11,6 +11,7 @@ public record InvalidParam(
         @Schema(description = "The name of the field that failed validation.", example = "exam.name")
         String name,
 
-        @Schema(description = "The validation error message explaining the rule violation.", example = "Exam name cannot be blank.")
+        @Schema(description = "The validation error message explaining the rule violation.",
+                example = "Exam name cannot be blank.")
         String reason
 ) {}

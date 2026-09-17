@@ -61,7 +61,8 @@ public final class RobustnessMain {
      */
     private static void determinismProbe(List<BenchmarkInstance> instances, BenchmarkHarness harness) {
         System.out.println("### 1. Determinismo: mesma seed, duas execucoes\n");
-        System.out.println("| Instancia | plano identico? | dias movidos entre as duas execucoes | fitness A | fitness B |");
+        System.out.println(
+                "| Instancia | plano identico? | dias movidos entre as duas execucoes | fitness A | fitness B |");
         System.out.println("|---|---|---|---|---|");
 
         PlanningStrategy ga = new ProductionGeneticAlgorithm(BenchmarkHarness.productionFitnessEvaluator());
@@ -100,7 +101,9 @@ public final class RobustnessMain {
     private static void seedVariance(List<BenchmarkInstance> instances, BenchmarkHarness harness,
                                      StringBuilder csv) {
         System.out.println("### 2. Variancia entre " + SEEDS.length + " seeds\n");
-        System.out.println("| Instancia | fitness media | desvio | CV% | amplitude% | planos distintos | dias movidos (media) | dias movidos (max) | % do orcamento (max) |");
+        System.out.println("| Instancia | fitness media | desvio | CV% | amplitude% "
+                + "| planos distintos | dias movidos (media) | dias movidos (max) "
+                + "| % do orcamento (max) |");
         System.out.println("|---|---|---|---|---|---|---|---|---|");
 
         csv.append("secao,instancia,fitness_media,fitness_desvio,cv_pct,amplitude_pct,")

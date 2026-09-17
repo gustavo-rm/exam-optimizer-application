@@ -15,7 +15,8 @@ public record OptimizationResultDto(
         StudyPlanDto plan,
         @Schema(description = "The final calculated fitness score of the best individual.", example = "142.55")
         double fitness,
-        @Schema(description = "The number of evolutionary generations processed before finding this solution.", example = "100")
+        @Schema(description = "The number of evolutionary generations processed before finding this solution.",
+                example = "100")
         int generationsRun,
         @Schema(description = "The total execution time of the optimization algorithm in milliseconds.", example = "45")
         long executionTimeMillis

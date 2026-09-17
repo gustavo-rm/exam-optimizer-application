@@ -21,7 +21,9 @@ public record SubjectDto(
         @Min(value = 1, message = "Question count must be at least 1.")
         @Max(value = 500, message = "Question count cannot exceed 500.")
         int questionCount,
-        @Schema(description = "An intrinsic, objective difficulty score for this subject (1=Very Easy, 5=Extremely Difficult), used for load balancing.", example = "4")
+        @Schema(description = "An intrinsic, objective difficulty score for this subject "
+                + "(1=Very Easy, 5=Extremely Difficult), used for load balancing.",
+                example = "4")
         @Min(value = 1, message = "Cognitive load must be at least 1.")
         @Max(value = 5, message = "Cognitive load must be at most 5.")
         int cognitiveLoad

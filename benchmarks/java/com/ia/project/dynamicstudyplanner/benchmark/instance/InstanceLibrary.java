@@ -251,7 +251,8 @@ public final class InstanceLibrary {
 
     /**
      * Raises the day budget when the minimum-days floor computed by {@link BaselineCalculator}
-     * would exceed it, which {@code StudyPlanFactory} rejects with an IllegalArgumentException.
+     * would exceed it, which {@code StudyPlanFactory} rejects with a {@code DomainException}
+     * (reclassified in etapa 03d — see ADR-0005; it used to be an {@code IllegalArgumentException}).
      * A 25% headroom above the floor leaves the optimizer real decisions to make; without it the
      * instance would be trivially determined by the constraint alone.
      */

@@ -74,7 +74,36 @@ public final class GeneticAlgorithm {
             newPopulation.addIndividual(currentPopulation.getFittest());
         }
 
-        // 2. Fill the rest of the new population with offspring.
+        // 2. Preenche o resto da nova populacao com descendentes.
+        //
+        // ESTE LACO E SEQUENCIAL DE PROPOSITO. Ele e o trecho mais caro do algoritmo — 817 ms de
+        // 1592 ms no pior caso medido, 51 % do tempo de parede — e a tentacao obvia e paralelizar.
+        // Foi tentado e medido na etapa 05b (achado F2), e nao pode ser feito assim:
+        //
+        //   - selecao, crossover e mutacao consomem UMA fonte de aleatoriedade compartilhada, e o
+        //     numero de sorteios por descendente varia. Nao da para repartir a sequencia entre
+        //     threads sem saber de antemao quantos numeros cada um vai consumir.
+        //   - com o laco paralelo, DUAS EXECUCOES COM A MESMA SEMENTE deixam de coincidir: quem
+        //     pega qual numero passa a depender do escalonamento. GaResultadoInalteradoTest reprova
+        //     (2 dos 4 testes), e as 9 assinaturas de referencia mudam todas.
+        //   - e o ganho nem seria consistente: 1244 -> 1088 ms no pior caso (12 %), mas 50 -> 83 ms
+        //     em 15 disciplinas / 500 geracoes / populacao 50 — 66 % MAIS LENTO, pelo mesmo motivo
+        //     que levou ao limiar de Population.calculateFitness.
+        //
+        // O custo real estava na representacao do cromossomo, e a pendencia P18 o resolveu: o plano
+        // deixou de ser Map<Subject, Integer> e passou a ser um int[] alinhado a uma ordem canonica
+        // compartilhada (ver StudyPlan e SubjectIndex). Sumiram o hash, o boxing e a alocacao de no
+        // por gene — ~72 ns por gene sobre 474 mil recombinacoes. Medido ponta a ponta, com corpo de
+        // populacao 200: a latencia mediana caiu de 94 para 35 ms e a vazao com 16 concorrentes
+        // subiu de 61 para 146 req/s.
+        //
+        // O laco de reparo, o suspeito obvio, foi instrumentado e e gratuito (0,025 voltas por
+        // chamada), e a pausa de GC e ~1 % do tempo — nao era por ali.
+        //
+        // A troca mudou o plano produzido uma vez, porque a ordem dos genes decide onde cai o ponto
+        // de corte. A qualidade nao mudou: em 150 pares (5 configuracoes x 30 sementes), 62 vitorias
+        // contra 52 derrotas nos 114 pares nao empatados, z = +0,94 no teste dos sinais, e toda a
+        // dispersao dentro de +-0,13 %.
         int startIndex = elitism ? 1 : 0;
         for (int i = startIndex; i < currentPopulation.getSize(); i++) {
             Individual offspring = createOffspring(currentPopulation, context, currentMutationRate);

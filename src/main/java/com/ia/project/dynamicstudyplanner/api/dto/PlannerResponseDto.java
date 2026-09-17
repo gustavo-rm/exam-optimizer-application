@@ -11,7 +11,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
  */
 @Schema(description = "The comprehensive response containing both the strategic and tactical study plans.")
 public record PlannerResponseDto(
-        @Schema(description = "A status message summarizing the generation outcome.", example = "Full study plan generated successfully.")
+        @Schema(description = "A status message summarizing the generation outcome.",
+                example = "Full study plan generated successfully.")
         String message,
         @Schema(description = "The strategic output from the Genetic Algorithm (e.g., total days per subject).")
         OptimizationResultDto optimizationResult,

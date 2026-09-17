@@ -20,7 +20,8 @@ public class HybridHeuristicScheduler implements TacticalScheduler {
     private static final double BUFFER_ZONE_PERCENTAGE = 0.15; // Leave 15% of windows open for chaos/interruptions
 
     @Override
-    public TacticalStudyPlan schedule(Map<Subject, Integer> macroPlan, List<AvailabilityWindow> windows, boolean emergencyMode) {
+    public TacticalStudyPlan schedule(Map<Subject, Integer> macroPlan, List<AvailabilityWindow> windows,
+            boolean emergencyMode) {
         Map<TimeSlot, TacticalStudyBlock> schedule = new HashMap<>();
 
         // 1. Sort windows by energy (Highest energy first)
@@ -47,7 +48,8 @@ public class HybridHeuristicScheduler implements TacticalScheduler {
 
                 if (currentFilled + block.durationMinutes() <= usableCapacity) {
                     // Fits! Slice the window to create a specific TimeSlot for this block
-                    TimeSlot slot = new TimeSlot(currentSlotStart, currentSlotStart.plusMinutes(block.durationMinutes()));
+                    TimeSlot slot = new TimeSlot(currentSlotStart,
+                            currentSlotStart.plusMinutes(block.durationMinutes()));
                     schedule.put(slot, block);
 
                     currentFilled += block.durationMinutes();
@@ -76,8 +78,12 @@ public class HybridHeuristicScheduler implements TacticalScheduler {
                 long activeMins = (long) (hours * 60 * 0.7);
                 long passiveMins = (hours * 60L) - activeMins;
 
-                if (activeMins > 0) blocks.add(new TacticalStudyBlock(subject, StudyMethodology.ACTIVE_RECALL, activeMins));
-                if (passiveMins > 0) blocks.add(new TacticalStudyBlock(subject, StudyMethodology.PASSIVE_READING, passiveMins));
+                if (activeMins > 0) {
+                    blocks.add(new TacticalStudyBlock(subject, StudyMethodology.ACTIVE_RECALL, activeMins));
+                }
+                if (passiveMins > 0) {
+                    blocks.add(new TacticalStudyBlock(subject, StudyMethodology.PASSIVE_READING, passiveMins));
+                }
             }
         }
         return blocks;

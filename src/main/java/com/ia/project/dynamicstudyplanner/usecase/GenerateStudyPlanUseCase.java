@@ -11,5 +11,6 @@ import java.util.concurrent.CompletableFuture;
  * Generating a complete, optimized study plan.
  */
 public interface GenerateStudyPlanUseCase {
-    CompletableFuture<FullPlannerResult> generateFullStudyPlan(Exam exam, StudentProfile profile, int totalStudyDays, int numGenerations, int populationSize);
+    CompletableFuture<FullPlannerResult> generateFullStudyPlan(Exam exam, StudentProfile profile,
+            int totalStudyDays, int numGenerations, int populationSize);
 }

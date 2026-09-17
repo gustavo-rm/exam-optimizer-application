@@ -23,11 +23,15 @@ public record StudentProfileDto(
         @NotBlank(message = "Student name cannot be blank.")
         @Size(max = 100, message = "Student name cannot exceed 100 characters.")
         String name,
-        @Schema(description = "A mapping of subject names to the student's self-assessed knowledge gap on a 1.0 (very strong) to 5.0 (very weak) scale.", example = "{\"Constitutional Law\": 4.5, \"Portuguese\": 2.0}")
+        @Schema(description = "A mapping of subject names to the student's self-assessed knowledge "
+                + "gap on a 1.0 (very strong) to 5.0 (very weak) scale.",
+                example = "{\"Constitutional Law\": 4.5, \"Portuguese\": 2.0}")
         @NotEmpty(message = "Knowledge gaps map cannot be empty.")
         @Size(max = 100, message = "Cannot specify more than 100 knowledge gaps.")
         Map<@NotBlank @Size(max = 100) String, @NotNull @DecimalMin("1.0") @DecimalMax("5.0") Double> knowledgeGaps,
-        @Schema(description = "A mapping of the days of the week to the number of hours the student is available to study on that day.", example = "{\"MONDAY\": 4, \"SATURDAY\": 8}")
+        @Schema(description = "A mapping of the days of the week to the number of hours the "
+                + "student is available to study on that day.",
+                example = "{\"MONDAY\": 4, \"SATURDAY\": 8}")
         @NotEmpty(message = "Weekly availability map cannot be empty.")
         @Size(max = 7, message = "Weekly availability cannot have more than 7 days.")
         Map<@NotNull DayOfWeek, @NotNull @Min(0) @Max(24) Integer> weeklyAvailability,

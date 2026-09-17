@@ -2,7 +2,13 @@ package com.ia.project.dynamicstudyplanner.api.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 /**
  * DTO for a ThematicAxis. Includes validation rules.
  *
@@ -11,7 +17,8 @@ import jakarta.validation.constraints.*;
  * @param weight Weight of the axis. Must be a positive value, max 100.
  * @param subjects List of subjects in this axis. Must not be empty, max 50.
  */
-@Schema(description = "Data Transfer Object grouping related specific knowledge subjects into an axis with a shared weight.")
+@Schema(description = "Data Transfer Object grouping related specific knowledge subjects "
+        + "into an axis with a shared weight.")
 public record ThematicAxisDto(
         @Schema(description = "A unique identifier for the thematic axis.", example = "1")
         @Min(value = 1, message = "Axis ID must be at least 1.")

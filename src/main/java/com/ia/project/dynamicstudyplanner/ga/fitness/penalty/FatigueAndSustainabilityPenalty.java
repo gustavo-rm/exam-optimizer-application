@@ -3,12 +3,13 @@ package com.ia.project.dynamicstudyplanner.ga.fitness.penalty;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
-import com.ia.project.dynamicstudyplanner.service.calculation.fatigue.FatigueAndEnergyModel;
+import com.ia.project.dynamicstudyplanner.domain.fatigue.FatigueAlgorithm;
 import org.springframework.stereotype.Component;
+import com.ia.project.dynamicstudyplanner.domain.StudentState;
 
 /**
  * Penalizes plans that are unsustainable given the student's psychological and physical state.
- * It integrates the advanced FatigueAndEnergyModel to determine burnout risks.
+ * It integrates the FatigueAlgorithm contract to determine burnout risks.
  * <p>
  * <b>Tactical path only.</b> The macro branch is deliberately neutral: the student's state now
  * reaches the optimizer through the daily budget that {@code CognitiveLoadObjective} scores against,
@@ -19,15 +20,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class FatigueAndSustainabilityPenalty implements FitnessPenalty {
 
-    private final FatigueAndEnergyModel fatigueModel;
+    private final FatigueAlgorithm fatigueModel;
 
-    public FatigueAndSustainabilityPenalty(FatigueAndEnergyModel fatigueModel) {
+    public FatigueAndSustainabilityPenalty(FatigueAlgorithm fatigueModel) {
         this.fatigueModel = fatigueModel;
     }
 
     @Override
     public double calculatePenaltyFactor(StudyPlan plan, EvolutionContext context) {
-        com.ia.project.dynamicstudyplanner.domain.StudentState state = context.studentState();
+        StudentState state = context.studentState();
         if (state == null) {
             return 1.0; // No penalty if state is unknown
         }

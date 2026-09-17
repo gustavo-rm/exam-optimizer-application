@@ -11,6 +11,7 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.service.StudyScheduleGenerator;
 import com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
+import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationChains;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationStrategy;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.CognitiveLoadBalancingStrategy;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.InterleavedCriticalStrategy;
@@ -73,17 +74,16 @@ public final class MetricsCalculator {
         double fitness = fitnessEvaluator.evaluate(plan, context);
         int maxDailyLoad = cognitiveLoadCalculator.calculate(instance.profile(), instance.exam());
 
-        // Schedule 1: exactly the chain DynamicStudyPlannerService composes in production. This is
-        // what the student would receive, so retention and delivered-hours are measured on it.
-        AllocationStrategy productionChain = new ReviewFocusedStrategy(
-                new CognitiveLoadBalancingStrategy(new InterleavedCriticalStrategy(), maxDailyLoad));
+        // Schedule 1: the chain production composes, taken from the single definition in
+        // AllocationChains instead of replicated here. This is what the student would receive, so
+        // retention and delivered-hours are measured on it.
+        AllocationStrategy productionChain = AllocationChains.production(maxDailyLoad);
         ScheduleResult delivered = scheduleGenerator.generate(
                 plan, instance.profile(), instance.exam(), instance.planStartDate(), productionChain);
 
-        // Schedule 2: the same chain with the load-balancing pruner removed. Needed because the
-        // pruner drops blocks until the budget is met, which would report zero overload for every
-        // planner and hide the difference. This variant shows the load the macro plan really implies.
-        AllocationStrategy unprunedChain = new ReviewFocusedStrategy(new InterleavedCriticalStrategy());
+        // Schedule 2: the same chain with the load-balancing pruner removed. The reason is
+        // documented on the factory method itself.
+        AllocationStrategy unprunedChain = AllocationChains.productionWithoutLoadPruning();
         ScheduleResult unpruned = scheduleGenerator.generate(
                 plan, instance.profile(), instance.exam(), instance.planStartDate(), unprunedChain);
 

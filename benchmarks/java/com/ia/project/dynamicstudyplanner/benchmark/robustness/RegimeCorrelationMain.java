@@ -87,7 +87,8 @@ public final class RegimeCorrelationMain {
 
         List<RegimePoint> byCountPoints = measure(harness, byCount);
         System.out.println("\n## Varredura 2 — numero de disciplinas (razao ~2.0 fixa)\n");
-        System.out.println("| Instancia | Disciplinas | Dispersao Imp. | Spearman | Amplitude da retencao (pp) | Melhor retencao | Retencao do AG |");
+        System.out.println("| Instancia | Disciplinas | Dispersao Imp. | Spearman "
+                + "| Amplitude da retencao (pp) | Melhor retencao | Retencao do AG |");
         System.out.println("|---|---|---|---|---|---|---|");
         for (int i = 0; i < byCountPoints.size(); i++) {
             RegimePoint p = byCountPoints.get(i);
@@ -104,7 +105,8 @@ public final class RegimeCorrelationMain {
         List<BenchmarkInstance> byDispersion = HighLoadInstanceLibrary.byWeightDispersion();
         List<RegimePoint> byDispersionPoints = measure(harness, byDispersion);
         System.out.println("\n## Varredura 3 — dispersao dos pesos do edital (n = 20, razao ~2.0 fixas)\n");
-        System.out.println("| Instancia | Dispersao eixo | Dispersao Imp. | Spearman | Amplitude da retencao (pp) | Melhor retencao | Retencao do AG |");
+        System.out.println("| Instancia | Dispersao eixo | Dispersao Imp. | Spearman "
+                + "| Amplitude da retencao (pp) | Melhor retencao | Retencao do AG |");
         System.out.println("|---|---|---|---|---|---|---|");
         for (RegimePoint p : byDispersionPoints) {
             String rho = Double.isNaN(p.correlation()) ? "n/d"
@@ -154,7 +156,8 @@ public final class RegimeCorrelationMain {
         System.out.println("### Correlacao fitness x retencao por razao de demanda\n");
         System.out.println("Negativo = maximizar a fitness PIORA a retencao. `n/d` = todos os "
                 + "planejadores saturam a metrica, correlacao indefinida.\n");
-        System.out.println("| Instancia | Razao | Dispersao Imp. | Spearman | Amplitude da retencao (pp) | Melhor retencao | Retencao do AG |");
+        System.out.println("| Instancia | Razao | Dispersao Imp. | Spearman "
+                + "| Amplitude da retencao (pp) | Melhor retencao | Retencao do AG |");
         System.out.println("|---|---|---|---|---|---|---|");
 
         for (RegimePoint p : points) {
@@ -208,7 +211,8 @@ public final class RegimeCorrelationMain {
 
     private static void writeCsv(List<RegimePoint> points) throws IOException {
         StringBuilder csv = new StringBuilder(
-                "instancia,razao_demanda,dispersao_importancia,spearman,amplitude_retencao_pp,melhor_retencao,retencao_ag\n");
+                "instancia,razao_demanda,dispersao_importancia,spearman,"
+                        + "amplitude_retencao_pp,melhor_retencao,retencao_ag\n");
         for (RegimePoint p : points) {
             csv.append(String.format(Locale.ROOT, "%s,%.4f,%.2f,%s,%.2f,%.2f,%.2f%n",
                     p.instanceId(), p.demandRatio(), p.importanceDispersion(),

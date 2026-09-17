@@ -1,0 +1,43 @@
+# Verificacao automatica de dependencias desatualizadas.
+#
+# Ate a etapa 04b nao havia NENHUM mecanismo que avisasse sobre atualizacoes (achado L19): os
+# numeros do diagnostico so existiam porque alguem rodou o versions-maven-plugin a mao. O resultado
+# foi o Spring Boot acumular 22 releases de atraso — 11 deles apenas correcoes dentro da propria
+# linha 3.5, que ninguem sabia estarem disponiveis.
+#
+# As atualizacoes de patch e minor vem agrupadas num unico PR por semana, para nao gerar ruido de
+# revisao. As de major vem separadas, uma a uma, porque cada uma exige plano de teste proprio — ver
+# a secao de dependencias em docs/qualidade/04b-correcao-escrita.md.
+
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      # Um PR por semana com tudo que e compativel por definicao de versionamento semantico.
+      atualizacoes-compativeis:
+        update-types:
+          - patch
+          - minor
+    ignore:
+      # As tres travadas de proposito. Nao sao esquecimento: cada uma quebra algo conhecido e
+      # precisa de migracao planejada. Ver P14, P15 e P16 em docs/qualidade/04b-correcao-escrita.md.
+      - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "org.springdoc:springdoc-openapi-starter-webmvc-ui"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "net.logstash.logback:logstash-logback-encoder"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies

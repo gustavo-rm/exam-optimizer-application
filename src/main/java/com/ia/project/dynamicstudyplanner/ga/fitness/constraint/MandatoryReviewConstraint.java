@@ -6,7 +6,7 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
-import com.ia.project.dynamicstudyplanner.service.calculation.retention.RetentionAlgorithm;
+import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
@@ -46,7 +46,8 @@ public class MandatoryReviewConstraint implements ConstraintValidator {
 
         // Check if any subject required a review but was missing from the set
         for (Subject subject : context.importanceScores().keySet()) {
-            boolean mandatory = retentionAlgorithm.isReviewMandatory(subject, context.retentionProfile().getState(subject), context.planStartDate());
+            boolean mandatory = retentionAlgorithm.isReviewMandatory(subject,
+                    context.retentionProfile().getState(subject), context.planStartDate());
             if (mandatory && !reviewedSubjects.contains(subject)) {
                 return false; // Constraint Violated: A mandatory review was missed
             }

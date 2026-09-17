@@ -20,15 +20,20 @@ public class HybridCrossover implements CrossoverStrategy {
         this.exploitationChance = 0.75;
     }
     @Override
-    public Individual crossover(Individual parent1, Individual parent2, double crossoverRate, EvolutionContext context) {
+    public Individual crossover(Individual parent1, Individual parent2, double crossoverRate,
+            EvolutionContext context) {
         // Primeiro, decide se o crossover vai acontecer
         if (RandomProvider.getInstance().nextDouble() > crossoverRate) {
-            return parent1.getFitness() > parent2.getFitness() ? new Individual(parent1.getPlan()) : new Individual(parent2.getPlan());
+            return parent1.getFitness() > parent2.getFitness()
+                    ? new Individual(parent1.getPlan())
+                    : new Individual(parent2.getPlan());
         }
         // Se acontecer, escolhe qual estratégia usar
         if (RandomProvider.getInstance().nextDouble() < exploitationChance) {
             // Usa a estratégia de refinamento
-            return exploitationStrategy.crossover(parent1, parent2, 1.0, context); // Passa 1.0 pois já decidimos cruzar
+            // Taxa 1.0: a decisao de cruzar ja foi tomada acima, e o operador escolhido nao deve
+            // sortear de novo.
+            return exploitationStrategy.crossover(parent1, parent2, 1.0, context);
         } else {
             // Usa a estratégia de exploração
             return explorationStrategy.crossover(parent1, parent2, 1.0, context);

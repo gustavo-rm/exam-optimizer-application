@@ -385,7 +385,7 @@ public final class WeightTradeoffMain {
      * <p>
      * Simulates a change to {@code BaselineCalculator.MIN_REQUIRED_DAYS} without making one. The
      * floor cannot be injected through {@link EvolutionContext}, because
-     * {@code StudyOptimizerService} builds its own context and computes the floor itself — which is
+     * {@code EvolutionContextAssembler} computes the floor while assembling the context — which is
      * also why {@code ProductionGeneticAlgorithm} has to take the calculator by constructor.
      * Subjects whose production floor already exceeds the target are left alone, so this only lifts
      * the tail that was being reduced to one or two days.
@@ -450,18 +450,18 @@ public final class WeightTradeoffMain {
         Map<Subject, Integer> minimumDays = new BaselineCalculator(importanceCalculator)
                 .calculateMinimumDays(instance.exam(), instance.profile());
 
-        return EvolutionContext.of(
-                importance,
-                minimumDays,
-                instance.profile().getState(),
-                evaluator,
-                new RetentionProfile(Map.of()),
-                instance.planStartDate(),
-                EngagementProfile.baseline(),
-                Math.max(1, (int) instance.horizonDays()),
-                Math.max(1, (int) Math.ceil(instance.profile().getTotalWeeklyHours() / 7.0)),
-                new CognitiveLoadCalculator().calculate(instance.profile(), instance.exam())
-        );
+        return EvolutionContext.builder()
+                .importanceScores(importance)
+                .minimumDaysPerSubject(minimumDays)
+                .studentState(instance.profile().getState())
+                .fitnessEvaluator(evaluator)
+                .retentionProfile(new RetentionProfile(Map.of()))
+                .planStartDate(instance.planStartDate())
+                .engagementProfile(EngagementProfile.baseline())
+                .planningHorizonDays(Math.max(1, (int) instance.horizonDays()))
+                .hoursPerStudyDay(Math.max(1, (int) Math.ceil(instance.profile().getTotalWeeklyHours() / 7.0)))
+                .maxDailyCognitiveLoad(new CognitiveLoadCalculator().calculate(instance.profile(), instance.exam()))
+                .build();
     }
 
     private WeightTradeoffMain() {

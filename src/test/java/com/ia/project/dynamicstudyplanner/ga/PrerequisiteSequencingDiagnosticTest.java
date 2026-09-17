@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -159,10 +160,25 @@ class PrerequisiteSequencingDiagnosticTest {
                     .hasMessageContaining("devem somar 1.0");
         }
 
+        /**
+         * Reescrito na etapa 01b. A versão anterior era {@code assertThat(...).isNotNull()}, que em
+         * Java não pode falhar sem que uma exceção tenha sido lançada antes: o teste funcionava por
+         * efeito colateral e a asserção não dizia o que ele realmente verificava. Agora declara as
+         * duas coisas: que a composição de produção passa pelo assert de soma dos pesos, e qual é a
+         * composição que passa — de modo que acrescentar ou remover um objetivo sem rebalancear os
+         * pesos falhe aqui, com mensagem legível.
+         */
         @Test
-        @DisplayName("o pipeline de producao satisfaz o assert")
-        void productionPipelineSatisfiesTheAssertion() {
-            assertThat(productionPipeline()).isNotNull();
+        @DisplayName("a composicao de producao passa pelo assert de soma dos pesos")
+        void productionPipelineSatisfiesTheWeightSumAssertion() {
+            assertThatCode(PrerequisiteSequencingDiagnosticTest::productionPipeline)
+                    .as("os tres objetivos de producao somam 1.0 e o construtor deve aceita-los")
+                    .doesNotThrowAnyException();
+
+            assertThat(List.of(new ScoreGainObjective(), new RetentionObjective(), new CognitiveLoadObjective()))
+                    .as("a composicao verificada acima e exatamente esta")
+                    .extracting(FitnessObjective::getWeight)
+                    .containsExactly(0.50, 0.30, 0.20);
         }
     }
 
@@ -178,11 +194,14 @@ class PrerequisiteSequencingDiagnosticTest {
     }
 
     private static EvolutionContext contextFor(FitnessEvaluator evaluator) {
-        return EvolutionContext.of(
-                Map.of(FOUNDATION, 10.0, ADVANCED, 10.0),
-                Map.of(FOUNDATION, 1, ADVANCED, 1),
-                null, evaluator, null, null, null,
-                HORIZON_DAYS, HOURS_PER_STUDY_DAY, MAX_DAILY_LOAD);
+        return EvolutionContext.builder()
+                .importanceScores(Map.of(FOUNDATION, 10.0, ADVANCED, 10.0))
+                .minimumDaysPerSubject(Map.of(FOUNDATION, 1, ADVANCED, 1))
+                .fitnessEvaluator(evaluator)
+                .planningHorizonDays(HORIZON_DAYS)
+                .hoursPerStudyDay(HOURS_PER_STUDY_DAY)
+                .maxDailyCognitiveLoad(MAX_DAILY_LOAD)
+                .build();
     }
 
     /** The same component set Spring wires in production. */

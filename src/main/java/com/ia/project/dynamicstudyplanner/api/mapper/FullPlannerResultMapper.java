@@ -17,7 +17,8 @@ public class FullPlannerResultMapper {
     private final OptimizationResultMapper optimizationResultMapper;
     private final ScheduleResultMapper scheduleResultMapper;
 
-    public FullPlannerResultMapper(OptimizationResultMapper optimizationResultMapper, ScheduleResultMapper scheduleResultMapper) {
+    public FullPlannerResultMapper(OptimizationResultMapper optimizationResultMapper,
+            ScheduleResultMapper scheduleResultMapper) {
         this.optimizationResultMapper = optimizationResultMapper;
         this.scheduleResultMapper = scheduleResultMapper;
     }

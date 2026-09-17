@@ -19,6 +19,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class BaselineCalculatorTest {
 
+    /** Ancora fixa: ver a nota em {@code CognitiveLoadCalculatorTest}. */
+    private static final LocalDate EXAM_DATE = LocalDate.of(2026, 9, 1);
+
     @Mock
     private ImportanceCalculator importanceCalculator;
 
@@ -30,7 +33,7 @@ class BaselineCalculatorTest {
         // Arrange
         Subject math = new Subject("Math", 10, 3);
         Subject history = new Subject("History", 5, 2);
-        Exam exam = new Exam("Test", LocalDate.now(), 100.0, List.of(math, history), List.of());
+        Exam exam = new Exam("Test", EXAM_DATE, 100.0, List.of(math, history), List.of());
 
         StudentProfile profile = new StudentProfile("Test", Map.of(math, 2.0, history, 1.0), Map.of());
 

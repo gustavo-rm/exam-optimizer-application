@@ -1,6 +1,5 @@
 package com.ia.project.dynamicstudyplanner.api.mapper;
 
-import com.ia.project.dynamicstudyplanner.api.dto.OptimizationResponse; // This can be removed now
 import com.ia.project.dynamicstudyplanner.api.dto.OptimizationResultDto;
 import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
 import org.springframework.stereotype.Component;
@@ -37,16 +36,4 @@ public class OptimizationResultMapper {
         );
     }
 
-    /**
-     * DEPRECATED: This method is no longer ideal as it assumes a specific top-level response structure.
-     * It's better to use the more focused toDto method and let a higher-level mapper build the final response.
-     * Kept here for reference but can be removed.
-     *
-     * @param result The domain entity containing the results of the GA execution.
-     * @return The resulting {@code OptimizationResponse} ready to be sent to the client.
-     */
-    @Deprecated
-    public OptimizationResponse toResponse(OptimizationResult result) {
-        return new OptimizationResponse("Plan generated successfully", toDto(result));
-    }
 }
