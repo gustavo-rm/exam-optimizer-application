@@ -45,7 +45,7 @@ jobs:
       # (major version 65). O `source`/`target` 24 declarado no maven-compiler-plugin é inerte,
       # porque maven.compiler.release=21 herdado do parent prevalece — ver R3 do inventário.
       - name: Configura JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
