@@ -284,6 +284,54 @@ Gustavo Malacarne (Software Engineer) - dynamic-study-planner
   (`docs/qualidade/04-diagnostico-escrita.md`) but are not part of the build.
 * **Architectural decisions:** recorded as ADRs in [`docs/adr/`](./docs/adr/).
 
+## 🔗 Core contract (v1.0)
+
+This service speaks the `sinapse-platform` Core contract: the platform sends a `PlanRequest` to
+`POST /plans` and reads back a `PlanResponse`.
+
+**The contract is duplicated on purpose.** There is no shared Maven module and none is planned.
+Each repository keeps its own copy of the records — here, `coreapi/contract/` — and both validate
+their serialisation against reference documents that are byte-for-byte identical on the two sides:
+
+| File | Role |
+|---|---|
+| `src/test/resources/contract/plan-request-v1.0.json` | Reference document of the request |
+| `src/test/resources/contract/plan-response-v1.0.json` | Reference document of the response |
+| `docs/CORE_CONTRACT_SURVEY.md` | Component-by-component transcription of the platform's records |
+
+**The reference documents are the source of truth**, not either side's Java. They are what
+`coreapi/CoreContractGoldenTest` pins the wire shape against, and the platform runs a twin test
+(`br.com.sinapse.platform.coreclient.CoreContractGoldenTest`) reading the same two files. The trade
+is deliberate and worth stating: publishing an artifact would make the compiler catch a divergence,
+and without one the build catches it instead — one test run later, but with nothing to version,
+publish and keep in step across two release cycles.
+
+**Changing the shape requires a version bump and both repositories in the same logical PR.** Adding,
+removing, renaming or retyping any component means: bump `PlanRequest.VERSION`, update both
+reference documents, and land the change on both sides together. The platform compares the version
+it receives against its own and refuses a mismatch, so a one-sided change does not degrade quietly —
+it stops working.
+
+Two details that look like tidying and are not:
+
+* **`Topic.effortTier` is a `String`, never an enum.** The platform sends `effortTier().name()` and
+  declares no `EffortTier` type in its contract package. An enum here would make this service reject,
+  at deserialisation, a band the platform considers valid — and the platform would report that as
+  `CORE_UNAVAILABLE`, pointing at the network instead of at the contract. Validating the closed set
+  (`SHORT`, `STANDARD`, `LONG`, `EXTENDED`) belongs to the adapter.
+* **Null fields are omitted, and that is pinned per record.** The platform sets
+  `spring.jackson.default-property-inclusion: non_null` globally; this service sets no
+  `spring.jackson` key at all, so Jackson's `ALWAYS` default would write `"lastStudiedAt": null`
+  where the reference document omits the key. Each record in `coreapi/contract/` therefore carries
+  `@JsonInclude(NON_NULL)` — the local equivalent of that one configuration line, kept out of the
+  global setting so that the payloads of every existing `/api/v1/**` endpoint stay as they are.
+  The platform's records carry no such annotation, so a literal mirroring would delete it; the
+  golden test fails naming the exact field if anyone does.
+* **`coreapi/contract/` holds records and enums only.** It depends on nothing else in this codebase
+  and nothing else depends on it, which is what lets it stay a faithful mirror rather than drifting
+  into the local domain model. Mapping to and from `Subject`, `StudentProfileDto` and the rest is
+  the adapter's job.
+
 ## 🚀 Deployment
 
 Currently, the application runs via Maven wrapper locally. For production deployment:
