@@ -224,6 +224,7 @@ requires marking the job as a required status check in the branch protection set
 
 * **Stateless:** The API is stateless and does not maintain sessions.
 * **Public Access:** Currently configured to permit public access (`permitAll()`) to all `/api/v1/**` endpoints and Swagger UI, as it functions as an open optimization engine. CSRF is disabled.
+* **`POST /plans` is public too**, on a filter chain of its own, with the same absence of authentication and the same TLS posture. Because nothing authenticates either path, **this service must run on a private network, behind the platform** — see [Baseline Core scheduler](#-baseline-core-scheduler-baseline-core-profile) for the requirement in both languages.
 * **Rate Limiting:** Protects against DoS attacks by limiting requests to computationally expensive endpoints using Bucket4j and Caffeine Cache. Returns a `429 Too Many Requests` response when exceeded.
 * **Input Validation:** Strict `jakarta.validation` constraints (`@Max`, `@Min`, `@Size`, `@Valid`) protect against CPU and memory exhaustion via malicious payloads.
 
@@ -331,6 +332,52 @@ Two details that look like tidying and are not:
   and nothing else depends on it, which is what lets it stay a faithful mirror rather than drifting
   into the local domain model. Mapping to and from `Subject`, `StudentProfileDto` and the rest is
   the adapter's job.
+
+## 🧭 Baseline Core scheduler (`baseline-core` profile)
+
+`POST /plans` is answered by a **deterministic greedy scheduler**: it topologically sorts the topics
+over the `HARD` prerequisite edges, breaks ties by goal priority, then target date, then curricular
+position, then topic identifier, and fills the student's availability windows in one forward pass.
+The full description is in [`docs/BASELINE_CORE.md`](./docs/BASELINE_CORE.md).
+
+**It is the experimental baseline, not a mock.** A claim that the genetic algorithm adds value only
+means something against a simple scheduler that already respects the same constraints. It is a
+condition of the experiment and is expected to stay here after the genetic algorithm is wired to this
+contract. The genetic algorithm is untouched by it.
+
+* It is active **only** under the Spring profile `baseline-core`. Without the profile no bean of the
+  module is created, `POST /plans` answers `404`, and the application boots exactly as before.
+* Determinism is a requirement: the same `PlanRequest` produces the same plan byte for byte, on any
+  thread. No unordered collection reaches the output, no wall-clock reading is taken on the decision
+  path, and `randomSeed` is echoed rather than consumed.
+* Requests it understands and cannot plan are refused with `422`, naming what they tripped over —
+  including a cycle in the `HARD` edges, which it reports and never breaks.
+* Not enough availability produces a **declared partial plan** — a prefix of the study order, so the
+  scheduled set stays closed under prerequisites — with `topics-scheduled`, `topics-unscheduled` and
+  `partial` in `fitness`.
+
+### ⚠️ Deployment: private network only / Implantação: somente rede privada
+
+**EN —** `/api/v1/**` is `permitAll` and `/plans` is `permitAll` too. **There is no authentication of
+any kind in front of either**, neither in this repository nor delegated to an external component.
+Anything that can reach this service can post a study snapshot to it — the student's history, goals
+and availability — and read a plan back. **This service must therefore not be reachable from the
+internet. It belongs on a private network, behind the `sinapse-platform`, which is the only party
+meant to call it.** Apart from being public, `/plans` is held to no different standard than the rest
+of the service: the same absence of authentication, CSRF disabled as for the rest of this stateless
+API, and the same `api.security.require-https` posture, so a declared TLS proxy in front refuses
+cleartext and emits HSTS on `/plans` exactly as it does elsewhere.
+
+**PT —** `/api/v1/**` é `permitAll` e o novo `/plans` também é. **Não existe autenticação de nenhum
+tipo na frente de nenhum dos dois**, nem neste repositório nem delegada a um componente externo.
+Qualquer um que alcance este serviço consegue enviar a ele um retrato de estudo — histórico, metas e
+disponibilidade do estudante — e ler um plano de volta. **Portanto este serviço não pode ficar
+alcançável pela internet. Ele tem de viver em rede privada, atrás da `sinapse-platform`, que é a
+única parte que deveria chamá-lo.** Fora o acesso público, `/plans` não fica sujeito a um padrão
+diferente do resto do serviço: a mesma ausência de autenticação, CSRF desligado como no restante
+desta API sem estado, e a mesma postura de `api.security.require-https` — com proxy TLS declarado na
+frente, a requisição em claro é recusada e o HSTS é emitido em `/plans` como em qualquer outro
+caminho.
 
 ## 🚀 Deployment
 
