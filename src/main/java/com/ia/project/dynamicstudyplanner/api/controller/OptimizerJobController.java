@@ -110,7 +110,8 @@ public class OptimizerJobController {
         String id = jobService.submeter(exam, profile,
                 request.gaConfig().totalStudyDays(),
                 request.gaConfig().numGenerations(),
-                request.gaConfig().populationSize());
+                request.gaConfig().populationSize(),
+                request.gaConfig().randomSeed());
         URI url = URI.create("/api/v1/optimizer/jobs/" + id);
         return ResponseEntity.accepted()
                 .location(url)

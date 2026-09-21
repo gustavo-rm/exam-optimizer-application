@@ -75,6 +75,12 @@ public class ScoreGainObjective implements FitnessObjective {
      * The value and its justification live in {@code FitnessWeights}; see
      * {@code docs/revisao-ag/05-fitness-function.md} for the reasoning behind the split.
      */
+    /** Nome estável do termo O1 na decomposição publicada. */
+    @Override
+    public String name() {
+        return "syllabusMastery";
+    }
+
     @Override
     public double getWeight() {
         return FitnessWeights.SYLLABUS_MASTERY;

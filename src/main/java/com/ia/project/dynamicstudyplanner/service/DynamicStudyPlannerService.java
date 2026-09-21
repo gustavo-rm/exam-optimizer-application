@@ -42,6 +42,9 @@ public class DynamicStudyPlannerService implements GenerateStudyPlanUseCase {
      * @param totalStudyDays The total number of "ideal" days for the GA to allocate.
      * @param numGenerations The number of generations for the GA to run.
      * @param populationSize The population size for the GA.
+     * @param randomSeed Seed for a reproducible run, or {@code null} for an unseeded one. Applied
+     *        and restored by {@code StudyOptimizerService.optimize} — the restoration matters
+     *        because this method runs on a pooled thread that serves the next request too.
      * @return A {@code CompletableFuture} wrapping the {@code FullPlannerResult}.
      */
     @Async("optimizerTaskExecutor")
@@ -50,11 +53,12 @@ public class DynamicStudyPlannerService implements GenerateStudyPlanUseCase {
             StudentProfile profile,
             int totalStudyDays,
             int numGenerations,
-            int populationSize
+            int populationSize,
+            Long randomSeed
     ) {
         // --- Step 1: Strategic Optimization ---
         OptimizationResult optimizationResult = optimizerService.optimize(
-                exam, profile, totalStudyDays, numGenerations, populationSize
+                exam, profile, totalStudyDays, numGenerations, populationSize, randomSeed
         );
 
         // --- Step 2: Tactical Scheduling ---

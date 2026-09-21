@@ -19,4 +19,14 @@ public interface FitnessPenalty {
      * and lower values indicate a higher penalty.
      */
     double calculatePenaltyFactor(StudyPlan plan, EvolutionContext context);
+
+    /**
+     * Nome estável desta penalidade na decomposição da fitness. Ver
+     * {@code FitnessObjective.name()}.
+     *
+     * @return o nome da penalidade
+     */
+    default String name() {
+        return getClass().getSimpleName();
+    }
 }

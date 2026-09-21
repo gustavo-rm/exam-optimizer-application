@@ -127,7 +127,8 @@ public class OptimizerController {
                 profile,
                 request.gaConfig().totalStudyDays(),
                 request.gaConfig().numGenerations(),
-                request.gaConfig().populationSize()
+                request.gaConfig().populationSize(),
+                request.gaConfig().randomSeed()
         )
         .orTimeout(30, TimeUnit.SECONDS) // Hard limit to prevent stuck threads
         .thenApply(result -> ResponseEntity.ok(resultMapper.toResponse(result))); // 3. Map to DTO

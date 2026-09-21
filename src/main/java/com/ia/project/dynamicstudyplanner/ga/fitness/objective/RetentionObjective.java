@@ -80,6 +80,12 @@ public class RetentionObjective implements FitnessObjective {
         return score;
     }
 
+    /** Nome estável do termo O3 na decomposição publicada. */
+    @Override
+    public String name() {
+        return "retention";
+    }
+
     @Override
     public double getWeight() {
         return FitnessWeights.RETENTION;

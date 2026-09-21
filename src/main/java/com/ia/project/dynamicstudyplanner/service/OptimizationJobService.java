@@ -100,7 +100,7 @@ public class OptimizationJobService {
      *         como 503 com {@code Retry-After}
      */
     public String submeter(Exam exam, StudentProfile profile, int totalStudyDays,
-                           int numGenerations, int populationSize) {
+                           int numGenerations, int populationSize, Long randomSeed) {
         String id = UUID.randomUUID().toString();
         jobStore.save(OptimizationJob.aceito(id, Instant.now()));
         // Envio EXPLICITO ao executor, e nao @Async neste metodo.
@@ -114,7 +114,7 @@ public class OptimizationJobService {
         // execute() que lanca TaskRejectedException quando a fila esta cheia, na thread da
         // requisicao, antes de qualquer CPU de otimizacao.
         executor.execute(() -> executar(id, exam, profile, totalStudyDays,
-                numGenerations, populationSize));
+                numGenerations, populationSize, randomSeed));
         aceitos.increment();
         log.info("Job {} accepted for asynchronous optimization", id);
         return id;
@@ -132,12 +132,12 @@ public class OptimizationJobService {
      * consultando um registro eternamente RUNNING — o pior dos dois mundos.
      */
     void executar(String id, Exam exam, StudentProfile profile, int totalStudyDays,
-                  int numGenerations, int populationSize) {
+                  int numGenerations, int populationSize, Long randomSeed) {
         Instant inicio = Instant.now();
         jobStore.find(id).ifPresent(job -> jobStore.save(job.iniciado(inicio)));
         try {
             var resultado = useCase.executar(exam, profile, totalStudyDays,
-                    numGenerations, populationSize);
+                    numGenerations, populationSize, randomSeed);
 
             registrar(id, job -> job.concluido(Instant.now(), serializer.serializar(resultado)));
             concluidos.increment();
@@ -192,9 +192,9 @@ public class OptimizationJobService {
 
         public com.ia.project.dynamicstudyplanner.domain.FullPlannerResult executar(
                 Exam exam, StudentProfile profile, int totalStudyDays,
-                int numGenerations, int populationSize) {
+                int numGenerations, int populationSize, Long randomSeed) {
             var otimizacao = optimizerService.optimize(exam, profile, totalStudyDays,
-                    numGenerations, populationSize);
+                    numGenerations, populationSize, randomSeed);
             var estrategia = com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationChains
                     .production(loadCalculator.calculate(profile, exam));
             var cronograma = scheduleGenerator.generate(otimizacao.plan(), profile, exam,

@@ -34,4 +34,13 @@ public interface ConstraintValidator {
     default double getPenaltyWeight() {
         return FitnessWeights.CONSTRAINT_VIOLATION;
     }
+
+    /**
+     * Nome estável desta restrição na decomposição da fitness. Ver {@code FitnessObjective.name()}.
+     *
+     * @return o nome do termo
+     */
+    default String name() {
+        return getClass().getSimpleName();
+    }
 }

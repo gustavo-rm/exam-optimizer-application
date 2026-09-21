@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness;
 
+import com.ia.project.dynamicstudyplanner.domain.FitnessBreakdown;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import org.springframework.stereotype.Component;
@@ -8,6 +9,7 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.ConstraintValida
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.FitnessObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FitnessPenalty;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -118,5 +120,68 @@ public class FitnessEvaluator {
         }
 
         return finalFitness;
+    }
+
+    /**
+     * A mesma fitness, com os termos que a produziram (GAP-07).
+     *
+     * <h2>Por que este método existe ao lado de {@link #evaluate}, e não no lugar dele</h2>
+     *
+     * A decomposição aloca: duas listas e um objeto por termo. {@code evaluate} é chamado uma vez
+     * por indivíduo por geração — até meio milhão de vezes no pior caso que a API aceita — e este
+     * repositório já pagou caro por alocação nesse laço (pendências P17 e P18). Fazer
+     * {@code evaluate} delegar aqui tornaria a igualdade entre os dois estrutural, e é tentador
+     * justamente por isso; custaria uma alocação por avaliação, que é o preço que aquelas duas
+     * pendências foram abertas para remover.
+     *
+     * <p>Então a aritmética é <b>repetida</b>, na mesma ordem e com as mesmas operações, e a
+     * igualdade vira responsabilidade de teste em vez de consequência do desenho. É uma troca
+     * declarada, não um descuido: {@code FitnessBreakdownTest} confere termo a termo que
+     * {@code explain(...).aggregate()} é bit a bit o que {@code evaluate(...)} devolve.
+     *
+     * <p>Chamado <b>uma vez por requisição</b>, sobre o melhor indivíduo, para montar a resposta.
+     *
+     * @param plan    o plano a explicar
+     * @param context o contexto da evolução
+     * @return a fitness decomposta; {@code aggregate()} é o valor que {@link #evaluate} devolve
+     */
+    public FitnessBreakdown explain(StudyPlan plan, EvolutionContext context) {
+        List<FitnessBreakdown.Term> termos = new ArrayList<>();
+
+        // 1. Weighted sum of the normalised objectives — mesma ordem de evaluate.
+        double score = 0.0;
+        for (FitnessObjective objective : objectives) {
+            double valor = objective.calculateReward(plan, context);
+            double peso = objective.getWeight();
+            double contribuicao = valor * peso;
+            score += contribuicao;
+            termos.add(new FitnessBreakdown.Term(objective.name(),
+                    FitnessBreakdown.TermKind.OBJECTIVE, valor, peso, contribuicao));
+        }
+
+        // 2. Subtract graded constraint violations.
+        for (ConstraintValidator constraint : constraints) {
+            double severidade = constraint.violationSeverity(plan, context);
+            double peso = constraint.getPenaltyWeight();
+            double contribuicao = peso * severidade;
+            score -= contribuicao;
+            termos.add(new FitnessBreakdown.Term(constraint.name(),
+                    FitnessBreakdown.TermKind.CONSTRAINT, severidade, peso, -contribuicao));
+        }
+
+        double bounded = Math.clamp(score, 0.0, 1.0);
+
+        // 3. Multiplicative penalties.
+        List<FitnessBreakdown.Penalty> fatores = new ArrayList<>();
+        double finalFitness = bounded;
+        double produto = 1.0;
+        for (FitnessPenalty penalty : penalties) {
+            double fator = penalty.calculatePenaltyFactor(plan, context);
+            finalFitness *= fator;
+            produto *= fator;
+            fatores.add(new FitnessBreakdown.Penalty(penalty.name(), fator));
+        }
+
+        return new FitnessBreakdown(termos, fatores, score, bounded, produto, finalFitness);
     }
 }

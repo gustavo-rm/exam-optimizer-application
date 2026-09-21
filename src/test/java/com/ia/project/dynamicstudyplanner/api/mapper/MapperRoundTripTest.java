@@ -64,7 +64,7 @@ class MapperRoundTripTest {
     private final StudyBlockMapper studyBlockMapper = new StudyBlockMapper();
     private final ScheduleResultMapper scheduleResultMapper = new ScheduleResultMapper(studyBlockMapper);
     private final OptimizationResultMapper optimizationResultMapper =
-            new OptimizationResultMapper(studyPlanMapper);
+            new OptimizationResultMapper(studyPlanMapper, "0.0.0-test");
     private final FullPlannerResultMapper fullPlannerResultMapper =
             new FullPlannerResultMapper(optimizationResultMapper, scheduleResultMapper);
 
