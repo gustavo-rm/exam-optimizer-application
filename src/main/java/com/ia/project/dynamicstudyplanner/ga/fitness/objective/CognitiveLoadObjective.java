@@ -80,6 +80,12 @@ public class CognitiveLoadObjective implements FitnessObjective {
         return 1.0 - Math.clamp(overload, 0.0, OVERLOAD_RATIO_AT_ZERO);
     }
 
+    /** Nome estável do termo O4 na decomposição publicada. */
+    @Override
+    public String name() {
+        return "cognitiveLoad";
+    }
+
     @Override
     public double getWeight() {
         return FitnessWeights.COGNITIVE_LOAD;

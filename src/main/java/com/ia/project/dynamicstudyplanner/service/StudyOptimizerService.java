@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.service;
 
+import com.ia.project.dynamicstudyplanner.domain.FitnessBreakdown;
 import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
@@ -144,8 +145,13 @@ public class StudyOptimizerService {
             int numGenerations,
             int populationSize
     ) {
+        // O contexto e capturado para que a decomposicao da fitness (GAP-07) possa ser montada
+        // DEPOIS do bloco medido. Montar o contexto continua dentro dele, onde sempre esteve: tira-lo
+        // dali mudaria o que executionTimeMillis e a metrica reportam.
+        EvolutionContext[] capturado = new EvolutionContext[1];
         OptimizationMetrics.Timed<Individual> melhor = metrics.recordRun(() -> {
             EvolutionContext context = contextAssembler.assemble(exam, profile);
+            capturado[0] = context;
             GeneticAlgorithm ga = gaFactory.create();
             Population inicial = populationGenerator.generate(exam, totalDays, populationSize, context);
             return runEvolution(inicial, ga, numGenerations, context).getFittest();
@@ -155,8 +161,27 @@ public class StudyOptimizerService {
                 melhor.resultado().getPlan(),
                 melhor.resultado().getFitness(),
                 numGenerations,
-                melhor.duracaoMs()
+                melhor.duracaoMs(),
+                decompor(melhor.resultado(), capturado[0])
         );
+    }
+
+    /**
+     * Decompõe a fitness do melhor indivíduo, uma vez por execução.
+     *
+     * <p>Fora do bloco medido, porque é construção de resposta e não otimização. Uma chamada, sobre
+     * um indivíduo — não as centenas de milhares que {@code evaluate} atende dentro do laço.
+     *
+     * @param melhor  o indivíduo vencedor
+     * @param context o contexto que a execução usou
+     * @return a decomposição, ou {@code null} quando o contexto não trouxe avaliador — o que na
+     *         prática não ocorre, já que sem ele nenhum indivíduo teria fitness para comparar
+     */
+    private static FitnessBreakdown decompor(Individual melhor, EvolutionContext context) {
+        if (context == null || context.fitnessEvaluator() == null) {
+            return null;
+        }
+        return context.fitnessEvaluator().explain(melhor.getPlan(), context);
     }
 
     /**

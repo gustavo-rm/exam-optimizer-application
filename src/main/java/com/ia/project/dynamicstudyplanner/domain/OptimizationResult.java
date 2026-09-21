@@ -13,5 +13,19 @@ public record OptimizationResult(
         StudyPlan plan,
         double fitness,
         int generationsRun,
-        long executionTimeMillis
-) {}
+        long executionTimeMillis,
+        FitnessBreakdown fitnessBreakdown
+) {
+
+    /**
+     * Resultado sem decomposição da fitness.
+     *
+     * <p>Existe para os pontos que só precisam do plano e do número — testes e mapeadores. O
+     * caminho de produção usa o construtor canônico, porque a decomposição é o que responde "por
+     * que este plano" (GAP-07).
+     */
+    public OptimizationResult(StudyPlan plan, double fitness, int generationsRun,
+            long executionTimeMillis) {
+        this(plan, fitness, generationsRun, executionTimeMillis, null);
+    }
+}

@@ -18,4 +18,19 @@ import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 public interface FitnessObjective {
     double calculateReward(StudyPlan plan, EvolutionContext context);
     double getWeight();
+
+    /**
+     * Nome estável deste termo na decomposição da fitness.
+     *
+     * <p><b>Vira chave de API e de análise da tese</b>, então renomear um é quebra de contrato e
+     * não refatoração. O padrão é o nome da classe, que serve a qualquer termo novo sem exigir
+     * nada de quem o escreve; os três objetivos de produção o sobrescrevem com o nome do conceito,
+     * porque {@code syllabusMastery} diz mais a quem lê um plano do que
+     * {@code ScoreGainObjective}.
+     *
+     * @return o nome do termo
+     */
+    default String name() {
+        return getClass().getSimpleName();
+    }
 }

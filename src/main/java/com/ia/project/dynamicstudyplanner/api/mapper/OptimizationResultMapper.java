@@ -45,7 +45,8 @@ public class OptimizationResultMapper {
                 result.fitness(),
                 result.generationsRun(),
                 result.executionTimeMillis(),
-                coreVersion
+                coreVersion,
+                result.fitnessBreakdown()
         );
     }
 

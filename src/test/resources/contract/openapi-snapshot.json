@@ -47,6 +47,39 @@
         "required" : [ "examDate", "generalKnowledgeSubjects", "name", "specificKnowledgeAxes" ],
         "type" : "object"
       },
+      "FitnessBreakdown" : {
+        "properties" : {
+          "aggregate" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "boundedScore" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "penalties" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Penalty"
+            },
+            "type" : "array"
+          },
+          "penaltyFactor" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "rawScore" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "terms" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Term"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "GaConfigDto" : {
         "description" : "Configuration settings for the Genetic Algorithm.",
         "properties" : {
@@ -181,6 +214,10 @@
             "format" : "double",
             "type" : "number"
           },
+          "fitnessBreakdown" : {
+            "$ref" : "#/components/schemas/FitnessBreakdown",
+            "description" : "The same fitness, decomposed into the terms that produced it: each term's normalised value, its declared weight and what it contributed. The aggregate is exactly the fitness field above."
+          },
           "generationsRun" : {
             "description" : "The number of evolutionary generations processed before finding this solution.",
             "example" : 100,
@@ -190,6 +227,18 @@
           "plan" : {
             "$ref" : "#/components/schemas/StudyPlanDto",
             "description" : "The allocated study days for each subject."
+          }
+        },
+        "type" : "object"
+      },
+      "Penalty" : {
+        "properties" : {
+          "factor" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -424,6 +473,30 @@
           }
         },
         "required" : [ "name" ],
+        "type" : "object"
+      },
+      "Term" : {
+        "properties" : {
+          "kind" : {
+            "enum" : [ "OBJECTIVE", "CONSTRAINT" ],
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "value" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "weight" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "weightedContribution" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
         "type" : "object"
       },
       "ThematicAxisDto" : {
