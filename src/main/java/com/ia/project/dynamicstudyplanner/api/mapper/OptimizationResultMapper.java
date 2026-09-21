@@ -2,6 +2,7 @@ package com.ia.project.dynamicstudyplanner.api.mapper;
 
 import com.ia.project.dynamicstudyplanner.api.dto.OptimizationResultDto;
 import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,8 +14,19 @@ public class OptimizationResultMapper {
 
     private final StudyPlanMapper studyPlanMapper;
 
-    public OptimizationResultMapper(StudyPlanMapper studyPlanMapper) {
+    /**
+     * The build version, reported as {@code coreVersion}.
+     *
+     * <p>Comes from {@code application.properties}, where Maven's resource filtering substitutes
+     * {@code project.version}. There is no default: a deployment that cannot say which build
+     * answered fails to start, rather than answering with a version string somebody typed.
+     */
+    private final String coreVersion;
+
+    public OptimizationResultMapper(StudyPlanMapper studyPlanMapper,
+            @Value("${app.core.version}") String coreVersion) {
         this.studyPlanMapper = studyPlanMapper;
+        this.coreVersion = coreVersion;
     }
 
     /**
@@ -32,7 +44,8 @@ public class OptimizationResultMapper {
                 studyPlanMapper.toDto(result.plan()),
                 result.fitness(),
                 result.generationsRun(),
-                result.executionTimeMillis()
+                result.executionTimeMillis(),
+                coreVersion
         );
     }
 

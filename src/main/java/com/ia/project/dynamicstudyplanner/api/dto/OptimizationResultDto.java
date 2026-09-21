@@ -19,5 +19,9 @@ public record OptimizationResultDto(
                 example = "100")
         int generationsRun,
         @Schema(description = "The total execution time of the optimization algorithm in milliseconds.", example = "45")
-        long executionTimeMillis
+        long executionTimeMillis,
+        @Schema(description = "Version of the build that produced this plan. Together with the "
+                + "request payload and its randomSeed, it is what makes a run replayable.",
+                example = "2.0.1")
+        String coreVersion
 ) {}
