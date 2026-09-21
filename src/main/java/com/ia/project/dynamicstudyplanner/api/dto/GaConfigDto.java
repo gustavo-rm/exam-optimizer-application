@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Min;
  * @param totalStudyDays Total "ideal" days for the GA. Must be between 1 and 365 (1 year max).
  * @param numGenerations Number of generations to run. Must be between 10 and 1000.
  * @param populationSize Size of the population. Must be between 10 and 500.
+ * @param randomSeed Optional seed for a reproducible run. Any long is valid, so there is
+ *                   nothing to validate; null means "do not fix the seed".
  */
 @Schema(description = "Configuration settings for the Genetic Algorithm.")
 public record GaConfigDto(
@@ -27,7 +29,12 @@ public record GaConfigDto(
         @Min(value = MIN_POPULATION, message = "Population size must be at least 10.")
         @Max(value = MAX_POPULATION,
                 message = "Population size cannot exceed 500 to prevent CPU exhaustion.")
-        int populationSize
+        int populationSize,
+        @Schema(description = "Seed of the pseudo-random generator. Supply it to make a run "
+                + "reproducible: the same payload with the same seed yields the same plan, "
+                + "day for day. Omit it for an unseeded run, which is the previous behaviour.",
+                example = "20260903")
+        Long randomSeed
 ) {
 
     /**

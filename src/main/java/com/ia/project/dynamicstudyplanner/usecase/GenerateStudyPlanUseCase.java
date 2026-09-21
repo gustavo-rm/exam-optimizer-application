@@ -11,6 +11,10 @@ import java.util.concurrent.CompletableFuture;
  * Generating a complete, optimized study plan.
  */
 public interface GenerateStudyPlanUseCase {
+    /**
+     * @param randomSeed seed for a reproducible run, or {@code null} to leave the thread's random
+     *                   source untouched
+     */
     CompletableFuture<FullPlannerResult> generateFullStudyPlan(Exam exam, StudentProfile profile,
-            int totalStudyDays, int numGenerations, int populationSize);
+            int totalStudyDays, int numGenerations, int populationSize, Long randomSeed);
 }

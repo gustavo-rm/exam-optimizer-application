@@ -9,9 +9,12 @@ import com.ia.project.dynamicstudyplanner.ga.Individual;
 import com.ia.project.dynamicstudyplanner.ga.Population;
 import com.ia.project.dynamicstudyplanner.ga.config.GeneticAlgorithmFactory;
 import com.ia.project.dynamicstudyplanner.ga.generator.PopulationGenerator;
+import com.ia.project.dynamicstudyplanner.util.RandomProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import java.util.Random;
 
 /**
  * Orquestra uma otimização: prepara, popula, evolui e empacota o resultado.
@@ -59,7 +62,12 @@ public class StudyOptimizerService {
     }
 
     /**
-     * Roda o algoritmo genético em busca do melhor plano de estudos.
+     * Roda o algoritmo genético sem semente declarada.
+     *
+     * <p>Não toca em {@link RandomProvider}: a fonte da thread corrente é usada como está. É o que
+     * mantém funcionando quem semeia por fora antes de chamar — {@code GaResultadoInalteradoTest} e
+     * os benchmarks — e é por isso que esta sobrecarga existe em vez de passar {@code null} no
+     * ponto de chamada.
      *
      * @param exam           o edital, com todas as regras e disciplinas
      * @param profile        o perfil do estudante, com todos os fatores pessoais
@@ -69,6 +77,67 @@ public class StudyOptimizerService {
      * @return o melhor plano encontrado, sua fitness e os dados da execução
      */
     public OptimizationResult optimize(
+            Exam exam,
+            StudentProfile profile,
+            int totalDays,
+            int numGenerations,
+            int populationSize
+    ) {
+        return optimize(exam, profile, totalDays, numGenerations, populationSize, null);
+    }
+
+    /**
+     * Roda o algoritmo genético, opcionalmente com uma semente declarada.
+     *
+     * <h2>Por que a semente é fixada AQUI, e não em cada ponto de entrada</h2>
+     *
+     * Este método é o único lugar por onde toda execução do AG passa: o caminho síncrono
+     * ({@code DynamicStudyPlannerService}), o assíncrono
+     * ({@code OptimizationJobService.GenerateStudyPlanUseCaseHolder}) e os benchmarks chamam todos
+     * por aqui. Fixar em um ponto só evita que um ponto de entrada futuro nasça sem a restauração —
+     * que é a metade que importa.
+     *
+     * <h2>Por que o {@code finally} não é zelo</h2>
+     *
+     * {@code @Async("optimizerTaskExecutor")} <b>reaproveita as threads do pool</b>. Sem a
+     * restauração, a semente instalada por uma requisição continuaria instalada na thread quando a
+     * próxima requisição caísse nela, e uma execução que não pediu semente alguma passaria a
+     * produzir o plano de outra — de forma intermitente, dependendo de qual thread a atendeu. A
+     * extensão de teste {@code support/RandomProviderIsolation} resolve o mesmo problema entre
+     * testes, pela mesma razão; aqui a ideia é reaproveitada, não o código.
+     *
+     * <p>Com {@code randomSeed} nulo o provedor <b>não é tocado</b>, nem para ler nem para escrever.
+     *
+     * @param exam           o edital, com todas as regras e disciplinas
+     * @param profile        o perfil do estudante, com todos os fatores pessoais
+     * @param totalDays      total de dias "ideais" que o AG pode alocar
+     * @param numGenerations número de gerações que o algoritmo vai rodar
+     * @param populationSize tamanho da população em cada geração
+     * @param randomSeed     semente para tornar a execução reproduzível, ou {@code null} para
+     *                       deixar a fonte da thread como está
+     * @return o melhor plano encontrado, sua fitness e os dados da execução
+     */
+    public OptimizationResult optimize(
+            Exam exam,
+            StudentProfile profile,
+            int totalDays,
+            int numGenerations,
+            int populationSize,
+            Long randomSeed
+    ) {
+        if (randomSeed == null) {
+            return run(exam, profile, totalDays, numGenerations, populationSize);
+        }
+        Random anterior = RandomProvider.getInstance();
+        RandomProvider.setInstance(new Random(randomSeed));
+        try {
+            return run(exam, profile, totalDays, numGenerations, populationSize);
+        } finally {
+            RandomProvider.setInstance(anterior);
+        }
+    }
+
+    private OptimizationResult run(
             Exam exam,
             StudentProfile profile,
             int totalDays,

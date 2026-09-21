@@ -76,7 +76,7 @@ class OptimizationJobServiceTest {
             @Override
             public com.ia.project.dynamicstudyplanner.domain.FullPlannerResult executar(
                     Exam exam, StudentProfile profile, int totalStudyDays,
-                    int numGenerations, int populationSize) {
+                    int numGenerations, int populationSize, Long randomSeed) {
                 throw erro;
             }
         };
@@ -108,7 +108,7 @@ class OptimizationJobServiceTest {
         Exam exam = exame();
         String id = servicoQueLanca(store,
                 new DomainException("Total minimum study days required (30) exceeds total available days (10)."))
-                .submeter(exam, perfil(exam), 10, 50, 20);
+                .submeter(exam, perfil(exam), 10, 50, 20, null);
 
         aguardar(store, id);
 
@@ -128,7 +128,7 @@ class OptimizationJobServiceTest {
         Exam exam = exame();
         String id = servicoQueLanca(store,
                 new NullPointerException("Cannot invoke \"Foo.bar()\" because \"this.baz\" is null"))
-                .submeter(exam, perfil(exam), 100, 50, 20);
+                .submeter(exam, perfil(exam), 100, 50, 20, null);
 
         aguardar(store, id);
 
@@ -161,7 +161,7 @@ class OptimizationJobServiceTest {
                 holder, lotado, store, resultado -> "{}", new SimpleMeterRegistry());
         Exam exam = exame();
 
-        assertThatThrownBy(() -> servico.submeter(exam, perfil(exam), 100, 50, 20))
+        assertThatThrownBy(() -> servico.submeter(exam, perfil(exam), 100, 50, 20, null))
                 .isInstanceOf(TaskRejectedException.class);
     }
 }

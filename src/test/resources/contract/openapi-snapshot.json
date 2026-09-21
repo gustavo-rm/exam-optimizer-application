@@ -66,6 +66,12 @@
             "minimum" : 10,
             "type" : "integer"
           },
+          "randomSeed" : {
+            "description" : "Seed of the pseudo-random generator. Supply it to make a run reproducible: the same payload with the same seed yields the same plan, day for day. Omit it for an unseeded run, which is the previous behaviour.",
+            "example" : 20260903,
+            "format" : "int64",
+            "type" : "integer"
+          },
           "totalStudyDays" : {
             "description" : "The target number of study days to allocate across all subjects.",
             "example" : 100,

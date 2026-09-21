@@ -69,7 +69,7 @@ class ApiFailureContractTest {
     @Test
     @DisplayName("408: o estouro de prazo chega ao cliente como Request Timeout em RFC 7807")
     void estouroDePrazoDevolve408() throws Exception {
-        when(useCase.generateFullStudyPlan(any(), any(), anyInt(), anyInt(), anyInt()))
+        when(useCase.generateFullStudyPlan(any(), any(), anyInt(), anyInt(), anyInt(), any()))
                 .thenReturn(CompletableFuture.failedFuture(
                         new TimeoutException("The computation exceeded its budget.")));
 
@@ -96,7 +96,7 @@ class ApiFailureContractTest {
     void erroInesperadoDevolve500SemVazarDetalhe() throws Exception {
         String segredoInterno = "NullPointerException em HybridRetentionEngine linha 42";
 
-        when(useCase.generateFullStudyPlan(any(), any(), anyInt(), anyInt(), anyInt()))
+        when(useCase.generateFullStudyPlan(any(), any(), anyInt(), anyInt(), anyInt(), any()))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException(segredoInterno)));
 
         MvcResult resposta = dispararEObterResposta();
@@ -124,7 +124,7 @@ class ApiFailureContractTest {
     @Test
     @DisplayName("500: excecao lancada de forma sincrona pelo caso de uso tambem e contida")
     void excecaoSincronaTambemDevolve500() throws Exception {
-        when(useCase.generateFullStudyPlan(any(), any(), anyInt(), anyInt(), anyInt()))
+        when(useCase.generateFullStudyPlan(any(), any(), anyInt(), anyInt(), anyInt(), any()))
                 .thenThrow(new RuntimeException("falha antes de qualquer futuro ser criado"));
 
         mockMvc.perform(post("/api/v1/optimizer/generate")
@@ -139,7 +139,7 @@ class ApiFailureContractTest {
     @Test
     @DisplayName("o caso de uso recebe exatamente os parametros do gaConfig enviado")
     void osParametrosDoPedidoChegamAoCasoDeUso() throws Exception {
-        when(useCase.generateFullStudyPlan(any(), any(), anyInt(), anyInt(), anyInt()))
+        when(useCase.generateFullStudyPlan(any(), any(), anyInt(), anyInt(), anyInt(), any()))
                 .thenReturn(CompletableFuture.failedFuture(new TimeoutException("irrelevante aqui")));
 
         dispararEObterResposta();
@@ -153,6 +153,9 @@ class ApiFailureContractTest {
                         profile != null && "Aluno de Teste".equals(profile.getName())),
                 org.mockito.ArgumentMatchers.eq(RequestPayloads.TOTAL_STUDY_DAYS),
                 org.mockito.ArgumentMatchers.eq(30),
-                org.mockito.ArgumentMatchers.eq(20));
+                org.mockito.ArgumentMatchers.eq(20),
+                // O payload nao declara semente, entao ela chega nula — que e o contrato de
+                // "execucao sem semente", e nao um valor inventado pelo controller.
+                org.mockito.ArgumentMatchers.isNull());
     }
 }
