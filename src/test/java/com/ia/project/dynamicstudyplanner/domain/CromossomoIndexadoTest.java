@@ -1,6 +1,5 @@
 package com.ia.project.dynamicstudyplanner.domain;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
@@ -22,10 +21,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * <h2>O que mudou e por que precisa de teste próprio</h2>
  *
- * O plano de estudos deixou de ser um {@code Map<Subject, Integer>} e passou a ser um {@code int[]}
- * alinhado a um {@link SubjectIndex} compartilhado por toda a população. A mudança é o que tirou o
- * cálculo de hash, o desembrulho de {@code Integer} e a alocação de nó de cada gene — e trouxe uma
- * regra nova que antes não existia: <b>a ordem dos genes é do contexto, não de cada plano</b>.
+ * O plano de estudos deixou de ser um {@code Map<?, Integer>} e passou a ser um {@code int[]}
+ * alinhado a um {@link PlanningItemIndex} compartilhado por toda a população. A mudança é o que
+ * tirou o cálculo de hash, o desembrulho de {@code Integer} e a alocação de nó de cada gene — e
+ * trouxe uma regra nova que antes não existia: <b>a ordem dos genes é do contexto, não de cada plano</b>.
  *
  * <p>Essa regra tem uma consequência afiada. Dois planos alinhados ao mesmo índice podem ser
  * recombinados posição a posição, sem consultar disciplina nenhuma; dois planos alinhados a índices
@@ -38,27 +37,38 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DisplayName("Cromossomo indexado: a ordem dos genes e do contexto")
 class CromossomoIndexadoTest {
 
-    private static final Subject PORTUGUES = new Subject("Portugues", 20, 2);
-    private static final Subject MATEMATICA = new Subject("Matematica", 15, 5);
-    private static final Subject DIREITO = new Subject("Direito", 25, 4);
-    private static final Subject AUSENTE = new Subject("Ausente", 1, 1);
+    private static final PlanningItem PORTUGUES = new PlanningItem("Portugues", "Portugues", 2);
+    private static final PlanningItem MATEMATICA = new PlanningItem("Matematica", "Matematica", 5);
+    private static final PlanningItem DIREITO = new PlanningItem("Direito", "Direito", 4);
+    private static final PlanningItem AUSENTE = new PlanningItem("Ausente", "Ausente", 1);
 
-    private static final List<Subject> EDITAL = List.of(PORTUGUES, MATEMATICA, DIREITO);
+    private static final List<PlanningItem> EDITAL = List.of(PORTUGUES, MATEMATICA, DIREITO);
+
+    /**
+     * Importância bruta por item, na escala de questões do edital que este teste representa.
+     *
+     * <p>Vinha da contagem de questões da disciplina do edital. O item de planejamento não a
+     * carrega — ela é do concurso e fica do lado de fora da fronteira —, então os mesmos números
+     * entram aqui explicitamente. Os valores são os de antes: o que as asserções verificam é a
+     * ordem de grandeza entre as três disciplinas.
+     */
+    private static final Map<PlanningItem, Double> QUESTOES =
+            Map.of(PORTUGUES, 20.0, MATEMATICA, 15.0, DIREITO, 25.0);
 
     @Nested
-    @DisplayName("SubjectIndex: a ordem canonica")
+    @DisplayName("PlanningItemIndex: a ordem canonica")
     class OrdemCanonica {
 
         @Test
         @DisplayName("preserva a ordem em que as disciplinas foram apresentadas")
         void preservaAOrdemApresentada() {
-            SubjectIndex ordem = SubjectIndex.of(EDITAL);
+            PlanningItemIndex ordem = PlanningItemIndex.of(EDITAL);
 
             assertThat(ordem.size()).isEqualTo(3);
-            assertThat(ordem.subject(0)).isEqualTo(PORTUGUES);
-            assertThat(ordem.subject(1)).isEqualTo(MATEMATICA);
-            assertThat(ordem.subject(2)).isEqualTo(DIREITO);
-            assertThat(ordem.subjects()).containsExactly(PORTUGUES, MATEMATICA, DIREITO);
+            assertThat(ordem.item(0)).isEqualTo(PORTUGUES);
+            assertThat(ordem.item(1)).isEqualTo(MATEMATICA);
+            assertThat(ordem.item(2)).isEqualTo(DIREITO);
+            assertThat(ordem.items()).containsExactly(PORTUGUES, MATEMATICA, DIREITO);
         }
 
         @Test
@@ -66,42 +76,42 @@ class CromossomoIndexadoTest {
         void aOrdemInversaProduzOutroIndice() {
             // Contraprova do teste acima: sem ela, uma implementacao que ordenasse tudo
             // internamente (por nome, por exemplo) passaria no primeiro e quebraria o cruzamento.
-            List<Subject> invertido = new ArrayList<>(EDITAL);
+            List<PlanningItem> invertido = new ArrayList<>(EDITAL);
             java.util.Collections.reverse(invertido);
-            SubjectIndex ordem = SubjectIndex.of(invertido);
+            PlanningItemIndex ordem = PlanningItemIndex.of(invertido);
 
-            assertThat(ordem.subject(0)).isEqualTo(DIREITO);
+            assertThat(ordem.item(0)).isEqualTo(DIREITO);
             assertThat(ordem.positionOf(PORTUGUES)).isEqualTo(2);
         }
 
         @Test
         @DisplayName("disciplina repetida ocupa uma posicao so, a primeira em que apareceu")
         void repetidaOcupaUmaPosicaoSo() {
-            SubjectIndex ordem = SubjectIndex.of(
+            PlanningItemIndex ordem = PlanningItemIndex.of(
                     List.of(PORTUGUES, MATEMATICA, PORTUGUES, DIREITO, MATEMATICA));
 
             assertThat(ordem.size()).isEqualTo(3);
-            assertThat(ordem.subjects()).containsExactly(PORTUGUES, MATEMATICA, DIREITO);
+            assertThat(ordem.items()).containsExactly(PORTUGUES, MATEMATICA, DIREITO);
         }
 
         @Test
         @DisplayName("nulo, vazio e lista so de nulos dao o indice vazio")
         void entradasDegeneradasDaoOIndiceVazio() {
-            assertThat(SubjectIndex.of(null).size()).isZero();
-            assertThat(SubjectIndex.of(List.of()).size()).isZero();
-            assertThat(SubjectIndex.of(Arrays.asList((Subject) null, null)).size()).isZero();
+            assertThat(PlanningItemIndex.of(null).size()).isZero();
+            assertThat(PlanningItemIndex.of(List.of()).size()).isZero();
+            assertThat(PlanningItemIndex.of(Arrays.asList((PlanningItem) null, null)).size()).isZero();
         }
 
         @Test
         @DisplayName("disciplina de fora do indice tem posicao -1")
         void disciplinaDeForaTemPosicaoNegativa() {
-            assertThat(SubjectIndex.of(EDITAL).positionOf(AUSENTE)).isEqualTo(-1);
+            assertThat(PlanningItemIndex.of(EDITAL).positionOf(AUSENTE)).isEqualTo(-1);
         }
 
         @Test
         @DisplayName("projetar um mapa alinha os valores e completa o que falta com o padrao")
         void projetarAlinhaEcompleta() {
-            SubjectIndex ordem = SubjectIndex.of(EDITAL);
+            PlanningItemIndex ordem = PlanningItemIndex.of(EDITAL);
 
             int[] inteiros = ordem.projectInts(Map.of(MATEMATICA, 7), 1);
             assertThat(inteiros).containsExactly(1, 7, 1);
@@ -116,7 +126,7 @@ class CromossomoIndexadoTest {
         @Test
         @DisplayName("o mapa reconstruido sai na ordem canonica, nao na do hash")
         void oMapaReconstruidoSaiNaOrdemCanonica() {
-            SubjectIndex ordem = SubjectIndex.of(EDITAL);
+            PlanningItemIndex ordem = PlanningItemIndex.of(EDITAL);
 
             assertThat(ordem.toMap(new int[]{10, 20, 30}))
                     .containsExactly(
@@ -133,47 +143,47 @@ class CromossomoIndexadoTest {
         @Test
         @DisplayName("o construtor canonico le os genes por posicao e soma o total uma vez")
         void construtorCanonico() {
-            SubjectIndex ordem = SubjectIndex.of(EDITAL);
+            PlanningItemIndex ordem = PlanningItemIndex.of(EDITAL);
             StudyPlan plano = new StudyPlan(ordem, new int[]{10, 20, 30});
 
             assertThat(plano.getIndex()).isSameAs(ordem);
             assertThat(plano.daysAt(0)).isEqualTo(10);
             assertThat(plano.daysAt(2)).isEqualTo(30);
             assertThat(plano.getTotalDays()).isEqualTo(60);
-            assertThat(plano.getDaysForSubject(MATEMATICA)).isEqualTo(20);
-            assertThat(plano.getDaysForSubject(AUSENTE)).isZero();
+            assertThat(plano.getDaysForItem(MATEMATICA)).isEqualTo(20);
+            assertThat(plano.getDaysForItem(AUSENTE)).isZero();
         }
 
         @Test
         @DisplayName("vetor de tamanho diferente do indice e recusado, nao truncado em silencio")
         void vetorDeTamanhoErradoERecusado() {
-            SubjectIndex ordem = SubjectIndex.of(EDITAL);
+            PlanningItemIndex ordem = PlanningItemIndex.of(EDITAL);
 
             assertThatThrownBy(() -> new StudyPlan(ordem, new int[]{1, 2}))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("3 disciplina")
+                    .hasMessageContaining("3 item")
                     .hasMessageContaining("2 posicao");
         }
 
         @Test
         @DisplayName("indice e vetor nulos dao um plano vazio, sem quebrar")
         void nulosDaoPlanoVazio() {
-            StudyPlan plano = new StudyPlan((SubjectIndex) null, null);
+            StudyPlan plano = new StudyPlan((PlanningItemIndex) null, null);
 
             assertThat(plano.getIndex().size()).isZero();
             assertThat(plano.getTotalDays()).isZero();
-            assertThat(plano.getDaysPerSubject()).isEmpty();
+            assertThat(plano.getDaysPerItem()).isEmpty();
         }
 
         @Test
         @DisplayName("o construtor de fronteira deriva a ordem do proprio mapa")
         void construtorDeFronteira() {
-            Map<Subject, Integer> dias = new LinkedHashMap<>();
+            Map<PlanningItem, Integer> dias = new LinkedHashMap<>();
             dias.put(DIREITO, 5);
             dias.put(PORTUGUES, 8);
             StudyPlan plano = new StudyPlan(dias);
 
-            assertThat(plano.getIndex().subjects()).containsExactly(DIREITO, PORTUGUES);
+            assertThat(plano.getIndex().items()).containsExactly(DIREITO, PORTUGUES);
             assertThat(plano.daysAt(0)).isEqualTo(5);
             assertThat(plano.getTotalDays()).isEqualTo(13);
         }
@@ -181,10 +191,10 @@ class CromossomoIndexadoTest {
         @Test
         @DisplayName("mapa nulo produz um plano vazio")
         void mapaNuloProduzPlanoVazio() {
-            StudyPlan plano = new StudyPlan((Map<Subject, Integer>) null);
+            StudyPlan plano = new StudyPlan((Map<PlanningItem, Integer>) null);
 
             assertThat(plano.getTotalDays()).isZero();
-            assertThat(plano.getDaysPerSubject()).isEmpty();
+            assertThat(plano.getDaysPerItem()).isEmpty();
         }
     }
 
@@ -195,7 +205,7 @@ class CromossomoIndexadoTest {
         @Test
         @DisplayName("plano ja alinhado: os genes saem na mesma ordem, por copia")
         void planoJaAlinhado() {
-            SubjectIndex ordem = SubjectIndex.of(EDITAL);
+            PlanningItemIndex ordem = PlanningItemIndex.of(EDITAL);
             StudyPlan plano = new StudyPlan(ordem, new int[]{10, 20, 30});
 
             assertThat(plano.genesAlignedTo(ordem)).containsExactly(10, 20, 30);
@@ -210,8 +220,8 @@ class CromossomoIndexadoTest {
             // O caso que o caminho de seguranca existe para atender: um plano vindo da fronteira,
             // montado a partir de um mapa, cuja ordem nao e a do contexto. Ler por posicao sem
             // reposicionar trocaria os dias de uma disciplina pelos de outra em silencio.
-            SubjectIndex ordem = SubjectIndex.of(EDITAL);
-            Map<Subject, Integer> dias = new LinkedHashMap<>();
+            PlanningItemIndex ordem = PlanningItemIndex.of(EDITAL);
+            Map<PlanningItem, Integer> dias = new LinkedHashMap<>();
             dias.put(DIREITO, 30);
             dias.put(PORTUGUES, 10);
             dias.put(MATEMATICA, 20);
@@ -226,7 +236,7 @@ class CromossomoIndexadoTest {
         @Test
         @DisplayName("disciplina que falta no plano vale zero na posicao dela")
         void disciplinaQueFaltaValeZero() {
-            SubjectIndex ordem = SubjectIndex.of(EDITAL);
+            PlanningItemIndex ordem = PlanningItemIndex.of(EDITAL);
             StudyPlan parcial = new StudyPlan(Map.of(MATEMATICA, 20));
 
             assertThat(parcial.genesAlignedTo(ordem)).containsExactly(0, 20, 0);
@@ -242,7 +252,7 @@ class CromossomoIndexadoTest {
         void dadosSaemAlinhados() {
             GeneVectors vetores = contexto().geneVectors();
 
-            assertThat(vetores.index().subjects()).containsExactly(PORTUGUES, MATEMATICA, DIREITO);
+            assertThat(vetores.index().items()).containsExactly(PORTUGUES, MATEMATICA, DIREITO);
             assertThat(vetores.size()).isEqualTo(3);
             assertThat(vetores.minimumDays(1)).isEqualTo(9);
             assertThat(vetores.minimumDaysVector()).containsExactly(5, 9, 5);
@@ -260,17 +270,17 @@ class CromossomoIndexadoTest {
             // acontecia quando um contexto era montado sem disciplina alguma.
             EvolutionContext semDisciplinas = EvolutionContext.builder()
                     .importanceScores(Map.of())
-                    .minimumDaysPerSubject(Map.of())
+                    .minimumDaysPerItem(Map.of())
                     .planningHorizonDays(180)
                     .hoursPerStudyDay(4)
                     .maxDailyCognitiveLoad(20)
                     .build();
-            StudyPlan plano = new StudyPlan(SubjectIndex.of(EDITAL), new int[]{10, 20, 30});
+            StudyPlan plano = new StudyPlan(PlanningItemIndex.of(EDITAL), new int[]{10, 20, 30});
 
             assertThatThrownBy(() -> semDisciplinas.geneVectors().requireCovers(plano))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("0 gene")
-                    .hasMessageContaining("subjects(");
+                    .hasMessageContaining("items(");
         }
 
         @Test
@@ -284,21 +294,21 @@ class CromossomoIndexadoTest {
         }
 
         @Test
-        @DisplayName("sem subjects(), a ordem vem das importancias — e o que os testes usam")
-        void semSubjectsAOrdemVemDasImportancias() {
-            Map<Subject, Double> importancias = new LinkedHashMap<>();
+        @DisplayName("sem items(), a ordem vem das importancias — e o que os testes usam")
+        void semItemsAOrdemVemDasImportancias() {
+            Map<PlanningItem, Double> importancias = new LinkedHashMap<>();
             importancias.put(DIREITO, 2.0);
             importancias.put(PORTUGUES, 1.0);
 
             EvolutionContext contexto = EvolutionContext.builder()
                     .importanceScores(importancias)
-                    .minimumDaysPerSubject(Map.of())
+                    .minimumDaysPerItem(Map.of())
                     .planningHorizonDays(180)
                     .hoursPerStudyDay(4)
                     .maxDailyCognitiveLoad(20)
                     .build();
 
-            assertThat(contexto.geneVectors().index().subjects())
+            assertThat(contexto.geneVectors().index().items())
                     .containsExactly(DIREITO, PORTUGUES);
         }
     }
@@ -315,10 +325,10 @@ class CromossomoIndexadoTest {
             // por posicao ignorasse a ordem do pai da fronteira, sairiam os dias de outra
             // disciplina, e o teste acusaria.
             EvolutionContext contexto = contexto();
-            SubjectIndex ordem = contexto.geneVectors().index();
+            PlanningItemIndex ordem = contexto.geneVectors().index();
 
             Individual alinhado = new Individual(new StudyPlan(ordem, new int[]{10, 20, 30}));
-            Map<Subject, Integer> daFronteira = new LinkedHashMap<>();
+            Map<PlanningItem, Integer> daFronteira = new LinkedHashMap<>();
             daFronteira.put(DIREITO, 30);
             daFronteira.put(MATEMATICA, 20);
             daFronteira.put(PORTUGUES, 10);
@@ -332,9 +342,9 @@ class CromossomoIndexadoTest {
                 StudyPlan filho = cruzamento.crossover(alinhado, desalinhado, 1.0, contexto).getPlan();
 
                 assertThat(filho.getIndex()).isSameAs(ordem);
-                assertThat(filho.getDaysForSubject(PORTUGUES)).isEqualTo(10);
-                assertThat(filho.getDaysForSubject(MATEMATICA)).isEqualTo(20);
-                assertThat(filho.getDaysForSubject(DIREITO)).isEqualTo(30);
+                assertThat(filho.getDaysForItem(PORTUGUES)).isEqualTo(10);
+                assertThat(filho.getDaysForItem(MATEMATICA)).isEqualTo(20);
+                assertThat(filho.getDaysForItem(DIREITO)).isEqualTo(30);
             }
         }
 
@@ -342,10 +352,10 @@ class CromossomoIndexadoTest {
         @DisplayName("a media ponderada de dois planos iguais devolve o mesmo plano")
         void mediaPonderadaDeIguaisDevolveOMesmo() {
             EvolutionContext contexto = contexto();
-            SubjectIndex ordem = contexto.geneVectors().index();
+            PlanningItemIndex ordem = contexto.geneVectors().index();
 
             Individual alinhado = new Individual(new StudyPlan(ordem, new int[]{10, 20, 30}));
-            Map<Subject, Integer> daFronteira = new LinkedHashMap<>();
+            Map<PlanningItem, Integer> daFronteira = new LinkedHashMap<>();
             daFronteira.put(DIREITO, 30);
             daFronteira.put(MATEMATICA, 20);
             daFronteira.put(PORTUGUES, 10);
@@ -357,9 +367,9 @@ class CromossomoIndexadoTest {
                     .WeightedAverageCrossover();
             StudyPlan filho = cruzamento.crossover(alinhado, desalinhado, 1.0, contexto).getPlan();
 
-            assertThat(filho.getDaysForSubject(PORTUGUES)).isEqualTo(10);
-            assertThat(filho.getDaysForSubject(MATEMATICA)).isEqualTo(20);
-            assertThat(filho.getDaysForSubject(DIREITO)).isEqualTo(30);
+            assertThat(filho.getDaysForItem(PORTUGUES)).isEqualTo(10);
+            assertThat(filho.getDaysForItem(MATEMATICA)).isEqualTo(20);
+            assertThat(filho.getDaysForItem(DIREITO)).isEqualTo(30);
         }
 
         @Test
@@ -367,7 +377,7 @@ class CromossomoIndexadoTest {
         void semCruzamentoOFilhoCopiaOPaiMaisApto() {
             // Taxa 0.0: o sorteio nunca passa, entao o caminho tomado e o do retorno antecipado.
             EvolutionContext contexto = contexto();
-            SubjectIndex ordem = contexto.geneVectors().index();
+            PlanningItemIndex ordem = contexto.geneVectors().index();
 
             Individual fraco = new Individual(new StudyPlan(ordem, new int[]{10, 20, 30}));
             Individual forte = new Individual(new StudyPlan(ordem, new int[]{30, 20, 10}));
@@ -392,16 +402,16 @@ class CromossomoIndexadoTest {
 
     /** Contexto com as tres disciplinas do edital, na ordem do edital. */
     private static EvolutionContext contexto() {
-        Map<Subject, Double> importancias = new LinkedHashMap<>();
-        Map<Subject, Integer> pisos = new LinkedHashMap<>();
-        for (Subject disciplina : EDITAL) {
-            importancias.put(disciplina, (double) disciplina.questionCount());
-            pisos.put(disciplina, disciplina == MATEMATICA ? 9 : 5);
+        Map<PlanningItem, Double> importancias = new LinkedHashMap<>();
+        Map<PlanningItem, Integer> pisos = new LinkedHashMap<>();
+        for (PlanningItem item : EDITAL) {
+            importancias.put(item, QUESTOES.get(item));
+            pisos.put(item, item == MATEMATICA ? 9 : 5);
         }
         return EvolutionContext.builder()
                 .importanceScores(importancias)
-                .subjects(EDITAL)
-                .minimumDaysPerSubject(pisos)
+                .items(EDITAL)
+                .minimumDaysPerItem(pisos)
                 .planningHorizonDays(180)
                 .hoursPerStudyDay(4)
                 .maxDailyCognitiveLoad(20)

@@ -1,10 +1,12 @@
 package com.ia.project.dynamicstudyplanner.service;
 
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.StudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.SubjectPlanningItemMapper;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleResult;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleStatus;
 import com.ia.project.dynamicstudyplanner.service.scheduler.strategy.AllocationContext;
@@ -53,8 +55,10 @@ public class StudyScheduleGenerator {
         int hoursPerStudyDay = Math.max(1, (int) Math.ceil(averageDailyHours));
 
         // --- 1. VIABILITY ANALYSIS & PLAN ADJUSTMENT ---
+        // Fronteira nucleo -> concurso (removida em EOA-4b): o plano volta chaveado por item de
+        // planejamento e o agendamento continua falando em disciplina do edital.
         ScheduleContext context = prepareScheduleContext(plan, profile, startDate, exam.getExamDate(),
-                hoursPerStudyDay);
+                hoursPerStudyDay, SubjectPlanningItemMapper.subjectsByItem(exam.getAllSubjects()));
 
         // --- 2. DAILY SCHEDULE GENERATION LOOP ---
         Map<LocalDate, List<StudyBlock>> schedule = buildSchedule(profile, exam.getExamDate(),
@@ -82,10 +86,11 @@ public class StudyScheduleGenerator {
      * @return A ScheduleContext object containing the adjusted plan and status.
      */
     private ScheduleContext prepareScheduleContext(
-            StudyPlan plan, StudentProfile profile, LocalDate startDate, LocalDate examDate, int hoursPerStudyDay
+            StudyPlan plan, StudentProfile profile, LocalDate startDate, LocalDate examDate, int hoursPerStudyDay,
+            Map<PlanningItem, Subject> subjectsByItem
     ) {
         double availableHours = calculateTotalAvailableHours(profile, startDate, examDate);
-        double requiredHours = plan.getDaysPerSubject().values().stream()
+        double requiredHours = plan.getDaysPerItem().values().stream()
                 .mapToDouble(days -> days * hoursPerStudyDay)
                 .sum();
 
@@ -95,13 +100,14 @@ public class StudyScheduleGenerator {
         if (availableHours >= requiredHours) {
             status = (availableHours > requiredHours) ?
                     ScheduleStatus.SUCCESS_WITH_SURPLUS_TIME : ScheduleStatus.SUCCESS_IDEAL_PLAN;
-            hoursToSchedulePerSubject = plan.getDaysPerSubject().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, e -> (double) (e.getValue() * hoursPerStudyDay)));
+            hoursToSchedulePerSubject = plan.getDaysPerItem().entrySet().stream()
+                    .collect(Collectors.toMap(e -> subjectsByItem.get(e.getKey()),
+                            e -> (double) (e.getValue() * hoursPerStudyDay)));
         } else {
             status = ScheduleStatus.WARNING_TIME_DEFICIT;
             double reductionFactor = availableHours / requiredHours;
-            hoursToSchedulePerSubject = plan.getDaysPerSubject().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey,
+            hoursToSchedulePerSubject = plan.getDaysPerItem().entrySet().stream()
+                    .collect(Collectors.toMap(e -> subjectsByItem.get(e.getKey()),
                             e -> (e.getValue() * hoursPerStudyDay) * reductionFactor));
         }
         return new ScheduleContext(hoursToSchedulePerSubject, status, requiredHours, availableHours);

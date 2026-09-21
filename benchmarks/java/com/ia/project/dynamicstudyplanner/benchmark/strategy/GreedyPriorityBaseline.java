@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.benchmark.strategy;
 
 import com.ia.project.dynamicstudyplanner.benchmark.instance.BenchmarkInstance;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 import java.util.Comparator;
@@ -41,29 +41,29 @@ public final class GreedyPriorityBaseline implements PlanningStrategy {
 
     @Override
     public StudyPlan plan(BenchmarkInstance instance, EvolutionContext context, long seed) {
-        List<Subject> subjects = Allocations.orderedSubjects(context);
-        Map<Subject, Integer> days = Allocations.atMinimums(subjects, context);
+        List<PlanningItem> items = Allocations.orderedItems(context);
+        Map<PlanningItem, Integer> days = Allocations.atMinimums(items, context);
         int remaining = Allocations.remainingBudget(days, instance.totalStudyDays());
         if (remaining == 0) {
             return new StudyPlan(days);
         }
 
-        Map<Subject, Double> importance = context.importanceScores();
-        double totalImportance = subjects.stream()
+        Map<PlanningItem, Double> importance = context.importanceScores();
+        double totalImportance = items.stream()
                 .mapToDouble(s -> Math.max(0.0, importance.getOrDefault(s, 0.0)))
                 .sum();
 
         if (totalImportance <= 0.0) {
-            // Degenerate payload (every subject orphaned): fall back to an even split so the
+            // Degenerate payload (every item orphaned): fall back to an even split so the
             // baseline still returns a valid plan rather than throwing.
             return new UniformSplitBaseline().plan(instance, context, seed);
         }
 
         // Largest-remainder apportionment: floor everyone, then hand out the leftover days to the
-        // subjects with the biggest fractional parts.
-        record Share(Subject subject, int whole, double remainder) {
+        // items with the biggest fractional parts.
+        record Share(PlanningItem item, int whole, double remainder) {
         }
-        List<Share> shares = subjects.stream()
+        List<Share> shares = items.stream()
                 .map(s -> {
                     double exact = remaining * Math.max(0.0, importance.getOrDefault(s, 0.0)) / totalImportance;
                     int whole = (int) Math.floor(exact);
@@ -73,17 +73,17 @@ public final class GreedyPriorityBaseline implements PlanningStrategy {
 
         int handedOut = 0;
         for (Share share : shares) {
-            days.merge(share.subject(), share.whole(), Integer::sum);
+            days.merge(share.item(), share.whole(), Integer::sum);
             handedOut += share.whole();
         }
 
         List<Share> byRemainder = shares.stream()
                 .sorted(Comparator.comparingDouble(Share::remainder).reversed()
-                        .thenComparing(s -> s.subject().name()))
+                        .thenComparing(s -> s.item().name()))
                 .toList();
 
         for (int i = 0; handedOut < remaining; i++, handedOut++) {
-            days.merge(byRemainder.get(i % byRemainder.size()).subject(), 1, Integer::sum);
+            days.merge(byRemainder.get(i % byRemainder.size()).item(), 1, Integer::sum);
         }
 
         return new StudyPlan(days);

@@ -3,13 +3,13 @@ package com.ia.project.dynamicstudyplanner.domain.tactical;
 import java.util.Collections;
 import java.util.Map;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import java.util.Set;
 import java.util.HashMap;
 
 /**
  * The Chromosome for the Tactical Intelligent Tutoring System.
- * Unlike the strategic StudyPlan (which mapped Subject -> Days),
+ * Unlike the strategic StudyPlan (which maps PlanningItem -> Days),
  * this maps specific TimeSlots -> TacticalStudyBlocks.
  * <p>
  * By using TimeSlots as the keys (loci), we guarantee that blocks cannot overlap,
@@ -20,30 +20,30 @@ public class TacticalStudyPlan extends StudyPlan {
     private final Map<TimeSlot, TacticalStudyBlock> schedule;
 
     public TacticalStudyPlan(Map<TimeSlot, TacticalStudyBlock> schedule) {
-        super(extractDaysPerSubject(schedule));
+        super(extractDaysPerItem(schedule));
         this.schedule = schedule == null ? Map.of() : Collections.unmodifiableMap(schedule);
     }
 
-    private static Map<Subject, Integer> extractDaysPerSubject(Map<TimeSlot,
+    private static Map<PlanningItem, Integer> extractDaysPerItem(Map<TimeSlot,
             TacticalStudyBlock> schedule) {
         if (schedule == null) {
             return Map.of();
         }
 
         // Count how many unique days each subject is studied
-        Map<Subject, Set<Integer>> subjectDays = new HashMap<>();
+        Map<PlanningItem, Set<Integer>> itemDays = new HashMap<>();
 
         for (Map.Entry<TimeSlot, TacticalStudyBlock> entry : schedule.entrySet()) {
-            subjectDays.computeIfAbsent(entry.getValue().subject(), k -> new java.util.HashSet<>())
+            itemDays.computeIfAbsent(entry.getValue().item(), k -> new java.util.HashSet<>())
                        .add(entry.getKey().startTime().getDayOfYear());
         }
 
-        Map<Subject, Integer> daysPerSubject = new HashMap<>();
-        for (Map.Entry<Subject,
-                Set<Integer>> entry : subjectDays.entrySet()) {
-            daysPerSubject.put(entry.getKey(), entry.getValue().size());
+        Map<PlanningItem, Integer> daysPerItem = new HashMap<>();
+        for (Map.Entry<PlanningItem,
+                Set<Integer>> entry : itemDays.entrySet()) {
+            daysPerItem.put(entry.getKey(), entry.getValue().size());
         }
-        return daysPerSubject;
+        return daysPerItem;
     }
 
     public Map<TimeSlot, TacticalStudyBlock> getSchedule() {
@@ -55,7 +55,7 @@ public class TacticalStudyPlan extends StudyPlan {
      */
     public double calculateTotalCognitiveLoad() {
         return schedule.values().stream()
-                .mapToDouble(block -> block.subject().cognitiveLoad() * block.methodology().getCognitiveLoadMultiplier(
+                .mapToDouble(block -> block.item().difficultyBand() * block.methodology().getCognitiveLoadMultiplier(
                         ) * (block.durationMinutes() / 60.0))
                 .sum();
     }

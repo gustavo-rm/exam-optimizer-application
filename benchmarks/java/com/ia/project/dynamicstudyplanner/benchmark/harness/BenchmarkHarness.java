@@ -144,7 +144,7 @@ public final class BenchmarkHarness {
                     "%s violou o orcamento em %s: alocou %d dias, esperado %d",
                     strategy.id(), instance.id(), plan.getTotalDays(), instance.totalStudyDays()));
         }
-        if (!plan.meetsMinimumConstraints(context.minimumDaysPerSubject())) {
+        if (!plan.meetsMinimumConstraints(context.minimumDaysPerItem())) {
             throw new IllegalStateException(String.format(
                     "%s violou o piso de dias minimos em %s", strategy.id(), instance.id()));
         }

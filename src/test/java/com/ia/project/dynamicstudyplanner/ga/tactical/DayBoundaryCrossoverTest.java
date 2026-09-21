@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.ga.tactical;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
@@ -40,8 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("DayBoundaryCrossover: caracterizacao antes da refatoracao")
 class DayBoundaryCrossoverTest {
 
-    private static final Subject PORTUGUES = new Subject("Portugues", 10, 3);
-    private static final Subject MATEMATICA = new Subject("Matematica", 12, 4);
+    private static final PlanningItem PORTUGUES = new PlanningItem("Portugues", "Portugues", 3);
+    private static final PlanningItem MATEMATICA = new PlanningItem("Matematica", "Matematica", 4);
     private static final LocalDate SEGUNDA = LocalDate.of(2026, 3, 2);
 
     private final DayBoundaryCrossover operador = new DayBoundaryCrossover();
@@ -52,7 +52,7 @@ class DayBoundaryCrossoverTest {
     }
 
     /** Um bloco por dia, do dia {@code primeiroDia} ao {@code ultimoDia} (deslocamentos a partir de segunda). */
-    private static TacticalStudyPlan planoDeDias(Subject disciplina, int primeiroDia, int ultimoDia) {
+    private static TacticalStudyPlan planoDeDias(PlanningItem disciplina, int primeiroDia, int ultimoDia) {
         Map<TimeSlot, TacticalStudyBlock> agenda = new LinkedHashMap<>();
         for (int d = primeiroDia; d <= ultimoDia; d++) {
             LocalDateTime de = SEGUNDA.plusDays(d).atTime(9, 0);
@@ -107,7 +107,7 @@ class DayBoundaryCrossoverTest {
         int primeiroDoPai2 = Integer.MAX_VALUE;
         for (Map.Entry<TimeSlot, TacticalStudyBlock> e : filho.getSchedule().entrySet()) {
             int dia = diaDoAno(e.getKey());
-            if (e.getValue().subject().equals(PORTUGUES)) {
+            if (e.getValue().item().equals(PORTUGUES)) {
                 ultimoDoPai1 = Math.max(ultimoDoPai1, dia);
             } else {
                 primeiroDoPai2 = Math.min(primeiroDoPai2, dia);
@@ -131,7 +131,7 @@ class DayBoundaryCrossoverTest {
         // Com um dia so, minDay == maxDay, o corte e esse dia, e a condicao do pai 2 (dia > corte)
         // nunca e satisfeita.
         assertThat(filho.getSchedule().values())
-                .extracting(TacticalStudyBlock::subject)
+                .extracting(TacticalStudyBlock::item)
                 .containsOnly(PORTUGUES);
     }
 

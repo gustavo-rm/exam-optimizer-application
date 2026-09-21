@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.domain.retention;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 
 import java.time.LocalDate;
 
@@ -15,7 +15,7 @@ import java.time.LocalDate;
  * contrato, e fechava um ciclo de dependência entre os dois módulos
  * ({@code docs/qualidade/03-diagnostico-estrutura.md}, achados E4 e E5).
  *
- * <p>Todos os tipos da assinatura — {@link Subject}, {@link SubjectRetentionState},
+ * <p>Todos os tipos da assinatura — {@link PlanningItem}, {@link SubjectRetentionState},
  * {@link LocalDate} — já são de domínio, então o contrato pertence naturalmente aqui. A decisão está
  * registrada em {@code docs/adr/0001-abstracoes-de-calculo-no-dominio.md}.
  * <p>
@@ -36,7 +36,7 @@ public interface RetentionAlgorithm {
     /**
      * Determines if a spaced repetition review is mandatory on or before the target date.
      */
-    boolean isReviewMandatory(Subject subject, SubjectRetentionState state, LocalDate targetDate);
+    boolean isReviewMandatory(PlanningItem item, SubjectRetentionState state, LocalDate targetDate);
 
     /**
      * Calculates the new memory state after a study/review session.

@@ -78,7 +78,7 @@ class EvolutionContextAssemblerTest {
         assertThat(contexto.importanceScores()).isNotEmpty();
         assertThat(contexto.normalizedImportance()).isNotEmpty();
         assertThat(contexto.retentionWeights()).isNotEmpty();
-        assertThat(contexto.minimumDaysPerSubject()).isNotEmpty();
+        assertThat(contexto.minimumDaysPerItem()).isNotEmpty();
         assertThat(contexto.studentState()).isNotNull();
         assertThat(contexto.fitnessEvaluator()).isNotNull();
         assertThat(contexto.retentionProfile()).isNotNull();
@@ -125,7 +125,7 @@ class EvolutionContextAssemblerTest {
         EvolutionContext segundo = assembler.assemble(exame, perfil);
 
         assertThat(segundo.importanceScores()).isEqualTo(primeiro.importanceScores());
-        assertThat(segundo.minimumDaysPerSubject()).isEqualTo(primeiro.minimumDaysPerSubject());
+        assertThat(segundo.minimumDaysPerItem()).isEqualTo(primeiro.minimumDaysPerItem());
         assertThat(segundo.planningHorizonDays()).isEqualTo(primeiro.planningHorizonDays());
         assertThat(segundo.maxDailyCognitiveLoad()).isEqualTo(primeiro.maxDailyCognitiveLoad());
     }

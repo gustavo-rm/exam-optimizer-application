@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.service.scheduler.tactical;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.tactical.AvailabilityWindow;
 import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
@@ -21,8 +21,8 @@ class HybridHeuristicSchedulerTest {
     @Test
     void shouldRespectBufferZones() {
         // Arrange
-        Subject math = new Subject("Math", 10, 3);
-        Map<Subject, Integer> macroPlan = Map.of(math, 2); // 2 hours = 120 mins
+        PlanningItem math = new PlanningItem("Math", "Math", 3);
+        Map<PlanningItem, Integer> macroPlan = Map.of(math, 2); // 2 hours = 120 mins
 
         // Provide exactly a 2-hour window
         LocalDateTime start = LocalDateTime.of(2023, 10, 10, 10, 0);
@@ -43,8 +43,8 @@ class HybridHeuristicSchedulerTest {
     @Test
     void shouldPrioritizeActiveRecallInEmergencyMode() {
         // Arrange
-        Subject history = new Subject("History", 10, 2);
-        Map<Subject, Integer> macroPlan = Map.of(history, 4); // 4 hours
+        PlanningItem history = new PlanningItem("History", "History", 2);
+        Map<PlanningItem, Integer> macroPlan = Map.of(history, 4); // 4 hours
 
         LocalDateTime start = LocalDateTime.of(2023, 10, 10, 8, 0);
         AvailabilityWindow window = new AvailabilityWindow(start, start.plusHours(10), 5.0);
@@ -63,8 +63,8 @@ class HybridHeuristicSchedulerTest {
     @Test
     void shouldGenerateNonOverlappingTimeSlots() {
         // Arrange
-        Subject physics = new Subject("Physics", 10, 5);
-        Map<Subject, Integer> macroPlan = Map.of(physics, 1);
+        PlanningItem physics = new PlanningItem("Physics", "Physics", 5);
+        Map<PlanningItem, Integer> macroPlan = Map.of(physics, 1);
 
         LocalDateTime start = LocalDateTime.of(2023, 10, 10, 9, 0);
         AvailabilityWindow window1 = new AvailabilityWindow(start, start.plusHours(1), 5.0);

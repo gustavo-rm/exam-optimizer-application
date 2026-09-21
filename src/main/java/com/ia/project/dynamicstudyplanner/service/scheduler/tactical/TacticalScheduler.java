@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.service.scheduler.tactical;
 
 import com.ia.project.dynamicstudyplanner.domain.tactical.AvailabilityWindow;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 
 import java.util.List;
 import java.util.Map;
@@ -19,6 +19,6 @@ public interface TacticalScheduler {
      * @param emergencyMode If true, overrides standard spaced-repetition logic.
      * @return A detailed tactical schedule.
      */
-    TacticalStudyPlan schedule(Map<Subject, Integer> macroPlan, List<AvailabilityWindow> windows,
+    TacticalStudyPlan schedule(Map<PlanningItem, Integer> macroPlan, List<AvailabilityWindow> windows,
             boolean emergencyMode);
 }

@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.benchmark.strategy;
 
 import com.ia.project.dynamicstudyplanner.benchmark.instance.BenchmarkInstance;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 import java.util.List;
@@ -36,16 +36,16 @@ public final class UniformSplitBaseline implements PlanningStrategy {
 
     @Override
     public StudyPlan plan(BenchmarkInstance instance, EvolutionContext context, long seed) {
-        List<Subject> subjects = Allocations.orderedSubjects(context);
-        Map<Subject, Integer> days = Allocations.atMinimums(subjects, context);
+        List<PlanningItem> items = Allocations.orderedItems(context);
+        Map<PlanningItem, Integer> days = Allocations.atMinimums(items, context);
         int remaining = Allocations.remainingBudget(days, instance.totalStudyDays());
 
-        int each = remaining / subjects.size();
-        int leftover = remaining % subjects.size();
+        int each = remaining / items.size();
+        int leftover = remaining % items.size();
 
-        for (int i = 0; i < subjects.size(); i++) {
+        for (int i = 0; i < items.size(); i++) {
             int extra = each + (i < leftover ? 1 : 0);
-            days.merge(subjects.get(i), extra, Integer::sum);
+            days.merge(items.get(i), extra, Integer::sum);
         }
         return new StudyPlan(days);
     }

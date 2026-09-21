@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.service.scheduler.tactical;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.tactical.AvailabilityWindow;
 import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
@@ -20,7 +20,7 @@ public class HybridHeuristicScheduler implements TacticalScheduler {
     private static final double BUFFER_ZONE_PERCENTAGE = 0.15; // Leave 15% of windows open for chaos/interruptions
 
     @Override
-    public TacticalStudyPlan schedule(Map<Subject, Integer> macroPlan, List<AvailabilityWindow> windows,
+    public TacticalStudyPlan schedule(Map<PlanningItem, Integer> macroPlan, List<AvailabilityWindow> windows,
             boolean emergencyMode) {
         Map<TimeSlot, TacticalStudyBlock> schedule = new HashMap<>();
 
@@ -62,27 +62,27 @@ public class HybridHeuristicScheduler implements TacticalScheduler {
         return new TacticalStudyPlan(schedule);
     }
 
-    private List<TacticalStudyBlock> generateBlockPool(Map<Subject, Integer> macroPlan, boolean emergencyMode) {
+    private List<TacticalStudyBlock> generateBlockPool(Map<PlanningItem, Integer> macroPlan, boolean emergencyMode) {
         List<TacticalStudyBlock> blocks = new ArrayList<>();
         // Translate "Hours per Subject" into specific methodology blocks.
         // e.g., 2 hours of Math -> 1 hour Active Recall, 1 hour Practice Exam
-        for (Map.Entry<Subject, Integer> entry : macroPlan.entrySet()) {
-            Subject subject = entry.getKey();
+        for (Map.Entry<PlanningItem, Integer> entry : macroPlan.entrySet()) {
+            PlanningItem item = entry.getKey();
             int hours = entry.getValue();
 
             if (emergencyMode) {
                 // In emergency mode, skip passive reading entirely.
-                blocks.add(new TacticalStudyBlock(subject, StudyMethodology.ACTIVE_RECALL, hours * 60L));
+                blocks.add(new TacticalStudyBlock(item, StudyMethodology.ACTIVE_RECALL, hours * 60L));
             } else {
                 // Standard mode: mix methodologies
                 long activeMins = (long) (hours * 60 * 0.7);
                 long passiveMins = (hours * 60L) - activeMins;
 
                 if (activeMins > 0) {
-                    blocks.add(new TacticalStudyBlock(subject, StudyMethodology.ACTIVE_RECALL, activeMins));
+                    blocks.add(new TacticalStudyBlock(item, StudyMethodology.ACTIVE_RECALL, activeMins));
                 }
                 if (passiveMins > 0) {
-                    blocks.add(new TacticalStudyBlock(subject, StudyMethodology.PASSIVE_READING, passiveMins));
+                    blocks.add(new TacticalStudyBlock(item, StudyMethodology.PASSIVE_READING, passiveMins));
                 }
             }
         }

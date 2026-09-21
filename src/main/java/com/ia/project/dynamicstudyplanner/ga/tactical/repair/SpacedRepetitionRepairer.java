@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.ga.tactical.repair;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
@@ -42,25 +42,25 @@ public class SpacedRepetitionRepairer implements ChromosomeRepairer {
 
         Map<TimeSlot, TacticalStudyBlock> schedule = new HashMap<>(plan.getSchedule());
 
-        for (Subject subject : context.importanceScores().keySet()) {
-            if (!needsReview(subject, context) || alreadyHasReview(schedule, subject)) {
+        for (PlanningItem item : context.importanceScores().keySet()) {
+            if (!needsReview(item, context) || alreadyHasReview(schedule, item)) {
                 continue;
             }
-            scheduleReview(schedule, subject);
+            scheduleReview(schedule, item);
         }
 
         return new TacticalStudyPlan(schedule);
     }
 
     /** A curva de retenção exige revisão desta disciplina na data de início do plano? */
-    private boolean needsReview(Subject subject, EvolutionContext context) {
+    private boolean needsReview(PlanningItem item, EvolutionContext context) {
         return retentionAlgorithm.isReviewMandatory(
-                subject, context.retentionProfile().getState(subject), context.planStartDate());
+                item, context.retentionProfile().getState(item), context.planStartDate());
     }
 
-    private boolean alreadyHasReview(Map<TimeSlot, TacticalStudyBlock> schedule, Subject subject) {
+    private boolean alreadyHasReview(Map<TimeSlot, TacticalStudyBlock> schedule, PlanningItem item) {
         return schedule.values().stream()
-                .anyMatch(block -> block.subject().equals(subject)
+                .anyMatch(block -> block.item().equals(item)
                         && block.methodology() == StudyMethodology.SPACED_REPETITION_REVIEW);
     }
 
@@ -71,7 +71,7 @@ public class SpacedRepetitionRepairer implements ChromosomeRepairer {
      * fica sem ser agendada. É o comportamento anterior, travado por
      * {@code SpacedRepetitionRepairerTest.agendaVaziaContinuaVazia}.
      */
-    private void scheduleReview(Map<TimeSlot, TacticalStudyBlock> schedule, Subject subject) {
+    private void scheduleReview(Map<TimeSlot, TacticalStudyBlock> schedule, PlanningItem item) {
         TimeSlot weakestSlot = null;
         double lowestValue = Double.MAX_VALUE;
 
@@ -85,7 +85,7 @@ public class SpacedRepetitionRepairer implements ChromosomeRepairer {
 
         if (weakestSlot != null) {
             schedule.put(weakestSlot, new TacticalStudyBlock(
-                    subject, StudyMethodology.SPACED_REPETITION_REVIEW, weakestSlot.getDurationMinutes()));
+                    item, StudyMethodology.SPACED_REPETITION_REVIEW, weakestSlot.getDurationMinutes()));
         }
     }
 
@@ -97,6 +97,6 @@ public class SpacedRepetitionRepairer implements ChromosomeRepairer {
      * por um método pouco retentivo. Não pondera importância da disciplina nem proximidade da prova.
      */
     private double reviewValueOf(TacticalStudyBlock block) {
-        return block.subject().cognitiveLoad() * block.methodology().getExpectedRetentionMultiplier();
+        return block.item().difficultyBand() * block.methodology().getExpectedRetentionMultiplier();
     }
 }

@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.benchmark.robustness;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -13,7 +13,7 @@ import java.util.TreeSet;
  * "is this the same plan?" and "how different are these two plans?".
  * <p>
  * {@code StudyPlan} wraps a {@code HashMap}, so two equal plans can iterate in different orders and
- * {@code toString()} is not a reliable identity. The signature sorts by subject name, which makes
+ * {@code toString()} is not a reliable identity. The signature sorts by item name, which makes
  * comparison independent of map internals — a plan is identified by its allocation, nothing else.
  */
 public final class PlanSignature {
@@ -22,13 +22,13 @@ public final class PlanSignature {
     }
 
     /**
-     * A stable textual identity for a plan: {@code subjectA=3|subjectB=7|...}, sorted by name.
+     * A stable textual identity for a plan: {@code itemA=3|itemB=7|...}, sorted by name.
      * Two plans have the same signature exactly when they allocate the same days to the same
-     * subjects.
+     * items.
      */
     public static String of(StudyPlan plan) {
-        return plan.getDaysPerSubject().entrySet().stream()
-                .sorted(Map.Entry.comparingByKey(Comparator.comparing(Subject::name)))
+        return plan.getDaysPerItem().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(PlanningItem::name)))
                 .map(e -> e.getKey().name() + "=" + e.getValue())
                 .reduce((a, b) -> a + "|" + b)
                 .orElse("<vazio>");
@@ -38,24 +38,24 @@ public final class PlanSignature {
      * Manhattan distance between two allocations, in days.
      * <p>
      * Because both plans allocate the same total budget, this counts each moved day twice — a plan
-     * differing by one day transferred between two subjects has distance 2. Use
+     * differing by one day transferred between two items has distance 2. Use
      * {@link #daysMoved} for the interpretable figure.
      */
     public static int l1Distance(StudyPlan left, StudyPlan right) {
-        Set<Subject> subjects = new TreeSet<>(Comparator.comparing(Subject::name));
-        subjects.addAll(left.getDaysPerSubject().keySet());
-        subjects.addAll(right.getDaysPerSubject().keySet());
+        Set<PlanningItem> items = new TreeSet<>(Comparator.comparing(PlanningItem::name));
+        items.addAll(left.getDaysPerItem().keySet());
+        items.addAll(right.getDaysPerItem().keySet());
 
         int distance = 0;
-        for (Subject subject : subjects) {
-            distance += Math.abs(left.getDaysForSubject(subject) - right.getDaysForSubject(subject));
+        for (PlanningItem item : items) {
+            distance += Math.abs(left.getDaysForItem(item) - right.getDaysForItem(item));
         }
         return distance;
     }
 
     /**
      * Number of study days that would have to be moved to turn one plan into the other — half the
-     * L1 distance, since every day removed from one subject is added to another.
+     * L1 distance, since every day removed from one item is added to another.
      */
     public static double daysMoved(StudyPlan left, StudyPlan right) {
         return l1Distance(left, right) / 2.0;

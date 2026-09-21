@@ -1,26 +1,26 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItemIndex;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.LearningModel;
 
 import java.util.Map;
 
 /**
- * Os dados por disciplina que a evolução consulta a cada gene, já projetados em vetores alinhados à
+ * Os dados por item que a evolução consulta a cada gene, já projetados em vetores alinhados à
  * ordem canônica do cromossomo.
  *
  * <h2>Por que isto existe (pendência P18)</h2>
  *
  * Piso de dias mínimos, importância normalizada, peso de retenção e sessões exigidas são
- * <b>constantes durante toda a otimização</b> — dependem do edital e do perfil do aluno, não do
- * indivíduo sendo avaliado. Ainda assim eram lidos de {@code Map<Subject, ...>} uma vez por gene,
+ * <b>constantes durante toda a otimização</b> — dependem do plano e do perfil do aluno, não do
+ * indivíduo sendo avaliado. Ainda assim eram lidos de {@code Map<PlanningItem, ...>} uma vez por gene,
  * por indivíduo, por geração: no pior caso admitido pela API, dezenas de milhões de cálculos de
  * hash para reler os mesmos vinte e quatro números.
  *
  * <p>Projetados uma vez aqui, viram leitura de posição de vetor. É a mesma ideia que já valia para
- * {@code requiredSessionsPerSubject} desde o achado F4 — memorizar o que não muda — levada até o
+ * {@code requiredSessionsPerItem} desde o achado F4 — memorizar o que não muda — levada até o
  * fim: além de não recalcular, também não reprocurar.
  *
  * <h2>Alinhamento</h2>
@@ -28,16 +28,16 @@ import java.util.Map;
  * Todos os vetores seguem {@link #index()}. A posição {@code i} de qualquer um deles fala da mesma
  * disciplina que a posição {@code i} dos genes de um plano alinhado ao mesmo índice. Quem tiver um
  * plano de outra origem deve alinhá-lo antes, com
- * {@code StudyPlan.genesAlignedTo(SubjectIndex)}.
+ * {@code StudyPlan.genesAlignedTo(PlanningItemIndex)}.
  *
  * <p>Imutável na prática: os vetores são criados aqui e nunca saem da classe.
  */
 public final class GeneVectors {
 
-    /** Piso implícito quando o contexto não declara mínimo para uma disciplina. */
+    /** Piso implícito quando o contexto não declara mínimo para um item. */
     private static final int DEFAULT_MINIMUM_DAYS = 1;
 
-    private final SubjectIndex index;
+    private final PlanningItemIndex index;
     private final int[] minimumDays;
     private final double[] normalizedImportance;
     private final double[] retentionWeights;
@@ -47,29 +47,30 @@ public final class GeneVectors {
      * Projeta os mapas do contexto sobre a ordem canônica.
      *
      * @param index                 a ordem dos genes; nunca {@code null}
-     * @param minimumDaysPerSubject pisos por disciplina; ausência vale {@value #DEFAULT_MINIMUM_DAYS}
+     * @param minimumDaysPerItem pisos por item; ausência vale {@value #DEFAULT_MINIMUM_DAYS}
      * @param normalizedImportance  importância projetada no simplex; ausência vale 0
      * @param retentionWeights      importância temperada para retenção; ausência vale 0
      * @param planningHorizonDays   horizonte de planejamento, para as sessões exigidas
      */
-    GeneVectors(SubjectIndex index,
-                Map<Subject, Integer> minimumDaysPerSubject,
-                Map<Subject, Double> normalizedImportance,
-                Map<Subject, Double> retentionWeights,
+    GeneVectors(PlanningItemIndex index,
+                Map<PlanningItem, Integer> minimumDaysPerItem,
+                Map<PlanningItem, Double> normalizedImportance,
+                Map<PlanningItem, Double> retentionWeights,
                 int planningHorizonDays) {
         this.index = index;
-        this.minimumDays = index.projectInts(minimumDaysPerSubject, DEFAULT_MINIMUM_DAYS);
+        this.minimumDays = index.projectInts(minimumDaysPerItem, DEFAULT_MINIMUM_DAYS);
         this.normalizedImportance = index.projectDoubles(normalizedImportance, 0.0);
         this.retentionWeights = index.projectDoubles(retentionWeights, 0.0);
 
         this.requiredSessions = new double[index.size()];
         for (int i = 0; i < this.requiredSessions.length; i++) {
-            this.requiredSessions[i] = LearningModel.requiredSessions(index.subject(i), planningHorizonDays);
+            this.requiredSessions[i] = LearningModel.requiredSessions(
+                    index.item(i).difficultyBand(), planningHorizonDays);
         }
     }
 
     /** @return a ordem canônica a que todos os vetores estão alinhados */
-    public SubjectIndex index() {
+    public PlanningItemIndex index() {
         return index;
     }
 
@@ -80,7 +81,7 @@ public final class GeneVectors {
 
     /**
      * @param posicao posição do gene
-     * @return o piso de dias da disciplina nessa posição
+     * @return o piso de dias do item nessa posição
      */
     public int minimumDays(int posicao) {
         return minimumDays[posicao];
@@ -88,7 +89,7 @@ public final class GeneVectors {
 
     /**
      * @param posicao posição do gene
-     * @return a importância normalizada da disciplina nessa posição
+     * @return a importância normalizada do item nessa posição
      */
     public double normalizedImportance(int posicao) {
         return normalizedImportance[posicao];
@@ -96,7 +97,7 @@ public final class GeneVectors {
 
     /**
      * @param posicao posição do gene
-     * @return o peso de retenção da disciplina nessa posição
+     * @return o peso de retenção do item nessa posição
      */
     public double retentionWeight(int posicao) {
         return retentionWeights[posicao];
@@ -104,7 +105,7 @@ public final class GeneVectors {
 
     /**
      * @param posicao posição do gene
-     * @return quantas sessões a disciplina nessa posição exige no horizonte do plano
+     * @return quantas sessões o item nessa posição exige no horizonte do plano
      */
     public double requiredSessions(int posicao) {
         return requiredSessions[posicao];
@@ -117,7 +118,7 @@ public final class GeneVectors {
      *
      * Com o cromossomo indexado, a ordem dos genes é do <b>contexto</b>, não de cada plano: é o que
      * permite recombinar dois indivíduos posição a posição. A consequência é que um contexto montado
-     * sem disciplinas — {@code importanceScores} vazio e nenhum {@code subjects()} informado —
+     * sem itens — {@code importanceScores} vazio e nenhum {@code subjects()} informado —
      * descreve uma evolução <b>sem genes</b>, e os operadores devolveriam planos vazios em silêncio.
      *
      * <p>Uma comparação de tamanhos por operação genética é barata o bastante para não medir, e
@@ -130,8 +131,8 @@ public final class GeneVectors {
         if (plan.getIndex().size() > size()) {
             throw new IllegalStateException(
                     "O contexto da evolucao descreve " + size() + " gene(s), mas o plano tem "
-                            + plan.getIndex().size() + ". Informe as disciplinas no contexto, com "
-                            + "EvolutionContext.builder().subjects(...) ou importanceScores(...).");
+                            + plan.getIndex().size() + ". Informe os itens no contexto, com "
+                            + "EvolutionContext.builder().items(...) ou importanceScores(...).");
         }
     }
 

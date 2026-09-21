@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga.strategy.mutation;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import org.junit.jupiter.api.Test;
@@ -19,12 +19,12 @@ class TransferMutationTest {
     @Test
     void shouldSwapDaysBetweenSubjectsMaintainingTotalDays() {
         // Arrange
-        Subject math = new Subject("Math", 10, 3);
-        Subject history = new Subject("History", 10, 3);
+        PlanningItem math = new PlanningItem("Math", "Math", 3);
+        PlanningItem history = new PlanningItem("History", "History", 3);
         // LinkedHashMap e nao Map.of: a ordem de iteracao de Map.of e sorteada a cada execucao da
         // JVM, e desde a pendencia P18 essa ordem e a ordem dos genes do cromossomo. Com ela
         // sorteada, qual disciplina cede o dia mudaria de execucao para execucao.
-        Map<Subject, Integer> dias = new LinkedHashMap<>();
+        Map<PlanningItem, Integer> dias = new LinkedHashMap<>();
         dias.put(math, 10);
         dias.put(history, 5);
         StudyPlan plan = new StudyPlan(dias);
@@ -38,8 +38,8 @@ class TransferMutationTest {
         // evolucao sem genes.
         EvolutionContext context = EvolutionContext.builder()
                 .importanceScores(Map.of())
-                .subjects(List.of(math, history))
-                .minimumDaysPerSubject(Map.of())
+                .items(List.of(math, history))
+                .minimumDaysPerItem(Map.of())
                 .planningHorizonDays(180)
                 .hoursPerStudyDay(4)
                 .maxDailyCognitiveLoad(20)
@@ -56,8 +56,8 @@ class TransferMutationTest {
 
         // One subject gained a day, the other lost a day.
         // It could be math=9, history=6 OR math=11, history=4 depending on random selection
-        int mathDays = mutated.getPlan().getDaysPerSubject().get(math);
-        int historyDays = mutated.getPlan().getDaysPerSubject().get(history);
+        int mathDays = mutated.getPlan().getDaysPerItem().get(math);
+        int historyDays = mutated.getPlan().getDaysPerItem().get(history);
 
         assertThat(mathDays + historyDays).isEqualTo(15);
         assertThat(mathDays).isIn(9, 11);

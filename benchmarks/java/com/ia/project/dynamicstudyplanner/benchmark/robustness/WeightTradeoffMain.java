@@ -12,6 +12,7 @@ import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.SubjectPlanningItemMapper;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
@@ -185,11 +186,11 @@ public final class WeightTradeoffMain {
 
             for (PlanningStrategy strategy : harness.strategies()) {
                 StudyPlan plan = strategy.plan(instance, context, SEED);
-                int[] days = plan.getDaysPerSubject().values().stream()
+                int[] days = plan.getDaysPerItem().values().stream()
                         .mapToInt(Integer::intValue).sorted().toArray();
-                long underCovered = plan.getDaysPerSubject().entrySet().stream()
+                long underCovered = plan.getDaysPerItem().entrySet().stream()
                         .filter(e -> e.getValue() < LearningModel.requiredSessions(
-                                e.getKey(), context.planningHorizonDays()))
+                                e.getKey().difficultyBand(), context.planningHorizonDays()))
                         .count();
                 PlanMetrics m = metrics.measure(instance, context, plan, 0L);
 
@@ -450,9 +451,11 @@ public final class WeightTradeoffMain {
         Map<Subject, Integer> minimumDays = new BaselineCalculator(importanceCalculator)
                 .calculateMinimumDays(instance.exam(), instance.profile());
 
+        // Mesma travessia de fronteira que EvolutionContextAssembler faz na producao.
         return EvolutionContext.builder()
-                .importanceScores(importance)
-                .minimumDaysPerSubject(minimumDays)
+                .importanceScores(SubjectPlanningItemMapper.rekey(importance))
+                .items(SubjectPlanningItemMapper.toItems(instance.exam().getAllSubjects()))
+                .minimumDaysPerItem(SubjectPlanningItemMapper.rekey(minimumDays))
                 .studentState(instance.profile().getState())
                 .fitnessEvaluator(evaluator)
                 .retentionProfile(new RetentionProfile(Map.of()))

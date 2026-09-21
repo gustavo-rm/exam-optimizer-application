@@ -1,40 +1,38 @@
 package com.ia.project.dynamicstudyplanner.domain;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
-
 import java.util.Collections;
 import java.util.Map;
 
 /**
- * O cromossomo: uma alocação completa de dias de estudo por disciplina.
+ * O cromossomo: uma alocação completa de dias de estudo por item de planejamento.
  *
  * <p>Objeto de valor imutável. Depois de construído, um plano não muda — é isso que garante a
  * integridade das soluções que o algoritmo genético carrega de uma geração para a outra.
  *
  * <h2>A representação: vetor indexado, não mapa (pendência P18)</h2>
  *
- * Internamente o plano é um {@code int[]} alinhado a um {@link SubjectIndex} compartilhado:
- * {@code dias[i]} são os dias da disciplina {@code index.subject(i)}. Ler um gene é ler uma posição
+ * Internamente o plano é um {@code int[]} alinhado a um {@link PlanningItemIndex} compartilhado:
+ * {@code dias[i]} são os dias da disciplina {@code index.item(i)}. Ler um gene é ler uma posição
  * de vetor.
  *
- * <p>Era um {@code Map<Subject, Integer>}. A troca é o fecho da pendência <b>P18</b>, e o motivo
+ * <p>Era um {@code Map<PlanningItem, Integer>}. A troca é o fecho da pendência <b>P18</b>, e o motivo
  * está medido: com mapa, cada gene custava um cálculo de hash, um desembrulho de {@code Integer} e,
  * na escrita, a alocação de um nó — ~72 ns por gene, sobre 474 mil recombinações no pior caso que a
- * API aceita. Como o conjunto de disciplinas é fixo durante toda a otimização, esse custo era
- * pagamento por uma flexibilidade que a evolução não usa. Ver {@link SubjectIndex} para o que a
+ * API aceita. Como o conjunto de itens é fixo durante toda a otimização, esse custo era
+ * pagamento por uma flexibilidade que a evolução não usa. Ver {@link PlanningItemIndex} para o que a
  * mudança fez com a ordem dos genes — e por que ela deixou o resultado <i>menos</i> dependente de
  * detalhes fora do nosso controle, não mais.
  *
  * <h2>O mapa continua existindo, na fronteira</h2>
  *
- * {@link #getDaysPerSubject()} reconstrói o mapa sob demanda, para o mapeador da API, o gerador de
+ * {@link #getDaysPerItem()} reconstrói o mapa sob demanda, para o mapeador da API, o gerador de
  * cronograma e os testes. <b>Não o use dentro da evolução</b>: lá ele aloca um mapa por chamada,
  * que é exatamente o custo que esta representação existe para não pagar. Dentro do laço, use
  * {@link #daysAt(int)} sobre {@link #getIndex()}.
  */
 public class StudyPlan {
 
-    private final SubjectIndex index;
+    private final PlanningItemIndex index;
 
     /** Dias por posição, alinhado a {@link #index}. Nunca sai desta classe. */
     private final int[] days;
@@ -80,13 +78,13 @@ public class StudyPlan {
      * @throws IllegalArgumentException se o vetor não tiver o tamanho do índice, o que significa que
      *                                  os dois falam de conjuntos diferentes de disciplinas
      */
-    public StudyPlan(SubjectIndex index, int[] days) {
-        this.index = index == null ? SubjectIndex.of(null) : index;
+    public StudyPlan(PlanningItemIndex index, int[] days) {
+        this.index = index == null ? PlanningItemIndex.of(null) : index;
         this.days = days == null ? new int[0] : days;
         if (this.days.length != this.index.size()) {
             throw new IllegalArgumentException(
                     "Plano incoerente: o indice tem " + this.index.size()
-                            + " disciplina(s) e o vetor de dias tem " + this.days.length + " posicao(oes).");
+                            + " item(ns) e o vetor de dias tem " + this.days.length + " posicao(oes).");
         }
 
         int soma = 0;
@@ -97,18 +95,18 @@ public class StudyPlan {
     }
 
     /**
-     * Construtor de fronteira: monta um plano a partir de um mapa por disciplina.
+     * Construtor de fronteira: monta um plano a partir de um mapa por item.
      *
-     * <p>Deriva um {@link SubjectIndex} próprio, na ordem de iteração do mapa recebido. É o caminho
+     * <p>Deriva um {@link PlanningItemIndex} próprio, na ordem de iteração do mapa recebido. É o caminho
      * do plano tático, dos mapeadores e dos testes — <b>não</b> o da evolução, que compartilha um
      * índice único entre todos os indivíduos. Um plano construído por aqui é correto em tudo, mas
      * seus genes não estão alinhados aos de outro plano, e os operadores genéticos detectam isso
      * (ver {@code RepairingCrossover}).
      *
-     * @param daysPerSubject dias por disciplina; {@code null} produz um plano vazio
+     * @param daysPerItem dias por item; {@code null} produz um plano vazio
      */
-    public StudyPlan(Map<Subject, Integer> daysPerSubject) {
-        this(SubjectIndex.of(daysPerSubject == null ? null : daysPerSubject.keySet()), daysPerSubject);
+    public StudyPlan(Map<PlanningItem, Integer> daysPerItem) {
+        this(PlanningItemIndex.of(daysPerItem == null ? null : daysPerItem.keySet()), daysPerItem);
     }
 
     /**
@@ -116,12 +114,12 @@ public class StudyPlan {
      * vez</b> e o vetor seja projetado contra essa mesma instância — Java não deixa executar nada
      * antes de {@code this(...)}, então sem este passo a ordem seria calculada duas vezes.
      */
-    private StudyPlan(SubjectIndex index, Map<Subject, Integer> daysPerSubject) {
-        this(index, index.projectInts(daysPerSubject, 0));
+    private StudyPlan(PlanningItemIndex index, Map<PlanningItem, Integer> daysPerItem) {
+        this(index, index.projectInts(daysPerItem, 0));
     }
 
     /** @return a ordem canônica dos genes deste plano */
-    public SubjectIndex getIndex() {
+    public PlanningItemIndex getIndex() {
         return index;
     }
 
@@ -140,70 +138,89 @@ public class StudyPlan {
      *
      * <p>É o acesso da avaliação de fitness, que recebe um plano qualquer e percorre as posições do
      * índice do contexto. Quando o plano já está nessa ordem — o caso de todo indivíduo da evolução
-     * — é uma leitura de vetor; quando não está, cai na busca pela disciplina. A verificação é uma
+     * — é uma leitura de vetor; quando não está, cai na busca pelo item. A verificação é uma
      * comparação de referência, não uma busca com hash.
      *
      * @param ordem a ordem em que a posição é expressa
      * @param posicao posição do gene nessa ordem
-     * @return os dias alocados, ou 0 se a disciplina dessa posição não estiver no plano
+     * @return os dias alocados, ou 0 se o item dessa posição não estiver no plano
      */
-    public int daysAt(SubjectIndex ordem, int posicao) {
-        return ordem == index ? days[posicao] : getDaysForSubject(ordem.subject(posicao));
+    public int daysAt(PlanningItemIndex ordem, int posicao) {
+        return ordem == index ? days[posicao] : getDaysForItem(ordem.item(posicao));
     }
 
     /**
      * Copia os genes deste plano para um vetor alinhado à ordem pedida.
      *
      * <p>Quando o plano já está nessa ordem — o caso de todo indivíduo da evolução, que compartilha
-     * o índice do contexto — é uma cópia de vetor. Quando não está, cada gene é reposicionado pela
-     * disciplina. É o que permite aos operadores genéticos aceitar um plano vindo da fronteira sem
+     * o índice do contexto — é uma cópia de vetor. Quando não está, cada gene é reposicionado pelo
+     * item. É o que permite aos operadores genéticos aceitar um plano vindo da fronteira sem
      * abrir mão do caminho rápido no laço.
      *
      * @param ordem a ordem canônica desejada
-     * @return vetor de tamanho {@code ordem.size()}; posições cuja disciplina falte neste plano
+     * @return vetor de tamanho {@code ordem.size()}; posições cujo item falte neste plano
      *         valem 0
      */
-    public int[] genesAlignedTo(SubjectIndex ordem) {
+    public int[] genesAlignedTo(PlanningItemIndex ordem) {
         if (ordem == index) {
             return days.clone();
         }
         int[] alinhado = new int[ordem.size()];
         for (int i = 0; i < alinhado.length; i++) {
-            alinhado[i] = getDaysForSubject(ordem.subject(i));
+            alinhado[i] = getDaysForItem(ordem.item(i));
         }
         return alinhado;
     }
 
     /**
-     * Dias alocados a uma disciplina específica.
+     * Dias alocados a um item específico.
      *
-     * @param subject a disciplina consultada
-     * @return os dias alocados, ou 0 se a disciplina não estiver no plano
+     * @param item o item consultado
+     * @return os dias alocados, ou 0 se o item não estiver no plano
      */
-    public int getDaysForSubject(Subject subject) {
-        int posicao = index.positionOf(subject);
+    public int getDaysForItem(PlanningItem item) {
+        int posicao = index.positionOf(item);
         return posicao < 0 ? 0 : days[posicao];
     }
 
     /**
      * Total de dias do plano inteiro.
      *
-     * @return a soma dos dias alocados em todas as disciplinas
+     * @return a soma dos dias alocados em todos os itens
      */
     public int getTotalDays() {
         return totalDays;
     }
 
     /**
-     * Reconstrói o mapa de dias por disciplina, na ordem canônica.
+     * Reconstrói o mapa de dias por item, na ordem canônica.
      *
      * <p><b>Aloca um mapa a cada chamada.</b> É para a fronteira — resposta da API, geração de
      * cronograma, testes. Dentro da evolução, use {@link #daysAt(int)}.
      *
      * @return mapa somente leitura, na ordem de {@link #getIndex()}
      */
-    public Map<Subject, Integer> getDaysPerSubject() {
+    public Map<PlanningItem, Integer> getDaysPerItem() {
         return Collections.unmodifiableMap(index.toMap(days));
+    }
+
+    /**
+     * O mesmo mapa, sob o nome antigo. <b>Removido em EOA-4b.</b>
+     *
+     * <p>Existe por uma razão só: {@code GaResultadoInalteradoTest} é a rede de segurança desta
+     * etapa e <b>não pode mudar</b>, e ele chama este método. Renomeá-lo obrigaria a editar o teste
+     * que existe justamente para provar que a refatoração não alterou comportamento — o que
+     * destruiria a prova no momento em que ela mais vale.
+     *
+     * <p>Quando o caminho de concurso sair, em EOA-4b, o teste passa a ler
+     * {@link #getDaysPerItem()} e este apelido vai junto.
+     *
+     * @return o mesmo que {@link #getDaysPerItem()}
+     * @deprecated use {@link #getDaysPerItem()}; sai em EOA-4b junto com o mapeador de fronteira
+     */
+    @Deprecated(since = "EOA-4a", forRemoval = true)
+    public Map<PlanningItem, Integer> getDaysPerSubject() {
+        return getDaysPerItem();
     }
 
     /**
@@ -211,12 +228,12 @@ public class StudyPlan {
      * <p>
      * Traz a validação para dentro do objeto de domínio, em vez de deixá-la no arcabouço do AG.
      *
-     * @param minimumDaysPerSubject pisos por disciplina
+     * @param minimumDaysPerItem pisos por item
      * @return {@code true} se nenhum piso for violado
      */
-    public boolean meetsMinimumConstraints(Map<Subject, Integer> minimumDaysPerSubject) {
+    public boolean meetsMinimumConstraints(Map<PlanningItem, Integer> minimumDaysPerItem) {
         for (int i = 0; i < days.length; i++) {
-            int minimo = minimumDaysPerSubject.getOrDefault(index.subject(i), 1);
+            int minimo = minimumDaysPerItem.getOrDefault(index.item(i), 1);
             if (days[i] < minimo) {
                 return false;
             }

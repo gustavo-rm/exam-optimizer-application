@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga.strategy.crossover;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItemIndex;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
@@ -55,7 +55,7 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
      * @param ordem a ordem canônica dos genes do filho
      * @return os genes do filho, ainda sem reparo
      */
-    private int[] createWeightedAverageGenes(Individual parent1, Individual parent2, SubjectIndex ordem) {
+    private int[] createWeightedAverageGenes(Individual parent1, Individual parent2, PlanningItemIndex ordem) {
         StudyPlan plano1 = parent1.getPlan();
         StudyPlan plano2 = parent2.getPlan();
         boolean alinhados = plano1.getIndex() == ordem && plano2.getIndex() == ordem;
@@ -70,8 +70,8 @@ public class WeightedAverageCrossover implements CrossoverStrategy {
         int genes = ordem.size();
         int[] childGenes = new int[genes];
         for (int i = 0; i < genes; i++) {
-            double p1Value = alinhados ? plano1.daysAt(i) : plano1.getDaysForSubject(ordem.subject(i));
-            double p2Value = alinhados ? plano2.daysAt(i) : plano2.getDaysForSubject(ordem.subject(i));
+            double p1Value = alinhados ? plano1.daysAt(i) : plano1.getDaysForItem(ordem.item(i));
+            double p2Value = alinhados ? plano2.daysAt(i) : plano2.getDaysForItem(ordem.item(i));
             childGenes[i] = (int) Math.round((p1Value * weight1 + p2Value * weight2) / totalFitness);
         }
         return childGenes;

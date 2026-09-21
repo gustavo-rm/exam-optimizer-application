@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.constraint;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
@@ -35,20 +35,20 @@ public class MandatoryReviewConstraint implements ConstraintValidator {
             return true; // Not applicable for macro-plans without retention tracking
         }
 
-        Set<Subject> reviewedSubjects = new HashSet<>();
+        Set<PlanningItem> reviewedItems = new HashSet<>();
 
         // Find what subjects actually have spaced repetition scheduled in this plan
         for (TacticalStudyBlock block : tacticalPlan.getSchedule().values()) {
             if (block.methodology() == StudyMethodology.SPACED_REPETITION_REVIEW) {
-                reviewedSubjects.add(block.subject());
+                reviewedItems.add(block.item());
             }
         }
 
         // Check if any subject required a review but was missing from the set
-        for (Subject subject : context.importanceScores().keySet()) {
-            boolean mandatory = retentionAlgorithm.isReviewMandatory(subject,
-                    context.retentionProfile().getState(subject), context.planStartDate());
-            if (mandatory && !reviewedSubjects.contains(subject)) {
+        for (PlanningItem item : context.importanceScores().keySet()) {
+            boolean mandatory = retentionAlgorithm.isReviewMandatory(item,
+                    context.retentionProfile().getState(item), context.planStartDate());
+            if (mandatory && !reviewedItems.contains(item)) {
                 return false; // Constraint Violated: A mandatory review was missed
             }
         }

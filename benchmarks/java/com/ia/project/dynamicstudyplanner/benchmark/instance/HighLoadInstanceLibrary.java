@@ -169,7 +169,7 @@ public final class HighLoadInstanceLibrary {
      */
     public static double totalRequiredSessions(Exam exam) {
         return exam.getAllSubjects().stream()
-                .mapToDouble(s -> LearningModel.requiredSessions(s, HORIZON_DAYS))
+                .mapToDouble(s -> LearningModel.requiredSessions(s.cognitiveLoad(), HORIZON_DAYS))
                 .sum();
     }
 
@@ -194,7 +194,7 @@ public final class HighLoadInstanceLibrary {
     /** The demand ratio of any instance, whichever library it came from. */
     public static double demandRatio(BenchmarkInstance instance) {
         double demand = instance.exam().getAllSubjects().stream()
-                .mapToDouble(s -> LearningModel.requiredSessions(s, (int) instance.horizonDays()))
+                .mapToDouble(s -> LearningModel.requiredSessions(s.cognitiveLoad(), (int) instance.horizonDays()))
                 .sum();
         return demand / instance.totalStudyDays();
     }

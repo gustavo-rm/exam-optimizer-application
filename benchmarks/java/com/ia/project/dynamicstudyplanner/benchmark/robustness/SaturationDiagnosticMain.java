@@ -9,7 +9,7 @@ import com.ia.project.dynamicstudyplanner.benchmark.metric.MetricsCalculator;
 import com.ia.project.dynamicstudyplanner.benchmark.metric.Spearman;
 import com.ia.project.dynamicstudyplanner.benchmark.strategy.PlanningStrategy;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.LearningModel;
 
@@ -158,10 +158,10 @@ public final class SaturationDiagnosticMain {
             int reps = strategy.deterministic() ? 1 : REPETITIONS;
             for (int r = 0; r < reps; r++) {
                 StudyPlan plan = strategy.plan(instance, context, SEED + r);
-                for (Map.Entry<Subject, Integer> entry : plan.getDaysPerSubject().entrySet()) {
+                for (Map.Entry<PlanningItem, Integer> entry : plan.getDaysPerItem().entrySet()) {
                     minDays = Math.min(minDays, entry.getValue());
                     double required = LearningModel.requiredSessions(
-                            entry.getKey(), context.planningHorizonDays());
+                            entry.getKey().difficultyBand(), context.planningHorizonDays());
                     minCoverage = Math.min(minCoverage, entry.getValue() / required);
                 }
             }
