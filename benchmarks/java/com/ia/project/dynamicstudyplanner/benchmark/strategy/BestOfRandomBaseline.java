@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.benchmark.strategy;
 
 import com.ia.project.dynamicstudyplanner.benchmark.instance.BenchmarkInstance;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 import java.util.List;
@@ -43,7 +43,7 @@ public final class BestOfRandomBaseline implements PlanningStrategy {
     @Override
     public StudyPlan plan(BenchmarkInstance instance, EvolutionContext context, long seed) {
         Random seedSource = new Random(seed);
-        List<Subject> subjects = Allocations.orderedSubjects(context);
+        List<PlanningItem> items = Allocations.orderedItems(context);
 
         StudyPlan best = null;
         double bestFitness = Double.NEGATIVE_INFINITY;
@@ -59,7 +59,7 @@ public final class BestOfRandomBaseline implements PlanningStrategy {
 
         if (best == null) {
             // Only reachable with a population size of zero, which the API forbids (@Min(10)).
-            return new StudyPlan(Allocations.atMinimums(subjects, context));
+            return new StudyPlan(Allocations.atMinimums(items, context));
         }
         return best;
     }

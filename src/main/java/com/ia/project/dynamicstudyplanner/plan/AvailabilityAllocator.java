@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 
@@ -42,7 +42,7 @@ import java.util.Optional;
  * scheduler builds one inside the method that serves a request, which is what keeps the scheduler
  * itself stateless and safe on any number of threads.
  */
-final class AvailabilityAllocator {
+public final class AvailabilityAllocator {
 
     /** Windows, clipped to the horizon and sorted. */
     private final List<Window> windows;
@@ -65,7 +65,7 @@ final class AvailabilityAllocator {
      * @param request the request, already accepted by {@link PlanRequestGuard}
      * @return a fresh allocator, positioned at the first usable minute
      */
-    static AvailabilityAllocator over(PlanRequest request) {
+    public static AvailabilityAllocator over(PlanRequest request) {
         HorizonBounds horizon = HorizonBounds.of(request.horizon());
         List<Window> windows = request.availability().stream()
                 .map(slot -> clip(slot, horizon))
@@ -87,7 +87,7 @@ final class AvailabilityAllocator {
      * @param durationMinutes how long the block needs; positive
      * @return when the block starts, or empty when no remaining window can hold it
      */
-    Optional<Instant> place(int durationMinutes) {
+    public Optional<Instant> place(int durationMinutes) {
         while (current < windows.size()) {
             Window window = windows.get(current);
             if (cursor.isBefore(window.start())) {
@@ -114,7 +114,7 @@ final class AvailabilityAllocator {
      * the sake of one reported number, and allocation does not need it — the cursor already refuses
      * to place a block twice in the same minute.
      */
-    long availableMinutes() {
+    public long availableMinutes() {
         return windows.stream()
                 .mapToLong(window -> ChronoUnit.MINUTES.between(window.start(), window.end()))
                 .sum();

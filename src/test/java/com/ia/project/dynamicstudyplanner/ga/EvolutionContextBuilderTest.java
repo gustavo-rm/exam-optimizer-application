@@ -3,7 +3,7 @@ package com.ia.project.dynamicstudyplanner.ga;
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
 import com.ia.project.dynamicstudyplanner.domain.Chronotype;
 import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,14 +38,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DisplayName("Construtor passo a passo do EvolutionContext")
 class EvolutionContextBuilderTest {
 
-    private static final Subject MATEMATICA = new Subject("Matematica", 20, 3);
-    private static final Subject PORTUGUES = new Subject("Portugues", 10, 2);
+    private static final PlanningItem MATEMATICA = new PlanningItem("Matematica", "Matematica", 3);
+    private static final PlanningItem PORTUGUES = new PlanningItem("Portugues", "Portugues", 2);
 
     /** O mínimo que todo caminho de execução fornece. */
     private static EvolutionContext.Builder minimo() {
         return EvolutionContext.builder()
                 .importanceScores(Map.of(MATEMATICA, 30.0, PORTUGUES, 10.0))
-                .minimumDaysPerSubject(Map.of(MATEMATICA, 5, PORTUGUES, 3))
+                .minimumDaysPerItem(Map.of(MATEMATICA, 5, PORTUGUES, 3))
                 .planningHorizonDays(180)
                 .hoursPerStudyDay(4)
                 .maxDailyCognitiveLoad(20);
@@ -67,7 +67,7 @@ class EvolutionContextBuilderTest {
             // A mensagem precisa dizer QUAL falta: um erro generico de construcao obrigaria quem o
             // recebe a abrir o codigo do construtor para descobrir.
             assertThatThrownBy(() -> EvolutionContext.builder()
-                    .minimumDaysPerSubject(Map.of()).planningHorizonDays(1)
+                    .minimumDaysPerItem(Map.of()).planningHorizonDays(1)
                     .hoursPerStudyDay(1).maxDailyCognitiveLoad(1).build())
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("importanceScores");
@@ -76,22 +76,22 @@ class EvolutionContextBuilderTest {
                     .importanceScores(Map.of()).planningHorizonDays(1)
                     .hoursPerStudyDay(1).maxDailyCognitiveLoad(1).build())
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("minimumDaysPerSubject");
+                    .hasMessageContaining("minimumDaysPerItem");
 
             assertThatThrownBy(() -> EvolutionContext.builder()
-                    .importanceScores(Map.of()).minimumDaysPerSubject(Map.of())
+                    .importanceScores(Map.of()).minimumDaysPerItem(Map.of())
                     .hoursPerStudyDay(1).maxDailyCognitiveLoad(1).build())
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("planningHorizonDays");
 
             assertThatThrownBy(() -> EvolutionContext.builder()
-                    .importanceScores(Map.of()).minimumDaysPerSubject(Map.of())
+                    .importanceScores(Map.of()).minimumDaysPerItem(Map.of())
                     .planningHorizonDays(1).maxDailyCognitiveLoad(1).build())
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("hoursPerStudyDay");
 
             assertThatThrownBy(() -> EvolutionContext.builder()
-                    .importanceScores(Map.of()).minimumDaysPerSubject(Map.of())
+                    .importanceScores(Map.of()).minimumDaysPerItem(Map.of())
                     .planningHorizonDays(1).hoursPerStudyDay(1).build())
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("maxDailyCognitiveLoad");
@@ -103,7 +103,7 @@ class EvolutionContextBuilderTest {
             // Reportar um por vez faria quem constroi descobrir os cinco em cinco tentativas.
             assertThatThrownBy(() -> EvolutionContext.builder().build())
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContainingAll("importanceScores", "minimumDaysPerSubject",
+                    .hasMessageContainingAll("importanceScores", "minimumDaysPerItem",
                             "planningHorizonDays", "hoursPerStudyDay", "maxDailyCognitiveLoad");
         }
     }
@@ -156,7 +156,7 @@ class EvolutionContextBuilderTest {
             // sao indistinguiveis. Valores deliberadamente distintos para que uma troca falhe aqui.
             EvolutionContext contexto = EvolutionContext.builder()
                     .importanceScores(Map.of(MATEMATICA, 1.0))
-                    .minimumDaysPerSubject(Map.of(MATEMATICA, 1))
+                    .minimumDaysPerItem(Map.of(MATEMATICA, 1))
                     .planningHorizonDays(111)
                     .hoursPerStudyDay(222)
                     .maxDailyCognitiveLoad(333)

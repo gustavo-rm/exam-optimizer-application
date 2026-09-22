@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ class BaselinePlanSecurityPostureTest {
              "algorithmParams":{},"randomSeed":1}""";
 
     private static MockHttpServletRequestBuilder plans() {
-        return post(BaselineCore.PLANS_PATH)
+        return post(PlanProtocol.PLANS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(UNPLANNABLE_SNAPSHOT);
     }
@@ -61,7 +62,7 @@ class BaselinePlanSecurityPostureTest {
     @Nested
     @SpringBootTest
     @AutoConfigureMockMvc
-    @ActiveProfiles(BaselineCore.PROFILE)
+    @ActiveProfiles(PlanProtocol.PROFILE)
     @DisplayName("Default: public, exactly as /api/v1/** is")
     class ByDefault {
 
@@ -104,7 +105,7 @@ class BaselinePlanSecurityPostureTest {
     @Nested
     @SpringBootTest
     @AutoConfigureMockMvc
-    @ActiveProfiles(BaselineCore.PROFILE)
+    @ActiveProfiles(PlanProtocol.PROFILE)
     @TestPropertySource(properties = {
             "api.security.require-https=true",
             "api.security.hsts-max-age-seconds=31536000"

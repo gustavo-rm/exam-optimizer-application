@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 /**
  * The two literals this module shares between its controller, its security chain and its tests.
@@ -9,7 +9,7 @@ package com.ia.project.dynamicstudyplanner.baseline;
  * instead of the {@code 401} the application's catch-all rule would otherwise return for a path
  * nobody handles. See {@link BaselinePlanSecurityConfig}.
  */
-public final class BaselineCore {
+public final class PlanProtocol {
 
     /**
      * The Spring profile that switches the baseline scheduler on.
@@ -29,6 +29,6 @@ public final class BaselineCore {
      */
     public static final String PLANS_PATH = "/plans";
 
-    private BaselineCore() {
+    private PlanProtocol() {
     }
 }

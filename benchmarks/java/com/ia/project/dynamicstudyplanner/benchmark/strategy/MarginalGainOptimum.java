@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.benchmark.strategy;
 
 import com.ia.project.dynamicstudyplanner.benchmark.instance.BenchmarkInstance;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.LearningModel;
 
@@ -52,21 +52,21 @@ public final class MarginalGainOptimum implements PlanningStrategy {
 
     @Override
     public StudyPlan plan(BenchmarkInstance instance, EvolutionContext context, long seed) {
-        List<Subject> subjects = Allocations.orderedSubjects(context);
-        Map<Subject, Integer> days = Allocations.atMinimums(subjects, context);
+        List<PlanningItem> items = Allocations.orderedItems(context);
+        Map<PlanningItem, Integer> days = Allocations.atMinimums(items, context);
         int remaining = Allocations.remainingBudget(days, instance.totalStudyDays());
 
-        Map<Subject, Double> importance = context.normalizedImportance();
+        Map<PlanningItem, Double> importance = context.normalizedImportance();
 
-        // Max-heap on marginal gain. Ties break on subject name so the result is reproducible.
-        record Candidate(Subject subject, double gain) {
+        // Max-heap on marginal gain. Ties break on item name so the result is reproducible.
+        record Candidate(PlanningItem item, double gain) {
         }
         PriorityQueue<Candidate> heap = new PriorityQueue<>(
                 Comparator.comparingDouble(Candidate::gain).reversed()
-                        .thenComparing(c -> c.subject().name()));
+                        .thenComparing(c -> c.item().name()));
 
-        for (Subject subject : subjects) {
-            heap.add(new Candidate(subject, marginalGain(importance, subject, days.get(subject))));
+        for (PlanningItem item : items) {
+            heap.add(new Candidate(item, marginalGain(importance, item, days.get(item))));
         }
 
         for (int i = 0; i < remaining; i++) {
@@ -74,15 +74,15 @@ public final class MarginalGainOptimum implements PlanningStrategy {
             if (best == null) {
                 break;
             }
-            int updated = days.merge(best.subject(), 1, Integer::sum);
-            heap.add(new Candidate(best.subject(), marginalGain(importance, best.subject(), updated)));
+            int updated = days.merge(best.item(), 1, Integer::sum);
+            heap.add(new Candidate(best.item(), marginalGain(importance, best.item(), updated)));
         }
 
         return new StudyPlan(days);
     }
 
     /**
-     * Gain from moving subject {@code s} from {@code d} days to {@code d + 1}, under the syllabus
+     * Gain from moving item {@code s} from {@code d} days to {@code d + 1}, under the syllabus
      * mastery objective {@code O1}.
      * <p>
      * Mirrors {@code ScoreGainObjective}: {@code importance * (1 - exp(-d/tau))}, so the marginal
@@ -91,9 +91,9 @@ public final class MarginalGainOptimum implements PlanningStrategy {
      * the optimum of the full fitness as soon as non-separable terms join the aggregate — which is
      * the point at which the GA stops being redundant.
      */
-    private static double marginalGain(Map<Subject, Double> importance, Subject subject, int currentDays) {
-        double weight = importance.getOrDefault(subject, 0.0);
-        return weight * (LearningModel.mastery(subject, currentDays + 1)
-                - LearningModel.mastery(subject, currentDays));
+    private static double marginalGain(Map<PlanningItem, Double> importance, PlanningItem item, int currentDays) {
+        double weight = importance.getOrDefault(item, 0.0);
+        return weight * (LearningModel.mastery(item.difficultyBand(), currentDays + 1)
+                - LearningModel.mastery(item.difficultyBand(), currentDays));
     }
 }

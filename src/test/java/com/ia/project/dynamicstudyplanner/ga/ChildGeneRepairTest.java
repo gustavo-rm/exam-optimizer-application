@@ -1,10 +1,8 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
-import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
 import com.ia.project.dynamicstudyplanner.domain.Chronotype;
-import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.HybridCrossover;
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.RepairingCrossover;
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.WeightedAverageCrossover;
@@ -15,9 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,36 +50,23 @@ class ChildGeneRepairTest {
         RandomProvider.setInstance(new Random(20260903L));
     }
 
-    private static Exam exame(int disciplinas) {
-        List<Subject> lista = new java.util.ArrayList<>();
-        for (int i = 0; i < disciplinas; i++) {
-            lista.add(new Subject("D" + i, 5 + i, 1 + (i % 5)));
+    private static List<PlanningItem> itens(int quantos) {
+        List<PlanningItem> lista = new java.util.ArrayList<>();
+        for (int i = 0; i < quantos; i++) {
+            lista.add(new PlanningItem("D" + i, "D" + i, 1 + (i % 5)));
         }
-        return new Exam("Concurso", HOJE.plusDays(300), 100.0, lista, List.of());
+        return lista;
     }
 
-    private static StudentProfile perfil(Exam exame) {
-        Map<Subject, Double> lacunas = new HashMap<>();
-        for (Subject s : exame.getGeneralKnowledgeSubjects()) {
-            lacunas.put(s, 3.0);
-        }
-        Map<DayOfWeek, Integer> disponibilidade = new EnumMap<>(DayOfWeek.class);
-        for (DayOfWeek d : DayOfWeek.values()) {
-            disponibilidade.put(d, 3);
-        }
-        return new StudentProfile("Aluno", lacunas, disponibilidade,
-                new StudentState(3.0, 3.0, 3.0, Chronotype.INTERMEDIATE));
-    }
-
-    private static EvolutionContext contexto(Exam exame, Map<Subject, Integer> minimos) {
-        Map<Subject, Double> importancias = new HashMap<>();
-        for (Subject s : exame.getGeneralKnowledgeSubjects()) {
-            importancias.put(s, 1.0);
+    private static EvolutionContext contexto(List<PlanningItem> itens, Map<PlanningItem, Integer> minimos) {
+        Map<PlanningItem, Double> importancias = new HashMap<>();
+        for (PlanningItem item : itens) {
+            importancias.put(item, 1.0);
         }
         return EvolutionContext.builder()
                 .importanceScores(importancias)
-                .minimumDaysPerSubject(minimos)
-                .studentState(perfil(exame).getState())
+                .minimumDaysPerItem(minimos)
+                .studentState(new StudentState(3.0, 3.0, 3.0, Chronotype.INTERMEDIATE))
                 .fitnessEvaluator(new FitnessEvaluator(List.of(), List.of(), List.of()))
                 .planStartDate(HOJE)
                 .planningHorizonDays(300)
@@ -92,11 +75,11 @@ class ChildGeneRepairTest {
                 .build();
     }
 
-    /** Um indivíduo com {@code diasPorDisciplina} dias em cada disciplina do edital. */
-    private static Individual individuo(Exam exame, int diasPorDisciplina) {
-        Map<Subject, Integer> genes = new HashMap<>();
-        for (Subject s : exame.getGeneralKnowledgeSubjects()) {
-            genes.put(s, diasPorDisciplina);
+    /** Um indivíduo com {@code diasPorItem} dias em cada item do plano. */
+    private static Individual individuo(List<PlanningItem> itens, int diasPorItem) {
+        Map<PlanningItem, Integer> genes = new HashMap<>();
+        for (PlanningItem item : itens) {
+            genes.put(item, diasPorItem);
         }
         return new Individual(new StudyPlan(genes));
     }
@@ -104,13 +87,13 @@ class ChildGeneRepairTest {
     @Test
     @DisplayName("RepairingCrossover: a soma de dias do filho bate com o orcamento do pai 1")
     void repairingCrossoverRespeitaOOrcamento() {
-        Exam exame = exame(6);
+        List<PlanningItem> itens = itens(6);
         RepairingCrossover operador = new RepairingCrossover();
 
         for (int i = 0; i < 200; i++) {
-            Individual pai1 = individuo(exame, 10);
-            Individual pai2 = individuo(exame, 4);
-            Individual filho = operador.crossover(pai1, pai2, 1.0, contexto(exame, Map.of()));
+            Individual pai1 = individuo(itens, 10);
+            Individual pai2 = individuo(itens, 4);
+            Individual filho = operador.crossover(pai1, pai2, 1.0, contexto(itens, Map.of()));
 
             assertThat(somaDeDias(filho))
                     .as("tentativa %d: o filho tem que caber no orcamento do pai 1", i)
@@ -121,13 +104,13 @@ class ChildGeneRepairTest {
     @Test
     @DisplayName("WeightedAverageCrossover: mesma invariante, pelo outro operador")
     void weightedAverageCrossoverRespeitaOOrcamento() {
-        Exam exame = exame(6);
+        List<PlanningItem> itens = itens(6);
         WeightedAverageCrossover operador = new WeightedAverageCrossover();
 
         for (int i = 0; i < 200; i++) {
-            Individual pai1 = individuo(exame, 10);
-            Individual pai2 = individuo(exame, 4);
-            Individual filho = operador.crossover(pai1, pai2, 1.0, contexto(exame, Map.of()));
+            Individual pai1 = individuo(itens, 10);
+            Individual pai2 = individuo(itens, 4);
+            Individual filho = operador.crossover(pai1, pai2, 1.0, contexto(itens, Map.of()));
 
             assertThat(somaDeDias(filho))
                     .as("tentativa %d", i)
@@ -138,9 +121,9 @@ class ChildGeneRepairTest {
     @Test
     @DisplayName("o reparo nao derruba nenhuma disciplina abaixo do seu piso de dias minimos")
     void oReparoRespeitaOPisoDeCadaDisciplina() {
-        Exam exame = exame(5);
-        Map<Subject, Integer> minimos = new HashMap<>();
-        for (Subject s : exame.getGeneralKnowledgeSubjects()) {
+        List<PlanningItem> itens = itens(5);
+        Map<PlanningItem, Integer> minimos = new HashMap<>();
+        for (PlanningItem s : itens) {
             minimos.put(s, 8);
         }
 
@@ -148,13 +131,13 @@ class ChildGeneRepairTest {
 
         for (int i = 0; i < 200; i++) {
             // Pais com folga confortavel acima do piso; o reparo precisa cortar sem violar o minimo.
-            Individual filho = operador.crossover(individuo(exame, 20), individuo(exame, 12),
-                    1.0, contexto(exame, minimos));
+            Individual filho = operador.crossover(individuo(itens, 20), individuo(itens, 12),
+                    1.0, contexto(itens, minimos));
 
-            assertThat(filho.getPlan().getDaysPerSubject())
+            assertThat(filho.getPlan().getDaysPerItem())
                     .as("tentativa %d", i)
-                    .allSatisfy((disciplina, dias) -> assertThat(dias)
-                            .as("disciplina %s abaixo do piso", disciplina.name())
+                    .allSatisfy((item, dias) -> assertThat(dias)
+                            .as("item %s abaixo do piso", item.name())
                             .isGreaterThanOrEqualTo(8));
         }
     }
@@ -164,26 +147,26 @@ class ChildGeneRepairTest {
     void oReparoTerminaQuandoNinguemPodeCeder() {
         // Todas as disciplinas ja no piso e o alvo abaixo da soma: o laco nao tem como convergir.
         // A guarda de saida e retirar do sorteio quem esta no piso — sem ela, isto travaria.
-        Exam exame = exame(4);
-        Map<Subject, Integer> minimos = new HashMap<>();
-        for (Subject s : exame.getGeneralKnowledgeSubjects()) {
+        List<PlanningItem> itens = itens(4);
+        Map<PlanningItem, Integer> minimos = new HashMap<>();
+        for (PlanningItem s : itens) {
             minimos.put(s, 10);
         }
 
         RepairingCrossover operador = new RepairingCrossover();
-        Individual pai1 = individuo(exame, 10);
-        Individual pai2 = individuo(exame, 10);
+        Individual pai1 = individuo(itens, 10);
+        Individual pai2 = individuo(itens, 10);
 
         // Sem timeout explicito: se a guarda sumir, o teste trava e o CI mata o build — que e o
         // sinal desejado. O que se afirma aqui e que ele TERMINA e devolve algo coerente.
-        Individual filho = operador.crossover(pai1, pai2, 1.0, contexto(exame, minimos));
+        Individual filho = operador.crossover(pai1, pai2, 1.0, contexto(itens, minimos));
 
-        assertThat(filho.getPlan().getDaysPerSubject().values())
+        assertThat(filho.getPlan().getDaysPerItem().values())
                 .as("ninguem foi empurrado abaixo do piso")
                 .allSatisfy(dias -> assertThat(dias).isGreaterThanOrEqualTo(10));
     }
 
     private static int somaDeDias(Individual individuo) {
-        return individuo.getPlan().getDaysPerSubject().values().stream().mapToInt(Integer::intValue).sum();
+        return individuo.getPlan().getDaysPerItem().values().stream().mapToInt(Integer::intValue).sum();
     }
 }

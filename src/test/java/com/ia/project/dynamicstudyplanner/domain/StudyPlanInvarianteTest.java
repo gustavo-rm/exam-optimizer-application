@@ -1,7 +1,5 @@
 package com.ia.project.dynamicstudyplanner.domain;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
@@ -51,22 +49,22 @@ class StudyPlanInvarianteTest {
         RandomProvider.setInstance(new Random(20260903L));
     }
 
-    private static Exam exame(int disciplinas) {
-        List<Subject> lista = new ArrayList<>();
-        for (int i = 0; i < disciplinas; i++) {
-            lista.add(new Subject("D" + i, 5 + (i * 3) % 25, 1 + (i % 5)));
+    private static List<PlanningItem> itens(int quantos) {
+        List<PlanningItem> lista = new ArrayList<>();
+        for (int i = 0; i < quantos; i++) {
+            lista.add(new PlanningItem("D" + i, "D" + i, 1 + (i % 5)));
         }
-        return new Exam("E", HOJE.plusDays(400), 100.0, lista, List.of());
+        return lista;
     }
 
-    private static EvolutionContext contexto(Exam exame) {
-        Map<Subject, Double> importancias = new HashMap<>();
-        for (Subject s : exame.getGeneralKnowledgeSubjects()) {
-            importancias.put(s, 1.0);
+    private static EvolutionContext contexto(List<PlanningItem> itens) {
+        Map<PlanningItem, Double> importancias = new HashMap<>();
+        for (PlanningItem item : itens) {
+            importancias.put(item, 1.0);
         }
         return EvolutionContext.builder()
                 .importanceScores(importancias)
-                .minimumDaysPerSubject(Map.of())
+                .minimumDaysPerItem(Map.of())
                 .fitnessEvaluator(new FitnessEvaluator(List.of(), List.of(), List.of()))
                 .planStartDate(HOJE)
                 .planningHorizonDays(365)
@@ -75,17 +73,17 @@ class StudyPlanInvarianteTest {
                 .build();
     }
 
-    private static Individual individuo(Exam exame, int diasPorDisciplina) {
-        Map<Subject, Integer> genes = new HashMap<>();
-        for (Subject s : exame.getGeneralKnowledgeSubjects()) {
-            genes.put(s, diasPorDisciplina);
+    private static Individual individuo(List<PlanningItem> itens, int diasPorItem) {
+        Map<PlanningItem, Integer> genes = new HashMap<>();
+        for (PlanningItem item : itens) {
+            genes.put(item, diasPorItem);
         }
         return new Individual(new StudyPlan(genes));
     }
 
     /** O invariante: o total memorizado tem que ser a soma do mapa exposto. */
     private static void verificaInvariante(StudyPlan plano, String contexto) {
-        int somaDoMapa = plano.getDaysPerSubject().values().stream().mapToInt(Integer::intValue).sum();
+        int somaDoMapa = plano.getDaysPerItem().values().stream().mapToInt(Integer::intValue).sum();
         assertThat(plano.getTotalDays())
                 .as("total memorizado divergiu da soma do mapa apos %s", contexto)
                 .isEqualTo(somaDoMapa);
@@ -94,14 +92,14 @@ class StudyPlanInvarianteTest {
     @Test
     @DisplayName("o invariante vale nos planos produzidos por cruzamento")
     void invarianteValeAposCruzamento() {
-        Exam exame = exame(12);
-        EvolutionContext ctx = contexto(exame);
+        List<PlanningItem> itens = itens(12);
+        EvolutionContext ctx = contexto(itens);
         HybridCrossover operador =
                 new HybridCrossover(new WeightedAverageCrossover(), new RepairingCrossover());
 
         for (int i = 0; i < 300; i++) {
             Individual filho = operador.crossover(
-                    individuo(exame, 20), individuo(exame, 12), 1.0, ctx);
+                    individuo(itens, 20), individuo(itens, 12), 1.0, ctx);
             verificaInvariante(filho.getPlan(), "cruzamento " + i);
         }
     }
@@ -109,12 +107,12 @@ class StudyPlanInvarianteTest {
     @Test
     @DisplayName("o invariante vale nos planos produzidos por mutacao")
     void invarianteValeAposMutacao() {
-        Exam exame = exame(12);
-        EvolutionContext ctx = contexto(exame);
+        List<PlanningItem> itens = itens(12);
+        EvolutionContext ctx = contexto(itens);
         CreepMutation mutacao = new CreepMutation();
 
         for (int i = 0; i < 300; i++) {
-            Individual mutado = mutacao.mutate(individuo(exame, 20), 1.0, ctx);
+            Individual mutado = mutacao.mutate(individuo(itens, 20), 1.0, ctx);
             verificaInvariante(mutado.getPlan(), "mutacao " + i);
         }
     }
@@ -122,15 +120,15 @@ class StudyPlanInvarianteTest {
     @Test
     @DisplayName("o invariante vale na cadeia completa: cruzar e depois mutar")
     void invarianteValeNaCadeiaCompleta() {
-        Exam exame = exame(24);
-        EvolutionContext ctx = contexto(exame);
+        List<PlanningItem> itens = itens(24);
+        EvolutionContext ctx = contexto(itens);
         HybridCrossover cruzamento =
                 new HybridCrossover(new WeightedAverageCrossover(), new RepairingCrossover());
         CreepMutation mutacao = new CreepMutation();
 
         for (int i = 0; i < 200; i++) {
             Individual filho = cruzamento.crossover(
-                    individuo(exame, 15), individuo(exame, 10), 1.0, ctx);
+                    individuo(itens, 15), individuo(itens, 10), 1.0, ctx);
             Individual mutado = mutacao.mutate(filho, 0.5, ctx);
             verificaInvariante(mutado.getPlan(), "cadeia completa " + i);
         }

@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.EdgeProvenance;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.EdgeStrength;
@@ -24,63 +24,76 @@ import java.util.UUID;
  * <p>Each {@code with…} method changes one thing, so a test that varies the goals is visibly a test
  * about goals and not a second fixture with its own accidental differences.
  */
-final class BaselineRequests {
+public final class PlanRequests {
 
-    static final UUID SUBJECT_FIRST = UUID.fromString("11111111-1111-4111-8111-111111111111");
-    static final UUID SUBJECT_SECOND = UUID.fromString("22222222-2222-4222-8222-222222222222");
+    public static final UUID SUBJECT_FIRST = UUID.fromString("11111111-1111-4111-8111-111111111111");
+    public static final UUID SUBJECT_SECOND = UUID.fromString("22222222-2222-4222-8222-222222222222");
 
-    static final UUID TOPIC_1 = UUID.fromString("a0000001-0000-4000-8000-000000000001");
-    static final UUID TOPIC_2 = UUID.fromString("a0000002-0000-4000-8000-000000000002");
-    static final UUID TOPIC_3 = UUID.fromString("a0000003-0000-4000-8000-000000000003");
-    static final UUID TOPIC_4 = UUID.fromString("a0000004-0000-4000-8000-000000000004");
+    public static final UUID TOPIC_1 = UUID.fromString("a0000001-0000-4000-8000-000000000001");
+    public static final UUID TOPIC_2 = UUID.fromString("a0000002-0000-4000-8000-000000000002");
+    public static final UUID TOPIC_3 = UUID.fromString("a0000003-0000-4000-8000-000000000003");
+    public static final UUID TOPIC_4 = UUID.fromString("a0000004-0000-4000-8000-000000000004");
 
     /** A topic the default request does not carry, for edges that point outside the plan. */
-    static final UUID TOPIC_OUTSIDE = UUID.fromString("b0000009-0000-4000-8000-000000000009");
+    public static final UUID TOPIC_OUTSIDE = UUID.fromString("b0000009-0000-4000-8000-000000000009");
 
     /** The seed of the reference document. Echoed back, never consumed. */
-    static final long SEED = 7362819450172837461L;
+    public static final long SEED = 7362819450172837461L;
 
-    static final LocalDate HORIZON_START = LocalDate.parse("2026-09-01");
-    static final LocalDate HORIZON_END = LocalDate.parse("2026-09-28");
+    public static final LocalDate HORIZON_START = LocalDate.parse("2026-09-01");
+    public static final LocalDate HORIZON_END = LocalDate.parse("2026-09-28");
 
-    private BaselineRequests() {
+    private PlanRequests() {
     }
 
-    static Builder builder() {
+    public static Builder builder() {
         return new Builder();
     }
 
-    static PlanRequest.AvailabilitySlot slot(String from, String to) {
+    public static PlanRequest.AvailabilitySlot slot(String from, String to) {
         return new PlanRequest.AvailabilitySlot(Instant.parse(from), Instant.parse(to));
     }
 
-    static PlanRequest.Topic topic(UUID id, UUID subjectId, int position, int minutes) {
-        return new PlanRequest.Topic(id, subjectId, position, "STANDARD", minutes);
+    public static PlanRequest.Topic topic(UUID id, UUID subjectId, int position, int minutes) {
+        return topic(id, subjectId, position, minutes, "STANDARD");
     }
 
-    static PlanRequest.Goal goal(UUID subjectId, String targetDate, int priority) {
+    /**
+     * The same, with the effort tier chosen.
+     *
+     * <p>The tier is what the genetic engine maps to a difficulty band, so a fixture whose topics all
+     * carry {@code STANDARD} makes every topic of equal goal priority <b>indistinguishable to the
+     * fitness</b> — which turns any test of "the search chose something" into a test of how a tie
+     * broke. Tests that care about the search varying its answer set the tier explicitly.
+     */
+    public static PlanRequest.Topic topic(UUID id, UUID subjectId, int position, int minutes,
+            String effortTier) {
+        return new PlanRequest.Topic(id, subjectId, position, effortTier, minutes);
+    }
+
+    public static PlanRequest.Goal goal(UUID subjectId, String targetDate, int priority) {
         return new PlanRequest.Goal(subjectId,
                 targetDate == null ? null : LocalDate.parse(targetDate), priority);
     }
 
-    static PlanRequest.PrerequisiteEdge hard(UUID prerequisite, UUID dependent) {
+    public static PlanRequest.PrerequisiteEdge hard(UUID prerequisite, UUID dependent) {
         return new PlanRequest.PrerequisiteEdge(prerequisite, dependent, EdgeStrength.HARD,
                 EdgeProvenance.CURATED);
     }
 
-    static PlanRequest.PrerequisiteEdge soft(UUID prerequisite, UUID dependent) {
+    public static PlanRequest.PrerequisiteEdge soft(UUID prerequisite, UUID dependent) {
         return new PlanRequest.PrerequisiteEdge(prerequisite, dependent, EdgeStrength.SOFT,
                 EdgeProvenance.TEXTBOOK_ORDER);
     }
 
-    static PlanRequest.TopicHistory studied(UUID topicId, String lastStudiedAt,
+    public static PlanRequest.TopicHistory studied(UUID topicId, String lastStudiedAt,
             RecallRating... ratings) {
         return new PlanRequest.TopicHistory(topicId, Math.max(1, ratings.length), 60L,
                 lastStudiedAt == null ? null : Instant.parse(lastStudiedAt), List.of(ratings));
     }
 
     /** One request, varied one field at a time. */
-    static final class Builder {
+    public static final class Builder {
 
         private PlanRequest.Horizon horizon = new PlanRequest.Horizon(HORIZON_START, HORIZON_END);
 
@@ -108,42 +121,42 @@ final class BaselineRequests {
 
         private long randomSeed = SEED;
 
-        Builder withHorizon(PlanRequest.Horizon replacement) {
+        public Builder withHorizon(PlanRequest.Horizon replacement) {
             this.horizon = replacement;
             return this;
         }
 
-        Builder withAvailability(List<PlanRequest.AvailabilitySlot> replacement) {
+        public Builder withAvailability(List<PlanRequest.AvailabilitySlot> replacement) {
             this.availability = replacement;
             return this;
         }
 
-        Builder withGoals(List<PlanRequest.Goal> replacement) {
+        public Builder withGoals(List<PlanRequest.Goal> replacement) {
             this.goals = replacement;
             return this;
         }
 
-        Builder withTopics(List<PlanRequest.Topic> replacement) {
+        public Builder withTopics(List<PlanRequest.Topic> replacement) {
             this.topics = replacement;
             return this;
         }
 
-        Builder withPrerequisites(List<PlanRequest.PrerequisiteEdge> replacement) {
+        public Builder withPrerequisites(List<PlanRequest.PrerequisiteEdge> replacement) {
             this.prerequisites = replacement;
             return this;
         }
 
-        Builder withHistory(List<PlanRequest.TopicHistory> replacement) {
+        public Builder withHistory(List<PlanRequest.TopicHistory> replacement) {
             this.history = replacement;
             return this;
         }
 
-        Builder withSeed(long replacement) {
+        public Builder withSeed(long replacement) {
             this.randomSeed = replacement;
             return this;
         }
 
-        PlanRequest build() {
+        public PlanRequest build() {
             return new PlanRequest(PlanRequest.VERSION, horizon, availability, goals, topics,
                     prerequisites, history,
                     Map.of("population-size", 120, "generations", 400), randomSeed);

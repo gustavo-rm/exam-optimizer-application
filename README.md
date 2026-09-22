@@ -18,9 +18,16 @@ results in learning science, and the derivation, the weights and — importantly
 approximation are documented in
 [`docs/revisao-ag/05-fitness-function.md`](docs/revisao-ag/05-fitness-function.md).
 
+**There is one objective function per path, not one for the system.** See
+[Two objective functions](#-two-objective-functions-one-per-path) below: the concurso path has the
+student's self-assessed and psychological data and uses every term; the SINAPSE path does not, and
+declares which terms it therefore does not have.
+
 ## 🔬 Theoretical Foundation
 
 Every fitness term is normalised to `[0,1]` and combined by a weighted sum whose weights sum to 1.
+The terms below are the **concurso** composition; the SINAPSE one is the same three summands with the
+two multiplicative penalties removed, for the reason given in the next section.
 
 1. **Syllabus coverage weighted by exam value** — *(weight 0.50)*. Each subject contributes in
    proportion to what it is worth on the exam, multiplied by how much of it the plan can actually
@@ -35,17 +42,102 @@ Every fitness term is normalised to `[0,1]` and combined by a weighted sum whose
    the importance-weighted fraction of the syllabus that gets them.
    **This is a mean-field approximation, not spaced repetition proper** — the macro chromosome has no
    calendar, so the term knows *how many* sessions a subject gets, not *when*.
-3. **Cognitive Load Theory (John Sweller)** — *(weight 0.20)*. `Subject.cognitiveLoad` is the
+3. **Cognitive Load Theory (John Sweller)** — *(weight 0.20)*. `PlanningItem.difficultyBand` is the
    intrinsic-load proxy; `CognitiveLoadCalculator` turns availability and psychological state into a
    sustainable daily budget, and the fitness penalises plans whose expected daily load exceeds it.
    **This bounds the *expected* daily load, not the load of a single learning episode**, which is
    what Sweller's construct is actually about.
 
+## 🧩 Two objective functions, one per path
+
+The fitness composition is **declared per path**, not assembled globally from every available term
+(`ga/config/FitnessCompositionConfig`). The reason is not symmetry: it is that one caller has less
+data than the other, and a term whose inputs are absent does not fail — it returns its neutral value
+and keeps reporting a number.
+
+| Term | Kind | `concurso` | `sinapse` |
+|---|---|---|---|
+| `syllabusMastery` (O1) | weighted summand | **0.50** | **0.50** |
+| `retention` (O2) | weighted summand | **0.30** | **0.30** |
+| `cognitiveLoad` (O4) | weighted summand | **0.20** | — *(renamed, see below)* |
+| `dailyLoadBudget` | weighted summand | — | **0.20**, switchable |
+| | | sum **1.00** | sum **1.00** |
+| `minimum-days` | graded severity, subtracted | λ 0.50 | λ 0.50 |
+| `mandatory-review` | graded severity, subtracted | λ 0.50 | λ 0.50 |
+| `dropout-risk` | multiplicative factor | applied | **not in the composition** |
+| `fatigue-sustainability` | multiplicative factor | applied | **not in the composition** |
+
+With `plan.fitness.sinapse.daily-load-budget=false` the load term leaves and the remaining two
+**renormalise automatically** to 0.625 / 0.375, so "no load ceiling" is an executable, comparable
+condition rather than a code change.
+
+No weight changes between the paths, and that is not an oversight: the two removed terms are
+*multiplicative factors applied after the clamp*, not summands, so the three objective weights still
+sum to 1 and there is nothing to renormalise. Had `cognitiveLoad` also been removed, the remaining two
+would renormalise to 0.625 and 0.375; that alternative and its cost are recorded in
+[`docs/SINAPSE_ADAPTER.md`](docs/SINAPSE_ADAPTER.md) §2.3.
+
+### The SINAPSE path does not model fatigue or dropout risk — for lack of data, not for lack of relevance
+
+`StudentProfileDto` requires `stressLevel`, `fatigueLevel`, `motivationLevel` and `chronotype`. The
+platform collects none of them. Collecting self-declared psychological state bound to an identity is a
+decision under Brazil's LGPD — with minors in the secondary-school pilot — and it is **not an
+engineering decision to make by filling in a field**. Both terms are therefore absent from the SINAPSE
+composition, and `FitnessBreakdown` lists **only the active terms**: a disabled term does not appear
+with a zero, it does not appear. Reporting `"fatigue-penalty": 1.0` would be true arithmetic and a
+false statement — it would say the function looked at fatigue and found nothing wrong, when the
+function has no fatigue data at all.
+
+### The load term survives under a different name, because it is a different term
+
+`cognitiveLoad` becomes **`dailyLoadBudget`** on the SINAPSE path. It lost two of its three inputs —
+the self-assessed knowledge gap and the psychological state, both **removed from the formula rather
+than defaulted** — so keeping the name, and Sweller's citation with it, would describe a model this
+is not. An archived run has to be self-describing a year later.
+
+It is also **re-scaled**: the concurso constants are calibrated for difficulty on 1..5, while
+`effortTier` gives 1..4. Four scale defects were found and fixed, the worst of which made the term
+bind *more* with a generous calendar than a tight one — the rounding was being measured, not the
+load. The details are in [`docs/SINAPSE_ADAPTER.md`](docs/SINAPSE_ADAPTER.md) §2.5.
+
+And it is **measured rather than assumed to matter**. Every plan reports whether the ceiling bound
+and by how much (`objective.dailyLoadBudget.binding`, `.excess-ratio`, `.ceiling`). Across a spread
+of syllabus difficulty mixes the ceiling binds in **4 of 7 instances (57%)**, with the excess rising
+monotonically with difficulty — so the term discriminates rather than decorating. Had the rate been
+near zero, the right move would have been to switch it off and take the renormalised weights.
+
+> **Plans from the two paths are not comparable with each other.** The SINAPSE day floor is derived
+> from `estimatedMinutes` over the student's measured study day; the concurso floor is gap-scaled
+> importance normalised by its maximum and capped at 15 days. Both feed `minimum-days`, subtracted at
+> λ 0.50 — the heaviest single weight in the aggregate — so the two are different quantities on
+> different scales. Only plans from the same path compare, which is what the experiment compares
+> ([`docs/SINAPSE_ADAPTER.md`](docs/SINAPSE_ADAPTER.md) §2.6).
+
+### O caminho SINAPSE não modela fadiga nem risco de evasão — por ausência de dado, não por irrelevância
+
+`StudentProfileDto` exige `stressLevel`, `fatigueLevel`, `motivationLevel` e `chronotype`. A
+plataforma não coleta nenhum deles. Coletar estado psicológico autodeclarado vinculado à identidade é
+decisão sob a LGPD — com menores no piloto de ensino médio — e **não é decisão de engenharia**. Os
+dois termos ficam fora da composição SINAPSE, e o `FitnessBreakdown` lista **apenas os termos
+ativos**: termo desativado não aparece com valor zero, ele não aparece. Um termo inerte que aparenta
+estar ativo é pior que um termo ausente, porque o ausente é limitação documentada e o inerte é
+alegação — e uma que favorece o sistema.
+
+O termo de carga permanece com outro nome — **`dailyLoadBudget`** —, orçamento reconstruído só de
+disponibilidade e dificuldade média, com os fatores ausentes **removidos da fórmula em vez de
+defaultados**, e constantes re-escaladas de 1..5 para 1..4. A taxa medida de "o teto foi vinculante"
+é **4 de 7 instâncias (57%)**, o que o qualifica como termo que discrimina e não como decoração. Os
+planos dos dois caminhos **não são comparáveis entre si**: o piso de dias mínimos vem de fontes
+diferentes em escalas diferentes.
+
 ### What this system does **not** do
 
-**Ausubel's meaningful learning / prerequisite sequencing is not implemented.** The macro chromosome
-is `Map<Subject, Integer>` — a count of days with no ordering — so precedence between topics is not
-expressible, and the API does not collect prerequisite data in the first place. Earlier versions of
+**Ausubel's meaningful learning is not implemented in the fitness.** The macro chromosome is an
+`int[]` of days aligned to a canonical order — a count with no calendar — so precedence between topics
+is not expressible *inside the objective function*. On the SINAPSE path the platform does send
+`prerequisites[]`, and hard edges are enforced **structurally**, by placement: the scheduled set is a
+prefix of a topological order, and `PlanOutputInvariants` refuses any plan that breaks it. That is a
+constraint honoured by construction, not a term the search optimises. Earlier versions of
 this README attributed Ausubel to the knowledge-gap multiplier; that attribution was incorrect and
 has been removed. The reasoning, the two options considered and the decision are recorded in
 [`docs/revisao-ag/06-decisao-ausubel.md`](docs/revisao-ag/06-decisao-ausubel.md).
@@ -333,17 +425,42 @@ Two details that look like tidying and are not:
   into the local domain model. Mapping to and from `Subject`, `StudentProfileDto` and the rest is
   the adapter's job.
 
-## 🧭 Baseline Core scheduler (`baseline-core` profile)
+## 🧭 Core scheduler: two engines behind `POST /plans` (`baseline-core` profile)
 
-`POST /plans` is answered by a **deterministic greedy scheduler**: it topologically sorts the topics
-over the `HARD` prerequisite edges, breaks ties by goal priority, then target date, then curricular
-position, then topic identifier, and fills the student's availability windows in one forward pass.
-The full description is in [`docs/BASELINE_CORE.md`](./docs/BASELINE_CORE.md).
+`POST /plans` has **two implementations behind one interface** (`plan.PlanEngine`), which are the two
+conditions of the experiment:
 
-**It is the experimental baseline, not a mock.** A claim that the genetic algorithm adds value only
-means something against a simple scheduler that already respects the same constraints. It is a
-condition of the experiment and is expected to stay here after the genetic algorithm is wired to this
-contract. The genetic algorithm is untouched by it.
+| `algorithmParams.engine` | Engine | Stage | Notes |
+|---|---|---|---|
+| `greedy-baseline` | `baseline.GreedyBaselineEngine` | EOA-2 | deterministic greedy pass; the default |
+| `ga` | `sinapse.GeneticPlanEngine` | EOA-5 | the genetic algorithm on the SINAPSE contract |
+
+The engine is chosen **per request**, from `algorithmParams` — a `Map<String, Object>` in the
+contract, so nothing was invented to carry it. Without the key, `plan.engine.default` decides. Per
+request rather than per deployment because two conditions that need two deploys cannot be compared
+without also comparing the deploys. An unknown engine is refused with `422` listing the ones that
+exist, never silently replaced by the default.
+
+**The answer always declares which engine ran**, under `fitness.engine`. The selector stamps it after
+the engine returns, so an engine can neither mislabel its own output nor forget to label it.
+
+Both engines satisfy the same output invariants — the eight `RestSinapseCore.validated` applies, the
+four it does not (horizon, availability window, non-overlap, known `topicId`) and contiguous
+`sequenceIndex` — enforced by one test parameterised over every registered engine
+(`PlanEngineInvariantTest`), so a new engine inherits the whole suite.
+
+The greedy engine is described in [`docs/BASELINE_CORE.md`](./docs/BASELINE_CORE.md); the genetic
+engine's adapter, its project assumptions and the parameters still to be calibrated are in
+[`docs/SINAPSE_ADAPTER.md`](./docs/SINAPSE_ADAPTER.md).
+
+**The baseline is the experimental baseline, not a mock.** A claim that the genetic algorithm adds
+value only means something against a simple scheduler that already respects the same constraints. It
+stays here now that the genetic algorithm is wired to this contract.
+
+> One property worth knowing before designing the comparison: when availability barely covers the
+> syllabus, the two engines **necessarily agree** — there is a single feasible allocation and the
+> chromosome has no degree of freedom. The difference between the conditions only appears where there
+> is slack to distribute (`docs/SINAPSE_ADAPTER.md` §3.8).
 
 * It is active **only** under the Spring profile `baseline-core`. Without the profile no bean of the
   module is created, `POST /plans` answers `404`, and the application boots exactly as before.

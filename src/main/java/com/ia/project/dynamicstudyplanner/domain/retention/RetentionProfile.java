@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.domain.retention;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 
 import java.util.Collections;
 import java.util.Map;
@@ -11,24 +11,24 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class RetentionProfile {
 
-    private final Map<Subject, SubjectRetentionState> retentionStates;
+    private final Map<PlanningItem, SubjectRetentionState> retentionStates;
 
-    public RetentionProfile(Map<Subject, SubjectRetentionState> initialStates) {
+    public RetentionProfile(Map<PlanningItem, SubjectRetentionState> initialStates) {
         this.retentionStates = new ConcurrentHashMap<>();
         if (initialStates != null) {
             this.retentionStates.putAll(initialStates);
         }
     }
 
-    public SubjectRetentionState getState(Subject subject) {
-        return retentionStates.get(subject);
+    public SubjectRetentionState getState(PlanningItem item) {
+        return retentionStates.get(item);
     }
 
-    public void updateState(Subject subject, SubjectRetentionState newState) {
-        this.retentionStates.put(subject, newState);
+    public void updateState(PlanningItem item, SubjectRetentionState newState) {
+        this.retentionStates.put(item, newState);
     }
 
-    public Map<Subject, SubjectRetentionState> getAllStates() {
+    public Map<PlanningItem, SubjectRetentionState> getAllStates() {
         return Collections.unmodifiableMap(retentionStates);
     }
 }

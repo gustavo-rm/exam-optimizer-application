@@ -1,5 +1,8 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanInvariantAssertions;
+import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
@@ -53,7 +56,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles(BaselineCore.PROFILE)
+@ActiveProfiles(PlanProtocol.PROFILE)
 @DisplayName("POST /plans under the baseline-core profile")
 class BaselinePlanEndpointTest {
 
@@ -94,7 +97,7 @@ class BaselinePlanEndpointTest {
     }
 
     private MvcResult postGoldenRequest() throws Exception {
-        return mockMvc.perform(post(BaselineCore.PLANS_PATH)
+        return mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(golden(REQUEST_GOLDEN)))
                 .andReturn();
@@ -148,7 +151,7 @@ class BaselinePlanEndpointTest {
         // who routes around the package or turns the inclusion into a global setting.
         String withoutMetadata = objectMapper.writeValueAsString(new PlanResponse(
                 PlanRequest.VERSION,
-                List.of(new PlanResponse.ScheduledSession(BaselineRequests.TOPIC_1,
+                List.of(new PlanResponse.ScheduledSession(PlanRequests.TOPIC_1,
                         SessionKind.STUDY, Instant.parse("2026-09-01T19:00:00Z"), 30, 0)),
                 Map.of(), null));
 
@@ -161,13 +164,13 @@ class BaselinePlanEndpointTest {
     @Test
     @DisplayName("a cycle in the HARD edges is refused with 422, naming the topics of the cycle")
     void refusesACycleWith422() throws Exception {
-        PlanRequest cyclic = BaselineRequests.builder()
+        PlanRequest cyclic = PlanRequests.builder()
                 .withPrerequisites(List.of(
-                        BaselineRequests.hard(BaselineRequests.TOPIC_1, BaselineRequests.TOPIC_2),
-                        BaselineRequests.hard(BaselineRequests.TOPIC_2, BaselineRequests.TOPIC_1)))
+                        PlanRequests.hard(PlanRequests.TOPIC_1, PlanRequests.TOPIC_2),
+                        PlanRequests.hard(PlanRequests.TOPIC_2, PlanRequests.TOPIC_1)))
                 .build();
 
-        MvcResult result = mockMvc.perform(post(BaselineCore.PLANS_PATH)
+        MvcResult result = mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(cyclic)))
                 .andReturn();
@@ -182,7 +185,7 @@ class BaselinePlanEndpointTest {
         assertThat(problem.path("offending")).isNotEmpty();
         assertThat(problem.path("offending").toString())
                 .as("the body names the topics of the cycle, so the curator knows where to look")
-                .contains(BaselineRequests.TOPIC_1.toString(), BaselineRequests.TOPIC_2.toString());
+                .contains(PlanRequests.TOPIC_1.toString(), PlanRequests.TOPIC_2.toString());
         assertThat(problem.path("detail").asText())
                 .contains("does not choose an edge to ignore");
     }
@@ -190,9 +193,9 @@ class BaselinePlanEndpointTest {
     @Test
     @DisplayName("an unplannable request is refused with 422 and the service's own error shape")
     void refusesAnUnplannableRequestWith422() throws Exception {
-        PlanRequest noWindows = BaselineRequests.builder().withAvailability(List.of()).build();
+        PlanRequest noWindows = PlanRequests.builder().withAvailability(List.of()).build();
 
-        MvcResult result = mockMvc.perform(post(BaselineCore.PLANS_PATH)
+        MvcResult result = mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(noWindows)))
                 .andReturn();
@@ -201,7 +204,7 @@ class BaselinePlanEndpointTest {
 
         JsonNode problem = objectMapper.readTree(result.getResponse().getContentAsString());
         assertThat(problem.path("type").asText()).endsWith("/no-availability");
-        assertThat(problem.path("instance").asText()).isEqualTo(BaselineCore.PLANS_PATH);
+        assertThat(problem.path("instance").asText()).isEqualTo(PlanProtocol.PLANS_PATH);
         assertThat(problem.has("timestamp"))
                 .as("built by the application's ProblemDetails, so the error contract is one contract")
                 .isTrue();
@@ -210,7 +213,7 @@ class BaselinePlanEndpointTest {
     @Test
     @DisplayName("a malformed body is still a 400, handled by the application's own advice")
     void aMalformedBodyIsStillA400() throws Exception {
-        assertThat(mockMvc.perform(post(BaselineCore.PLANS_PATH)
+        assertThat(mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                                 .contentType(MediaType.APPLICATION_JSON).content("{"))
                         .andReturn().getResponse().getStatus())
                 .as("this module adds no advice, so unreadable input keeps the existing behaviour")
@@ -223,7 +226,7 @@ class BaselinePlanEndpointTest {
         String document = mockMvc.perform(get("/v3/api-docs"))
                 .andReturn().getResponse().getContentAsString();
 
-        assertThat(objectMapper.readTree(document).path("paths").has(BaselineCore.PLANS_PATH))
+        assertThat(objectMapper.readTree(document).path("paths").has(PlanProtocol.PLANS_PATH))
                 .as("the Core protocol is versioned by PlanRequest.VERSION and pinned by the "
                         + "reference documents, not by the OpenAPI snapshot")
                 .isFalse();

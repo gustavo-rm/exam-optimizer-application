@@ -6,7 +6,9 @@ import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.SubjectPlanningItemMapper;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
@@ -115,26 +117,28 @@ class FitnessBreakdownTest {
      * igualdade ingênua "soma == agregado" deixaria de valer.
      */
     private static List<StudyPlan> planos(Exam exame) {
-        List<Subject> disciplinas = exame.getAllSubjects();
+        // Mesma travessia de fronteira que a producao faz: o edital vira itens de planejamento
+        // antes de qualquer coisa chegar ao cromossomo.
+        List<PlanningItem> itens = SubjectPlanningItemMapper.toItems(exame.getAllSubjects());
         List<StudyPlan> planos = new ArrayList<>();
 
-        Map<Subject, Integer> distribuido = new LinkedHashMap<>();
-        disciplinas.forEach(s -> distribuido.put(s, 30));
+        Map<PlanningItem, Integer> distribuido = new LinkedHashMap<>();
+        itens.forEach(item -> distribuido.put(item, 30));
         planos.add(new StudyPlan(distribuido));
 
-        Map<Subject, Integer> concentrado = new LinkedHashMap<>();
-        for (int i = 0; i < disciplinas.size(); i++) {
-            concentrado.put(disciplinas.get(i), i == 0 ? 360 : 0);
+        Map<PlanningItem, Integer> concentrado = new LinkedHashMap<>();
+        for (int i = 0; i < itens.size(); i++) {
+            concentrado.put(itens.get(i), i == 0 ? 360 : 0);
         }
         planos.add(new StudyPlan(concentrado));
 
-        Map<Subject, Integer> minimo = new LinkedHashMap<>();
-        disciplinas.forEach(s -> minimo.put(s, 1));
+        Map<PlanningItem, Integer> minimo = new LinkedHashMap<>();
+        itens.forEach(item -> minimo.put(item, 1));
         planos.add(new StudyPlan(minimo));
 
-        Map<Subject, Integer> desigual = new LinkedHashMap<>();
-        for (int i = 0; i < disciplinas.size(); i++) {
-            desigual.put(disciplinas.get(i), (i * 17) % 40);
+        Map<PlanningItem, Integer> desigual = new LinkedHashMap<>();
+        for (int i = 0; i < itens.size(); i++) {
+            desigual.put(itens.get(i), (i * 17) % 40);
         }
         planos.add(new StudyPlan(desigual));
 

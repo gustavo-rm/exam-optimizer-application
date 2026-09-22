@@ -92,7 +92,7 @@ public final class GeneticAlgorithm {
         //
         // O custo real estava na representacao do cromossomo, e a pendencia P18 o resolveu: o plano
         // deixou de ser Map<Subject, Integer> e passou a ser um int[] alinhado a uma ordem canonica
-        // compartilhada (ver StudyPlan e SubjectIndex). Sumiram o hash, o boxing e a alocacao de no
+        // compartilhada (ver StudyPlan e PlanningItemIndex). Sumiram o hash, o boxing e a alocacao de no
         // por gene — ~72 ns por gene sobre 474 mil recombinacoes. Medido ponta a ponta, com corpo de
         // populacao 200: a latencia mediana caiu de 94 para 35 ms e a vazao com 16 concorrentes
         // subiu de 61 para 146 req/s.

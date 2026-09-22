@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.benchmark.strategy;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 import java.util.ArrayList;
@@ -27,10 +27,10 @@ final class Allocations {
      * {@code EvolutionContext.importanceScores()} is a {@code HashMap}, whose iteration order depends
      * on hash codes. Sorting by subject name makes every baseline reproducible run to run.
      */
-    static List<Subject> orderedSubjects(EvolutionContext context) {
-        List<Subject> subjects = new ArrayList<>(context.importanceScores().keySet());
-        subjects.sort(java.util.Comparator.comparing(Subject::name));
-        return subjects;
+    static List<PlanningItem> orderedItems(EvolutionContext context) {
+        List<PlanningItem> items = new ArrayList<>(context.importanceScores().keySet());
+        items.sort(java.util.Comparator.comparing(PlanningItem::name));
+        return items;
     }
 
     /**
@@ -40,10 +40,10 @@ final class Allocations {
      *
      * @return a mutable map seeded at the feasible floor, in the deterministic subject order
      */
-    static Map<Subject, Integer> atMinimums(List<Subject> subjects, EvolutionContext context) {
-        Map<Subject, Integer> days = new LinkedHashMap<>();
-        for (Subject subject : subjects) {
-            days.put(subject, context.minimumDaysPerSubject().getOrDefault(subject, 1));
+    static Map<PlanningItem, Integer> atMinimums(List<PlanningItem> items, EvolutionContext context) {
+        Map<PlanningItem, Integer> days = new LinkedHashMap<>();
+        for (PlanningItem item : items) {
+            days.put(item, context.minimumDaysPerItem().getOrDefault(item, 1));
         }
         return days;
     }
@@ -54,7 +54,7 @@ final class Allocations {
      * @throws IllegalStateException if the floor already exceeds the budget, which would mean the
      *                               instance is infeasible and should never have been built
      */
-    static int remainingBudget(Map<Subject, Integer> days, int totalStudyDays) {
+    static int remainingBudget(Map<PlanningItem, Integer> days, int totalStudyDays) {
         int allocated = days.values().stream().mapToInt(Integer::intValue).sum();
         int remaining = totalStudyDays - allocated;
         if (remaining < 0) {

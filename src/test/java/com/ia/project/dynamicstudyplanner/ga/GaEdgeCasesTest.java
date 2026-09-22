@@ -6,7 +6,9 @@ import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.SubjectPlanningItemMapper;
 import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleResult;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleStatus;
@@ -112,14 +114,14 @@ class GaEdgeCasesTest {
             // Idem: regra de negocio sobre o edital, nao argumento malformado (etapa 03d).
             assertThatThrownBy(() -> factory.createRandomPlan(null, List.of(), 10, Map.of()))
                     .isInstanceOf(DomainException.class)
-                    .hasMessageContaining("no subjects")
+                    .hasMessageContaining("no planning items")
                     .hasMessageNotContaining("bound must be positive");
         }
 
         @Test
         @DisplayName("orcamento negativo e rejeitado")
         void negativeBudgetIsRejected() {
-            Subject math = new Subject("Math", 10, 3);
+            PlanningItem math = new PlanningItem("Math", "Math", 3);
             StudyPlanFactory factory = new StudyPlanFactory();
 
             assertThatThrownBy(() -> factory.createRandomPlan(null, List.of(math), -5, Map.of(math, 1)))
@@ -160,7 +162,7 @@ class GaEdgeCasesTest {
             OptimizationResult result = optimizer().optimize(exam, profile, 100, 30, 20);
 
             assertThat(result.plan().getTotalDays()).isEqualTo(100);
-            assertThat(result.plan().getDaysPerSubject()).hasSize(1);
+            assertThat(result.plan().getDaysPerItem()).hasSize(1);
             assertThat(result.fitness()).isGreaterThan(0.0);
         }
 
@@ -170,11 +172,11 @@ class GaEdgeCasesTest {
             // AbstractMutationStrategy.mutate short-circuits below two subjects. Without that guard
             // randomSubjectExcluding would spin forever looking for a different subject; the guard
             // added in this stage now also throws instead of hanging if it is ever reached.
-            Subject only = new Subject("Only", 10, 3);
+            PlanningItem only = new PlanningItem("Only", "Only", 3);
             Individual individual = new Individual(new StudyPlan(Map.of(only, 40)));
             EvolutionContext context = EvolutionContext.builder()
                     .importanceScores(Map.of(only, 5.0))
-                    .minimumDaysPerSubject(Map.of(only, 1))
+                    .minimumDaysPerItem(Map.of(only, 1))
                     .planningHorizonDays(180)
                     .hoursPerStudyDay(4)
                     .maxDailyCognitiveLoad(20)
@@ -321,7 +323,7 @@ class GaEdgeCasesTest {
         long elapsedMillis = (System.nanoTime() - start) / 1_000_000L;
 
         assertThat(result.plan().getTotalDays()).isEqualTo(budget);
-        assertThat(result.plan().getDaysPerSubject()).hasSize(200);
+        assertThat(result.plan().getDaysPerItem()).hasSize(200);
         // Generous bound: measured at roughly 150 ms on the review machine. The assertion guards
         // against an accidental change in complexity, not against machine-to-machine variation.
         assertThat(elapsedMillis)
@@ -362,7 +364,7 @@ class GaEdgeCasesTest {
             StudyPlan plan = optimizer().optimize(exam, profile, budget, 50, 30).plan();
 
             assertThat(plan.getTotalDays()).as("seed %d: orcamento", seed).isEqualTo(budget);
-            assertThat(plan.meetsMinimumConstraints(minimums))
+            assertThat(plan.meetsMinimumConstraints(SubjectPlanningItemMapper.rekey(minimums)))
                     .as("seed %d: piso de dias minimos", seed).isTrue();
         }
     }
@@ -386,7 +388,7 @@ class GaEdgeCasesTest {
 
         assertThat(result).as("o otimizador deve devolver um resultado").isNotNull();
         assertThat(result.plan()).as("o resultado deve conter um plano").isNotNull();
-        assertThat(result.plan().getDaysPerSubject())
+        assertThat(result.plan().getDaysPerItem())
                 .as("toda disciplina do edital precisa aparecer no plano, mesmo com 1 geracao")
                 .hasSize(3)
                 .allSatisfy((subject, days) -> assertThat(days)
@@ -485,8 +487,8 @@ class GaEdgeCasesTest {
 
     /** Order-independent identity of an allocation, so plan equality does not depend on map order. */
     private static String signature(StudyPlan plan) {
-        return plan.getDaysPerSubject().entrySet().stream()
-                .sorted(Map.Entry.comparingByKey(java.util.Comparator.comparing(Subject::name)))
+        return plan.getDaysPerItem().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(java.util.Comparator.comparing(PlanningItem::name)))
                 .map(e -> e.getKey().name() + "=" + e.getValue())
                 .reduce((a, b) -> a + "|" + b)
                 .orElse("<vazio>");

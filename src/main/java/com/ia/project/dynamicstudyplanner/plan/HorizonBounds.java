@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 
@@ -26,7 +26,7 @@ import java.time.ZoneOffset;
  * @param from  first instant of the horizon, inclusive
  * @param until first instant after the horizon, exclusive
  */
-record HorizonBounds(Instant from, Instant until) {
+public record HorizonBounds(Instant from, Instant until) {
 
     /**
      * Reads the bounds off a request whose horizon {@link PlanRequestGuard} has already accepted.
@@ -34,14 +34,14 @@ record HorizonBounds(Instant from, Instant until) {
      * @param horizon the request's horizon; both dates are non-null by then
      * @return the half-open interval the horizon denotes in UTC
      */
-    static HorizonBounds of(PlanRequest.Horizon horizon) {
+    public static HorizonBounds of(PlanRequest.Horizon horizon) {
         return new HorizonBounds(
                 horizon.start().atStartOfDay(ZoneOffset.UTC).toInstant(),
                 horizon.end().plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant());
     }
 
     /** Whether an instant falls inside the horizon. */
-    boolean contains(Instant instant) {
+    public boolean contains(Instant instant) {
         return !instant.isBefore(from) && instant.isBefore(until);
     }
 }

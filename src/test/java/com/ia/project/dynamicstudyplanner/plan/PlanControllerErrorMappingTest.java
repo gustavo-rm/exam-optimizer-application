@@ -1,5 +1,7 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
+import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineEngine;
+import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineScheduler;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ProblemDetail;
@@ -21,14 +23,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  * substitution. Calling the handler is the smaller, more honest test: what is in question is the
  * mapping, not the route, and the route is covered by {@code BaselinePlanEndpointTest}.
  */
-@DisplayName("Baseline plan controller: error mapping")
-class BaselinePlanControllerErrorMappingTest {
+@DisplayName("Plan controller: error mapping")
+class PlanControllerErrorMappingTest {
 
-    private final BaselinePlanController controller =
-            new BaselinePlanController(new GreedyBaselineScheduler("2.0.1"));
+    private final PlanController controller = new PlanController(new PlanEngineSelector(
+            List.of(new GreedyBaselineEngine(new GreedyBaselineScheduler("2.0.1"))),
+            GreedyBaselineEngine.ID));
 
     private static MockHttpServletRequest postToPlans() {
-        return new MockHttpServletRequest("POST", BaselineCore.PLANS_PATH);
+        return new MockHttpServletRequest("POST", PlanProtocol.PLANS_PATH);
     }
 
     @Test
@@ -50,7 +53,7 @@ class BaselinePlanControllerErrorMappingTest {
                 .containsEntry("offending", List.of("first", "second"))
                 .containsKey("timestamp");
         assertThat(answer.getBody().getInstance())
-                .hasToString(BaselineCore.PLANS_PATH);
+                .hasToString(PlanProtocol.PLANS_PATH);
     }
 
     @Test
@@ -63,10 +66,10 @@ class BaselinePlanControllerErrorMappingTest {
         assertThat(answer.getStatusCode().value()).isEqualTo(500);
         assertThat(answer.getBody()).isNotNull();
         assertThat(answer.getBody().getType().toString())
-                .endsWith("/baseline-invariant-violation");
+                .endsWith("/plan-invariant-violation");
         assertThat(answer.getBody().getDetail())
                 .as("which session broke goes to the log, not to the caller: the caller can do "
-                        + "nothing about a defect in this scheduler")
+                        + "nothing about a defect in this engine")
                 .doesNotContain("session 3")
                 .contains("violates its own output invariants");
     }

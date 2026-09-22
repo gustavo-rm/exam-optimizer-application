@@ -13,11 +13,13 @@ import com.ia.project.dynamicstudyplanner.api.dto.ThematicAxisDto;
 import com.ia.project.dynamicstudyplanner.domain.Chronotype;
 import com.ia.project.dynamicstudyplanner.domain.FullPlannerResult;
 import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.StudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.SubjectPlanningItemMapper;
 import com.ia.project.dynamicstudyplanner.domain.exam.ThematicAxis;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleResult;
 import com.ia.project.dynamicstudyplanner.domain.schedule.ScheduleStatus;
@@ -240,10 +242,15 @@ class MapperRoundTripTest {
         private final Subject portugues = new Subject("Portugues", 20, 2);
         private final Subject informatica = new Subject("Informatica", 25, 4);
 
+        // O plano sai do nucleo chaveado por item de planejamento; o bloco de estudo e o
+        // cronograma continuam em disciplina do edital. A fronteira entre os dois e o mapeador.
+        private final PlanningItem itemPortugues = SubjectPlanningItemMapper.toItem(portugues);
+        private final PlanningItem itemInformatica = SubjectPlanningItemMapper.toItem(informatica);
+
         @Test
         @DisplayName("StudyPlanMapper converte disciplinas em nomes, preservando os dias")
         void studyPlanMapperUsaNomesComoChave() {
-            StudyPlan plano = new StudyPlan(Map.of(portugues, 30, informatica, 45));
+            StudyPlan plano = new StudyPlan(Map.of(itemPortugues, 30, itemInformatica, 45));
 
             StudyPlanDto dto = studyPlanMapper.toDto(plano);
 
@@ -295,7 +302,7 @@ class MapperRoundTripTest {
         @DisplayName("OptimizationResultMapper preserva fitness, geracoes e tempo")
         void optimizationResultMapperPreservaMetadados() {
             OptimizationResult resultado = new OptimizationResult(
-                    new StudyPlan(Map.of(portugues, 10)), 0.7321, 50, 1234L);
+                    new StudyPlan(Map.of(itemPortugues, 10)), 0.7321, 50, 1234L);
 
             OptimizationResultDto dto = optimizationResultMapper.toDto(resultado);
 
@@ -310,7 +317,7 @@ class MapperRoundTripTest {
         @DisplayName("FullPlannerResultMapper monta o corpo final com a mensagem de sucesso")
         void fullPlannerResultMapperMontaOCorpoFinal() {
             FullPlannerResult resultado = new FullPlannerResult(
-                    new OptimizationResult(new StudyPlan(Map.of(portugues, 10)), 0.5, 30, 100L),
+                    new OptimizationResult(new StudyPlan(Map.of(itemPortugues, 10)), 0.5, 30, 100L),
                     new ScheduleResult(Map.of(LocalDate.of(2026, 9, 10),
                             List.of(new StudyBlock(portugues, 2))),
                             ScheduleStatus.SUCCESS_IDEAL_PLAN, 20.0, 20.0));

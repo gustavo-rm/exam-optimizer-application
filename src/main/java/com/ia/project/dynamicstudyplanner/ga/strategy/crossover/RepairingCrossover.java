@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga.strategy.crossover;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItemIndex;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
@@ -63,7 +63,7 @@ public class RepairingCrossover implements CrossoverStrategy {
      * @param ordem a ordem canônica dos genes do filho
      * @return os genes do filho, ainda sem reparo
      */
-    private int[] performSinglePointCrossover(Individual parent1, Individual parent2, SubjectIndex ordem) {
+    private int[] performSinglePointCrossover(Individual parent1, Individual parent2, PlanningItemIndex ordem) {
         StudyPlan plano1 = parent1.getPlan();
         StudyPlan plano2 = parent2.getPlan();
         boolean alinhados = plano1.getIndex() == ordem && plano2.getIndex() == ordem;
@@ -74,7 +74,7 @@ public class RepairingCrossover implements CrossoverStrategy {
 
         for (int i = 0; i < genes; i++) {
             StudyPlan fonte = i < crossoverPoint ? plano1 : plano2;
-            childGenes[i] = alinhados ? fonte.daysAt(i) : fonte.getDaysForSubject(ordem.subject(i));
+            childGenes[i] = alinhados ? fonte.daysAt(i) : fonte.getDaysForItem(ordem.item(i));
         }
         return childGenes;
     }

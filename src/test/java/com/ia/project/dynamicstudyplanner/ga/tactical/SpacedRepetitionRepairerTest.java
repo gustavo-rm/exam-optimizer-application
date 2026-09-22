@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.ga.tactical;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.domain.retention.SubjectRetentionState;
@@ -41,12 +41,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("SpacedRepetitionRepairer: caracterizacao antes da refatoracao")
 class SpacedRepetitionRepairerTest {
 
-    private static final Subject PORTUGUES = new Subject("Portugues", 10, 3);
-    private static final Subject MATEMATICA = new Subject("Matematica", 12, 5);
+    private static final PlanningItem PORTUGUES = new PlanningItem("Portugues", "Portugues", 3);
+    private static final PlanningItem MATEMATICA = new PlanningItem("Matematica", "Matematica", 5);
     private static final LocalDate DIA = LocalDate.of(2026, 3, 2);
 
     /** Responde "revisão obrigatória" apenas para as disciplinas informadas. */
-    private static RetentionAlgorithm exigeRevisaoPara(Set<Subject> disciplinas) {
+    private static RetentionAlgorithm exigeRevisaoPara(Set<PlanningItem> disciplinas) {
         return new RetentionAlgorithm() {
             @Override
             public double calculateRetentionProbability(SubjectRetentionState state, LocalDate targetDate) {
@@ -54,8 +54,8 @@ class SpacedRepetitionRepairerTest {
             }
 
             @Override
-            public boolean isReviewMandatory(Subject subject, SubjectRetentionState state, LocalDate targetDate) {
-                return disciplinas.contains(subject);
+            public boolean isReviewMandatory(PlanningItem item, SubjectRetentionState state, LocalDate targetDate) {
+                return disciplinas.contains(item);
             }
 
             @Override
@@ -71,10 +71,10 @@ class SpacedRepetitionRepairerTest {
         return new TimeSlot(de, de.plusHours(1));
     }
 
-    private static EvolutionContext contexto(Map<Subject, Double> importancias, RetentionProfile perfil) {
+    private static EvolutionContext contexto(Map<PlanningItem, Double> importancias, RetentionProfile perfil) {
         return EvolutionContext.builder()
                 .importanceScores(importancias)
-                .minimumDaysPerSubject(Map.of())
+                .minimumDaysPerItem(Map.of())
                 .planStartDate(DIA)
                 .retentionProfile(perfil)
                 // Obrigatorios pelo construtor passo a passo (ADR-0004); irrelevantes para o reparo.

@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.benchmark.strategy;
 
 import com.ia.project.dynamicstudyplanner.benchmark.instance.BenchmarkInstance;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 import java.util.List;
@@ -41,12 +41,12 @@ public final class RandomBaseline implements PlanningStrategy {
     @Override
     public StudyPlan plan(BenchmarkInstance instance, EvolutionContext context, long seed) {
         Random random = new Random(seed);
-        List<Subject> subjects = Allocations.orderedSubjects(context);
-        Map<Subject, Integer> days = Allocations.atMinimums(subjects, context);
+        List<PlanningItem> items = Allocations.orderedItems(context);
+        Map<PlanningItem, Integer> days = Allocations.atMinimums(items, context);
 
         int remaining = Allocations.remainingBudget(days, instance.totalStudyDays());
         for (int i = 0; i < remaining; i++) {
-            Subject picked = subjects.get(random.nextInt(subjects.size()));
+            PlanningItem picked = items.get(random.nextInt(items.size()));
             days.merge(picked, 1, Integer::sum);
         }
         return new StudyPlan(days);

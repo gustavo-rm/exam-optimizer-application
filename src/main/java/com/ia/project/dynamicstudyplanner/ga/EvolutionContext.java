@@ -1,9 +1,9 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
-import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItemIndex;
 import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.LearningModel;
@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,7 +25,7 @@ import java.util.Set;
  * weights are documented in {@code docs/revisao-ag/05-fitness-function.md}. Adding a field here
  * because a new fitness term needs it means that document has to be updated too.
  *
- * @param importanceScores        Raw personalised importance per subject, in the exam's own scoring
+ * @param importanceScores        Raw personalised importance per planning item, in the exam's own scoring
  *                                units. Kept because the scheduler and the baselines still rank by
  *                                it; the fitness itself uses {@link #normalizedImportance}.
  * @param normalizedImportance    Importance projected onto the simplex, so the values sum to 1.
@@ -32,7 +33,7 @@ import java.util.Set;
  * @param retentionWeights        Importance tempered by {@link #RETENTION_TEMPERING} and
  *                                renormalised. Flatter than {@link #normalizedImportance}; see
  *                                {@link #temper} for why retention is not weighted by exam value.
- * @param minimumDaysPerSubject   Coverage floor per subject, from {@code BaselineCalculator}.
+ * @param minimumDaysPerItem   Coverage floor per item, from {@code BaselineCalculator}.
  * @param studentState            Self-reported stress, fatigue and motivation. Enters the fitness
  *                                indirectly, through the daily cognitive-load budget.
  * @param fitnessEvaluator        The configured fitness pipeline.
@@ -51,11 +52,11 @@ import java.util.Set;
  *                                {@link GeneVectors}.
  */
 public record EvolutionContext(
-        Map<Subject, Double> importanceScores,
-        Map<Subject, Double> normalizedImportance,
-        Map<Subject, Double> retentionWeights,
-        Map<Subject, Double> requiredSessionsPerSubject,
-        Map<Subject, Integer> minimumDaysPerSubject,
+        Map<PlanningItem, Double> importanceScores,
+        Map<PlanningItem, Double> normalizedImportance,
+        Map<PlanningItem, Double> retentionWeights,
+        Map<PlanningItem, Double> requiredSessionsPerItem,
+        Map<PlanningItem, Integer> minimumDaysPerItem,
         StudentState studentState,
         FitnessEvaluator fitnessEvaluator,
         RetentionProfile retentionProfile,
@@ -96,7 +97,7 @@ public record EvolutionContext(
      * Construtor passo a passo do {@link EvolutionContext}.
      *
      * <p>Cinco valores são <b>obrigatórios</b>, porque todo caminho de execução os fornece:
-     * {@link #importanceScores}, {@link #minimumDaysPerSubject}, {@link #planningHorizonDays},
+     * {@link #importanceScores}, {@link #minimumDaysPerItem}, {@link #planningHorizonDays},
      * {@link #hoursPerStudyDay} e {@link #maxDailyCognitiveLoad}. Omitir qualquer um faz
      * {@link #build()} falhar dizendo qual falta.
      *
@@ -108,9 +109,9 @@ public record EvolutionContext(
      */
     public static final class Builder {
 
-        private Map<Subject, Double> importanceScores;
-        private List<Subject> subjects;
-        private Map<Subject, Integer> minimumDaysPerSubject;
+        private Map<PlanningItem, Double> importanceScores;
+        private List<PlanningItem> items;
+        private Map<PlanningItem, Integer> minimumDaysPerItem;
         private StudentState studentState;
         private FitnessEvaluator fitnessEvaluator;
         private RetentionProfile retentionProfile;
@@ -124,31 +125,30 @@ public record EvolutionContext(
         }
 
         /** Obrigatório. Importância personalizada bruta por disciplina, nas unidades do edital. */
-        public Builder importanceScores(Map<Subject, Double> importanceScores) {
+        public Builder importanceScores(Map<PlanningItem, Double> importanceScores) {
             this.importanceScores = importanceScores;
             return this;
         }
 
         /**
-         * Opcional. A ordem das disciplinas no edital, que passa a ser <b>a ordem dos genes do
-         * cromossomo</b> (pendência P18).
+         * Opcional. A ordem dos itens, que passa a ser <b>a ordem dos genes do cromossomo</b> (pendência P18).
          *
          * <p>Omitir cai na ordem de iteração de {@link #importanceScores}, que é o que os testes
          * fazem. A produção informa explicitamente, com {@code exam.getAllSubjects()}: é a diferença
          * entre uma ordem declarada pelo edital e uma ordem que vem de um detalhe interno de
-         * {@code HashMap}, livre para mudar numa atualização de JDK. Ver {@link SubjectIndex}.
+         * {@code HashMap}, livre para mudar numa atualização de JDK. Ver {@link PlanningItemIndex}.
          *
-         * @param subjects as disciplinas na ordem do edital
+         * @param items os itens na ordem em que serão planejados
          * @return este construtor
          */
-        public Builder subjects(List<Subject> subjects) {
-            this.subjects = subjects;
+        public Builder items(List<PlanningItem> items) {
+            this.items = items;
             return this;
         }
 
         /** Obrigatório. Piso de cobertura por disciplina, vindo do {@code BaselineCalculator}. */
-        public Builder minimumDaysPerSubject(Map<Subject, Integer> minimumDaysPerSubject) {
-            this.minimumDaysPerSubject = minimumDaysPerSubject;
+        public Builder minimumDaysPerItem(Map<PlanningItem, Integer> minimumDaysPerItem) {
+            this.minimumDaysPerItem = minimumDaysPerItem;
             return this;
         }
 
@@ -213,8 +213,8 @@ public record EvolutionContext(
             if (importanceScores == null) {
                 faltando.add("importanceScores");
             }
-            if (minimumDaysPerSubject == null) {
-                faltando.add("minimumDaysPerSubject");
+            if (minimumDaysPerItem == null) {
+                faltando.add("minimumDaysPerItem");
             }
             if (planningHorizonDays == null) {
                 faltando.add("planningHorizonDays");
@@ -230,16 +230,16 @@ public record EvolutionContext(
                         "EvolutionContext incompleto: falta informar " + String.join(", ", faltando));
             }
 
-            Map<Subject, Double> normalized = normalize(importanceScores);
-            Map<Subject, Double> tempered = temper(normalized);
-            SubjectIndex index = SubjectIndex.of(
-                    subjects != null ? subjects : importanceScores.keySet());
+            Map<PlanningItem, Double> normalized = normalize(importanceScores);
+            Map<PlanningItem, Double> tempered = temper(normalized);
+            PlanningItemIndex index = PlanningItemIndex.of(
+                    items != null ? items : importanceScores.keySet());
             return new EvolutionContext(
                     importanceScores,
                     normalized,
                     tempered,
                     requiredSessions(importanceScores.keySet(), planningHorizonDays),
-                    minimumDaysPerSubject,
+                    minimumDaysPerItem,
                     studentState,
                     fitnessEvaluator,
                     retentionProfile,
@@ -248,22 +248,22 @@ public record EvolutionContext(
                     planningHorizonDays,
                     hoursPerStudyDay,
                     maxDailyCognitiveLoad,
-                    new GeneVectors(index, minimumDaysPerSubject, normalized, tempered, planningHorizonDays)
+                    new GeneVectors(index, minimumDaysPerItem, normalized, tempered, planningHorizonDays)
             );
         }
     }
 
     /**
-     * Pré-calcula, uma vez por execução, quantas sessões cada disciplina exige.
+     * Pré-calcula, uma vez por execução, quantas sessões cada item exige.
      *
      * <h2>Por que isto está aqui e não no objetivo de fitness</h2>
      *
-     * {@code LearningModel.requiredSessions(disciplina, horizonte)} depende apenas da carga
-     * cognitiva da disciplina e do horizonte de planejamento — <b>os dois fixos durante toda a
-     * evolução</b>. Era, ainda assim, chamada uma vez por disciplina, por indivíduo, por geração.
+     * {@code LearningModel.requiredSessions(banda, horizonte)} depende apenas da banda de
+     * dificuldade do item e do horizonte de planejamento — <b>os dois fixos durante toda a
+     * evolução</b>. Era, ainda assim, chamada uma vez por item, por indivíduo, por geração.
      *
      * <p>Medido no achado F4 de {@code docs/qualidade/05-diagnostico-performance.md}:
-     * <b>12.012.000 chamadas</b> no pior caso (500 indivíduos × 1000 gerações × 24 disciplinas)
+     * <b>12.012.000 chamadas</b> no pior caso (500 indivíduos × 1000 gerações × 24 itens)
      * para <b>24 resultados distintos</b>, a 17,29 ns cada — <b>208 ms</b>, cerca de 9 % do tempo
      * do algoritmo.
      *
@@ -275,17 +275,17 @@ public record EvolutionContext(
      *
      * <p>Essa escolha é deliberada e vale registrar o que ela evita: um cache <i>estático</i> em
      * {@code LearningModel} seria mais fácil de escrever e seria um defeito. As chaves
-     * ({@code Subject}, horizonte) vêm da requisição, então o mapa cresceria sem limite ao longo da
-     * vida do processo, e um edital com a mesma disciplina sob outro horizonte leria valor de
+     * ({@code PlanningItem}, horizonte) vêm da requisição, então o mapa cresceria sem limite ao longo da
+     * vida do processo, e um plano com o mesmo item sob outro horizonte leria valor de
      * outra requisição. Amarrar o cache ao ciclo de vida do dado que o originou dispensa política
      * de expiração: não há como ficar obsoleto aquilo que morre junto com a pergunta.
      */
-    private static Map<Subject, Double> requiredSessions(Set<Subject> subjects, int planningHorizonDays) {
-        Map<Subject, Double> porDisciplina = new HashMap<>(subjects.size() * 2);
-        for (Subject subject : subjects) {
-            porDisciplina.put(subject, LearningModel.requiredSessions(subject, planningHorizonDays));
+    private static Map<PlanningItem, Double> requiredSessions(Set<PlanningItem> items, int planningHorizonDays) {
+        Map<PlanningItem, Double> porItem = new HashMap<>(items.size() * 2);
+        for (PlanningItem item : items) {
+            porItem.put(item, LearningModel.requiredSessions(item.difficultyBand(), planningHorizonDays));
         }
-        return Collections.unmodifiableMap(porDisciplina);
+        return Collections.unmodifiableMap(porItem);
     }
 
     /**
@@ -302,11 +302,29 @@ public record EvolutionContext(
      * values comparable between different exams, which is what allows the benchmark harness to
      * track quality over time at all.
      *
-     * @param raw importance per subject, in the exam's scoring units
-     * @return importance summing to 1; a uniform distribution when every input is zero or absent,
-     *         which happens only for a degenerate payload in which no subject scores any points
+     * <h2>A ordem de iteração do mapa devolvido é aritmética, não cosmética</h2>
+     *
+     * Era um {@code HashMap}. Um {@link LinkedHashMap} custa o mesmo e <b>preserva a ordem de
+     * {@code raw}</b>, e essa ordem entra numa conta: {@link #temper} soma
+     * {@code Math.pow(peso, 0.5)} percorrendo este mapa, e soma de ponto flutuante não é
+     * associativa. Com {@code HashMap}, a ordem vinha dos códigos de espalhamento das chaves — e
+     * {@code PlanningItem.hashCode()} não é o de {@code Subject.hashCode()}. Medido: com 24 itens,
+     * <b>todos</b> os pesos de retenção saíam 1 ulp deslocados da execução anterior à migração, e a
+     * fitness publicada com eles.
+     *
+     * <p>Declarar a ordem torna a soma independente do tipo da chave — e também do detalhe interno
+     * do {@code HashMap}, que o contrato de {@code java.util.Map} não especifica e que uma
+     * atualização de JDK pode mudar. É o mesmo argumento que
+     * {@code PlanningItemIndex} faz para a ordem dos genes, aplicado a um lugar onde ele tinha
+     * passado despercebido. Com ele, as 18 assinaturas de referência do AG ficaram idênticas bit a
+     * bit antes e depois da migração.
+     *
+     * @param raw importance per planning item, in the exam's scoring units
+     * @return importance summing to 1, iterating in {@code raw}'s order; a uniform distribution
+     *         when every input is zero or absent, which happens only for a degenerate payload in
+     *         which no item scores any points
      */
-    public static Map<Subject, Double> normalize(Map<Subject, Double> raw) {
+    public static Map<PlanningItem, Double> normalize(Map<PlanningItem, Double> raw) {
         if (raw == null || raw.isEmpty()) {
             return Map.of();
         }
@@ -315,16 +333,16 @@ public record EvolutionContext(
                 .mapToDouble(v -> Math.max(0.0, v == null ? 0.0 : v))
                 .sum();
 
-        Map<Subject, Double> normalized = new HashMap<>(raw.size());
+        Map<PlanningItem, Double> normalized = new LinkedHashMap<>();
         if (total <= 0.0) {
             double uniform = 1.0 / raw.size();
-            for (Subject subject : raw.keySet()) {
-                normalized.put(subject, uniform);
+            for (PlanningItem item : raw.keySet()) {
+                normalized.put(item, uniform);
             }
             return Collections.unmodifiableMap(normalized);
         }
 
-        for (Map.Entry<Subject, Double> entry : raw.entrySet()) {
+        for (Map.Entry<PlanningItem, Double> entry : raw.entrySet()) {
             double value = entry.getValue() == null ? 0.0 : Math.max(0.0, entry.getValue());
             normalized.put(entry.getKey(), value / total);
         }
@@ -357,14 +375,14 @@ public record EvolutionContext(
      * turns negative and deepens with dispersion — maximising the fitness made retention worse.
      * Tempering gives the retention term a weighting of its own, so it can dissent.
      */
-    public static Map<Subject, Double> temper(Map<Subject, Double> normalized) {
+    public static Map<PlanningItem, Double> temper(Map<PlanningItem, Double> normalized) {
         if (normalized == null || normalized.isEmpty()) {
             return Map.of();
         }
 
-        Map<Subject, Double> tempered = new HashMap<>(normalized.size());
+        Map<PlanningItem, Double> tempered = new HashMap<>(normalized.size());
         double total = 0.0;
-        for (Map.Entry<Subject, Double> entry : normalized.entrySet()) {
+        for (Map.Entry<PlanningItem, Double> entry : normalized.entrySet()) {
             double value = Math.pow(Math.max(0.0, entry.getValue()), RETENTION_TEMPERING);
             tempered.put(entry.getKey(), value);
             total += value;

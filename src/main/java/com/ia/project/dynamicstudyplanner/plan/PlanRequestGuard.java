@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 
@@ -34,7 +34,7 @@ import java.util.UUID;
  *       given there.</li>
  * </ul>
  */
-final class PlanRequestGuard {
+public final class PlanRequestGuard {
 
     private PlanRequestGuard() {
     }
@@ -45,7 +45,7 @@ final class PlanRequestGuard {
      * @param request the request as deserialised
      * @throws PlanRejectedException naming the offending items
      */
-    static void check(PlanRequest request) {
+    public static void check(PlanRequest request) {
         checkHorizon(request.horizon());
         checkTopics(request.topics());
         checkAvailability(request.availability());

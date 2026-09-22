@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IndividualTest {
 
     /** Cognitive load 3 puts this subject at the model's average difficulty, so tau = 10 days. */
-    private static final Subject MATH = new Subject("Math", 10, 3);
+    private static final PlanningItem MATH = new PlanningItem("Math", "Math", 3);
 
     private static final int HORIZON_DAYS = 180;
     private static final int HOURS_PER_STUDY_DAY = 4;
@@ -91,7 +91,7 @@ class IndividualTest {
         FitnessEvaluator evaluator = productionPipeline();
         EvolutionContext context = EvolutionContext.builder()
                 .importanceScores(Map.of(MATH, 10.0))
-                .minimumDaysPerSubject(Map.of(MATH, minimumDays))
+                .minimumDaysPerItem(Map.of(MATH, minimumDays))
                 .fitnessEvaluator(evaluator)
                 .planningHorizonDays(HORIZON_DAYS)
                 .hoursPerStudyDay(HOURS_PER_STUDY_DAY)

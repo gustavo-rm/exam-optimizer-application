@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.objective;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItemIndex;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.GeneVectors;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
@@ -49,7 +49,7 @@ import org.springframework.stereotype.Component;
  * <h2>Honest limits</h2>
  *
  * This is a <b>mean-field approximation, not spaced repetition</b>. The macro chromosome is
- * {@code Map<Subject, Integer>} — a count of days with no position in the calendar and no order
+ * {@code Map<PlanningItem, Integer>} — a count of days with no position in the calendar and no order
  * (docs/revisao-ag/01-auditoria-fitness.md §3.3) — so the objective can only reason about how many
  * sessions a subject gets, assuming the scheduler spreads them roughly evenly across the horizon,
  * which is what {@code StudyScheduleGenerator} does. It cannot express <em>when</em> a review
@@ -66,7 +66,7 @@ public class RetentionObjective implements FitnessObjective {
         // de vetor. As sessoes exigidas ja eram pre-calculadas uma vez por execucao desde o achado
         // F4; agora tambem nao sao mais reprocuradas por gene.
         GeneVectors vetores = context.geneVectors();
-        SubjectIndex ordem = vetores.index();
+        PlanningItemIndex ordem = vetores.index();
         int genes = ordem.size();
 
         double score = 0.0;

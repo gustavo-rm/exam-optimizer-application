@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
@@ -60,8 +60,9 @@ class PrerequisiteSequencingDiagnosticTest {
      * {@code ADVANCED} under Ausubel. Nothing in the domain model can express that relation — the
      * declaration lives only in this comment, which is itself the finding.
      */
-    private static final Subject FOUNDATION = new Subject("Teoria Geral", 10, 3);
-    private static final Subject ADVANCED = new Subject("Aplicacoes Avancadas", 10, 3);
+    private static final PlanningItem FOUNDATION = new PlanningItem("Teoria Geral", "Teoria Geral", 3);
+    private static final PlanningItem ADVANCED =
+            new PlanningItem("Aplicacoes Avancadas", "Aplicacoes Avancadas", 3);
 
     private static final int HORIZON_DAYS = 180;
     private static final int HOURS_PER_STUDY_DAY = 4;
@@ -80,11 +81,11 @@ class PrerequisiteSequencingDiagnosticTest {
             StudyPlan prerequisiteFirst = new StudyPlan(Map.of(FOUNDATION, 10, ADVANCED, 6));
             StudyPlan dependentFirst = new StudyPlan(Map.of(ADVANCED, 6, FOUNDATION, 10));
 
-            assertThat(prerequisiteFirst.getDaysPerSubject())
-                    .as("Map<Subject,Integer> nao tem ordem: os dois 'planos' sao o mesmo valor. "
+            assertThat(prerequisiteFirst.getDaysPerItem())
+                    .as("Map<PlanningItem,Integer> nao tem ordem: os dois 'planos' sao o mesmo valor. "
                             + "Nao existe violacao de precedencia a detectar porque nao existe "
                             + "precedencia a expressar.")
-                    .isEqualTo(dependentFirst.getDaysPerSubject());
+                    .isEqualTo(dependentFirst.getDaysPerItem());
         }
 
         @Test
@@ -118,9 +119,9 @@ class PrerequisiteSequencingDiagnosticTest {
         void tacticalEncodingCarriesOrder() {
             TacticalStudyPlan plan = tacticalPlan(FOUNDATION, ADVANCED);
 
-            Subject earliest = plan.getSchedule().entrySet().stream()
+            PlanningItem earliest = plan.getSchedule().entrySet().stream()
                     .min((a, b) -> a.getKey().startTime().compareTo(b.getKey().startTime()))
-                    .map(e -> e.getValue().subject())
+                    .map(e -> e.getValue().item())
                     .orElseThrow();
 
             assertThat(earliest)
@@ -185,7 +186,7 @@ class PrerequisiteSequencingDiagnosticTest {
     // ------------------------------------------------------------------
 
     /** Two one-hour blocks on consecutive days, in the given order. */
-    private static TacticalStudyPlan tacticalPlan(Subject firstDay, Subject secondDay) {
+    private static TacticalStudyPlan tacticalPlan(PlanningItem firstDay, PlanningItem secondDay) {
         return new TacticalStudyPlan(Map.of(
                 new TimeSlot(DAY_ONE, DAY_ONE.plusHours(1)),
                 new TacticalStudyBlock(firstDay, StudyMethodology.ACTIVE_RECALL, 60),
@@ -196,7 +197,7 @@ class PrerequisiteSequencingDiagnosticTest {
     private static EvolutionContext contextFor(FitnessEvaluator evaluator) {
         return EvolutionContext.builder()
                 .importanceScores(Map.of(FOUNDATION, 10.0, ADVANCED, 10.0))
-                .minimumDaysPerSubject(Map.of(FOUNDATION, 1, ADVANCED, 1))
+                .minimumDaysPerItem(Map.of(FOUNDATION, 1, ADVANCED, 1))
                 .fitnessEvaluator(evaluator)
                 .planningHorizonDays(HORIZON_DAYS)
                 .hoursPerStudyDay(HOURS_PER_STUDY_DAY)

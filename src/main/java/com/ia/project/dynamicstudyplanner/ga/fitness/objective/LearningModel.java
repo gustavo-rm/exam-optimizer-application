@@ -1,7 +1,5 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.objective;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
-
 /**
  * The learning-curve parameters shared by the fitness objectives.
  * <p>
@@ -25,7 +23,7 @@ public final class LearningModel {
     private static final double TAU_AT_AVERAGE_LOAD = 10.0;
 
     /**
-     * The cognitive load treated as average. Matches {@code CognitiveLoadCalculator}'s
+     * The difficulty band treated as average. Matches {@code CognitiveLoadCalculator}'s
      * {@code AVERAGE_LOAD_FACTOR} so "average difficulty" means the same thing across the system.
      */
     private static final double AVERAGE_COGNITIVE_LOAD = 3.0;
@@ -34,9 +32,9 @@ public final class LearningModel {
     }
 
     /**
-     * Time constant for a subject, in study days.
+     * Time constant for an item, in study days.
      * <p>
-     * Grows linearly with {@code Subject.cognitiveLoad}: an easy subject (load 1) has tau ~3.3 days,
+     * Grows linearly with the item's ordinal difficulty band: an easy subject (load 1) has tau ~3.3 days,
      * an average one 10, the hardest (load 5) ~16.7. Serves two roles:
      * <ul>
      *   <li><b>Mastery:</b> {@code 1 - exp(-d/tau)} — days to learn the material.</li>
@@ -44,24 +42,24 @@ public final class LearningModel {
      *       a memory survives before recall drops to {@code e^-1}.</li>
      * </ul>
      */
-    public static double timeConstantDays(Subject subject) {
-        int load = Math.max(1, subject.cognitiveLoad());
+    public static double timeConstantDays(int difficultyBand) {
+        int load = Math.max(1, difficultyBand);
         return TAU_AT_AVERAGE_LOAD * load / AVERAGE_COGNITIVE_LOAD;
     }
 
     /**
-     * Fraction of the subject mastered after {@code days} of study, in [0,1).
+     * Fraction of the item mastered after {@code days} of study, in [0,1).
      * Exponential approach to an asymptote: fast early gains, saturating as the subject is learned.
      */
-    public static double mastery(Subject subject, int days) {
+    public static double mastery(int difficultyBand, int days) {
         if (days <= 0) {
             return 0.0;
         }
-        return 1.0 - Math.exp(-days / timeConstantDays(subject));
+        return 1.0 - Math.exp(-days / timeConstantDays(difficultyBand));
     }
 
     /**
-     * Study sessions a subject needs, spread across the horizon, to keep recall from falling below
+     * Study sessions an item needs, spread across the horizon, to keep recall from falling below
      * the forgetting threshold before the exam.
      * <p>
      * Derived from Ebbinghaus directly: recall drops to {@code e^-1} after one stability interval,
@@ -70,12 +68,12 @@ public final class LearningModel {
      * {@code HybridRetentionEngine} now declares a review mandatory, so the macro objective and the
      * tactical engine use one definition of "overdue".
      *
-     * @param subject           the subject
+     * @param difficultyBand    the item's ordinal difficulty, 1 to 5
      * @param planningHorizonDays calendar days from the plan start to the exam
      * @return sessions required, never below 1
      */
-    public static double requiredSessions(Subject subject, int planningHorizonDays) {
+    public static double requiredSessions(int difficultyBand, int planningHorizonDays) {
         double horizon = Math.max(1.0, planningHorizonDays);
-        return Math.max(1.0, horizon / timeConstantDays(subject));
+        return Math.max(1.0, horizon / timeConstantDays(difficultyBand));
     }
 }

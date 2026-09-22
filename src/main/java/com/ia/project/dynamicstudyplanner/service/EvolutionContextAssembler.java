@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
 import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.SubjectPlanningItemMapper;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
@@ -121,12 +122,14 @@ public class EvolutionContextAssembler {
         int maxDailyCognitiveLoad = cognitiveLoadCalculator.calculate(profile, exam);
 
         return EvolutionContext.builder()
-                .importanceScores(importanceScores)
+                // Fronteira concurso -> nucleo (removida em EOA-4b): a disciplina do edital
+                // vira item de planejamento aqui, e so aqui.
+                .importanceScores(SubjectPlanningItemMapper.rekey(importanceScores))
                 // A ordem do edital passa a ser a ordem dos genes do cromossomo (pendencia P18).
                 // Informada explicitamente para que o plano produzido nao dependa da ordem de
                 // iteracao de um HashMap, que o contrato de Map nao especifica.
-                .subjects(exam.getAllSubjects())
-                .minimumDaysPerSubject(minimumDaysPerSubject)
+                .items(SubjectPlanningItemMapper.toItems(exam.getAllSubjects()))
+                .minimumDaysPerItem(SubjectPlanningItemMapper.rekey(minimumDaysPerSubject))
                 .studentState(profile.getState())
                 .fitnessEvaluator(fitnessEvaluator)
                 .retentionProfile(retentionProfile)

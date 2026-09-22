@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
@@ -66,11 +66,22 @@ class PopulationFitnessTest {
     private static final int HORAS_POR_DIA = 4;
     private static final int CARGA_DIARIA_MAXIMA = 20;
 
-    private static final List<Subject> DISCIPLINAS = List.of(
-            new Subject("Portugues", 20, 2),
-            new Subject("Matematica", 15, 5),
-            new Subject("Direito", 25, 4),
-            new Subject("Informatica", 10, 3));
+    private static final List<PlanningItem> DISCIPLINAS = List.of(
+            new PlanningItem("Portugues", "Portugues", 2),
+            new PlanningItem("Matematica", "Matematica", 5),
+            new PlanningItem("Direito", "Direito", 4),
+            new PlanningItem("Informatica", "Informatica", 3));
+
+    /**
+     * Importância bruta por item. Vinha da contagem de questões da disciplina do edital, que o item
+     * de planejamento não carrega — ela é do concurso e fica fora da fronteira. Os números são os
+     * mesmos de antes, agora declarados aqui.
+     */
+    private static final Map<PlanningItem, Double> QUESTOES = Map.of(
+            DISCIPLINAS.get(0), 20.0,
+            DISCIPLINAS.get(1), 15.0,
+            DISCIPLINAS.get(2), 25.0,
+            DISCIPLINAS.get(3), 10.0);
 
     @Test
     @DisplayName("populacao grande: a fitness bate com o calculo direto de cada individuo")
@@ -181,7 +192,7 @@ class PopulationFitnessTest {
     private static Population populacao(int tamanho) {
         List<Individual> individuos = new ArrayList<>(tamanho);
         for (int i = 0; i < tamanho; i++) {
-            Map<Subject, Integer> dias = new LinkedHashMap<>();
+            Map<PlanningItem, Integer> dias = new LinkedHashMap<>();
             int restante = 200;
             for (int d = 0; d < DISCIPLINAS.size() - 1; d++) {
                 int alocado = 10 + ((i * 7 + d * 13) % 40);
@@ -195,15 +206,15 @@ class PopulationFitnessTest {
     }
 
     private static EvolutionContext contexto() {
-        Map<Subject, Double> importancias = new LinkedHashMap<>();
-        Map<Subject, Integer> pisos = new LinkedHashMap<>();
-        for (Subject disciplina : DISCIPLINAS) {
-            importancias.put(disciplina, (double) disciplina.questionCount());
-            pisos.put(disciplina, 5);
+        Map<PlanningItem, Double> importancias = new LinkedHashMap<>();
+        Map<PlanningItem, Integer> pisos = new LinkedHashMap<>();
+        for (PlanningItem item : DISCIPLINAS) {
+            importancias.put(item, QUESTOES.get(item));
+            pisos.put(item, 5);
         }
         return EvolutionContext.builder()
                 .importanceScores(importancias)
-                .minimumDaysPerSubject(pisos)
+                .minimumDaysPerItem(pisos)
                 .fitnessEvaluator(pipelineDeProducao())
                 .planningHorizonDays(HORIZONTE_DIAS)
                 .hoursPerStudyDay(HORAS_POR_DIA)

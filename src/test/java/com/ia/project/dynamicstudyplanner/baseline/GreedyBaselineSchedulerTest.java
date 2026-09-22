@@ -1,5 +1,7 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanInvariantAssertions;
+import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.EdgeProvenance;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.EdgeStrength;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
@@ -15,19 +17,19 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.SUBJECT_FIRST;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.SUBJECT_SECOND;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_1;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_2;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_3;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_4;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_OUTSIDE;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.goal;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.hard;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.slot;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.soft;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.studied;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.topic;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.SUBJECT_FIRST;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.SUBJECT_SECOND;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_1;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_2;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_3;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_4;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_OUTSIDE;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.goal;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.hard;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.slot;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.soft;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.studied;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.topic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -59,7 +61,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("the plan satisfies all eight invariants RestSinapseCore.validated enforces")
         void satisfiesTheEightThePlatformChecks() {
-            PlanRequest request = BaselineRequests.builder().build();
+            PlanRequest request = PlanRequests.builder().build();
 
             PlanInvariantAssertions.assertPlatformChecks(request, scheduler.schedule(request));
         }
@@ -67,7 +69,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("and the four the platform does not check, which nobody else would catch")
         void satisfiesTheFourThePlatformDoesNotCheck() {
-            PlanRequest request = BaselineRequests.builder().build();
+            PlanRequest request = PlanRequests.builder().build();
 
             PlanInvariantAssertions.assertWhatThePlatformDoesNotCheck(request,
                     scheduler.schedule(request));
@@ -76,7 +78,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("sequenceIndex is contiguous from zero, not merely unique")
         void sequenceIndexIsContiguous() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withHistory(List.of(studied(TOPIC_1, "2026-08-01T10:00:00Z",
                             RecallRating.GOOD, RecallRating.AGAIN)))
                     .build();
@@ -92,7 +94,7 @@ class GreedyBaselineSchedulerTest {
         void dependentsNeverPrecedeTheirHardPrerequisites() {
             // TOPIC_4 is position 2 of the second subject and would otherwise be scheduled last;
             // the chain forces it first, so an ordering that ignored HARD edges would be visible.
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withPrerequisites(List.of(hard(TOPIC_4, TOPIC_3), hard(TOPIC_3, TOPIC_2),
                             hard(TOPIC_2, TOPIC_1)))
                     .withAvailability(List.of(slot("2026-09-01T06:00:00Z", "2026-09-01T18:00:00Z")))
@@ -114,7 +116,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("the reference request produces the schedule a reader can work out by hand")
         void referenceRequestProducesTheExpectedSchedule() {
-            PlanRequest request = BaselineRequests.builder().build();
+            PlanRequest request = PlanRequests.builder().build();
 
             PlanResponse response = scheduler.schedule(request);
 
@@ -137,7 +139,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("the higher goal priority wins outright, whatever the deadlines say")
         void higherPriorityWinsOutright() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                             topic(TOPIC_3, SUBJECT_SECOND, 1, 30)))
                     .withGoals(List.of(goal(SUBJECT_FIRST, "2026-09-02", 1),
@@ -153,7 +155,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("the nearer target date breaks a tie inside one priority level")
         void nearerDeadlineBreaksAPriorityTie() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                             topic(TOPIC_3, SUBJECT_SECOND, 1, 30)))
                     .withGoals(List.of(goal(SUBJECT_FIRST, "2026-09-25", 3),
@@ -168,7 +170,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("a subject with no target date sorts after one that declared it")
         void aMissingDeadlineSortsLast() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                             topic(TOPIC_3, SUBJECT_SECOND, 1, 30)))
                     .withGoals(List.of(goal(SUBJECT_FIRST, null, 3),
@@ -183,7 +185,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("a topic whose subject has no goal at all sorts below every goal")
         void aTopicWithoutAGoalSortsLast() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                             topic(TOPIC_3, SUBJECT_SECOND, 1, 30)))
                     .withGoals(List.of(goal(SUBJECT_SECOND, "2026-09-27", 1)))
@@ -198,7 +200,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("curricular position breaks a tie the goals leave")
         void positionBreaksAGoalTie() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_2, SUBJECT_FIRST, 2, 30),
                             topic(TOPIC_1, SUBJECT_FIRST, 1, 30)))
                     .withPrerequisites(List.of())
@@ -215,7 +217,7 @@ class GreedyBaselineSchedulerTest {
             // Same priority, same date, same position: only the identifier is left. The topics are
             // handed over in the opposite order, so a result of [TOPIC_1, TOPIC_3] can only come from
             // comparing identifiers, never from iteration order.
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_3, SUBJECT_SECOND, 1, 30),
                             topic(TOPIC_1, SUBJECT_FIRST, 1, 30)))
                     .withGoals(List.of(goal(SUBJECT_FIRST, "2026-09-20", 4),
@@ -230,7 +232,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("SOFT edges do not constrain the order — they are a preference, not a constraint")
         void softEdgesDoNotConstrainTheOrder() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 2, 30),
                             topic(TOPIC_2, SUBJECT_FIRST, 1, 30)))
                     .withPrerequisites(List.of(soft(TOPIC_1, TOPIC_2)))
@@ -244,7 +246,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("a HARD edge whose prerequisite was not sent cannot block the dependent topic")
         void edgesPointingOutsideTheTopicsAreIgnored() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30)))
                     .withPrerequisites(List.of(hard(TOPIC_OUTSIDE, TOPIC_1)))
                     .build();
@@ -257,7 +259,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("a HARD edge whose dependent was not sent constrains nothing either")
         void edgesWhoseDependentIsOutsideTheTopicsAreIgnored() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30)))
                     .withPrerequisites(List.of(hard(TOPIC_1, TOPIC_OUTSIDE)))
                     .build();
@@ -270,7 +272,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("an edge missing an endpoint or a strength carries no constraint")
         void malformedEdgesAreIgnored() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30)))
                     .withPrerequisites(List.of(
                             new PlanRequest.PrerequisiteEdge(null, TOPIC_1, EdgeStrength.HARD,
@@ -293,7 +295,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("a topic with two hard prerequisites waits for both, not just the first")
         void waitsForEveryHardPrerequisite() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                             topic(TOPIC_2, SUBJECT_FIRST, 2, 30),
                             topic(TOPIC_3, SUBJECT_FIRST, 3, 30)))
@@ -310,7 +312,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("a HARD edge sent twice constrains once")
         void duplicateEdgeConstrainsOnce() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 2, 30),
                             topic(TOPIC_2, SUBJECT_FIRST, 1, 30)))
                     .withPrerequisites(List.of(hard(TOPIC_1, TOPIC_2), hard(TOPIC_1, TOPIC_2)))
@@ -332,9 +334,9 @@ class GreedyBaselineSchedulerTest {
             List<PlanRequest.Topic> topics = List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                     topic(TOPIC_3, SUBJECT_SECOND, 1, 30));
 
-            PlanResponse first = scheduler.schedule(BaselineRequests.builder()
+            PlanResponse first = scheduler.schedule(PlanRequests.builder()
                     .withTopics(topics).withGoals(ascending).withPrerequisites(List.of()).build());
-            PlanResponse second = scheduler.schedule(BaselineRequests.builder()
+            PlanResponse second = scheduler.schedule(PlanRequests.builder()
                     .withTopics(topics).withGoals(descending).withPrerequisites(List.of()).build());
 
             assertThat(topicsInOrder(first))
@@ -353,7 +355,7 @@ class GreedyBaselineSchedulerTest {
         private static final String STALE = "2026-08-01T10:00:00Z";
 
         private PlanRequest oneTopicWith(List<PlanRequest.TopicHistory> history) {
-            return BaselineRequests.builder()
+            return PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30)))
                     .withPrerequisites(List.of())
                     .withAvailability(List.of(slot("2026-09-01T19:00:00Z", "2026-09-01T21:00:00Z")))
@@ -473,7 +475,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("windows are clipped to the horizon, which is read in UTC")
         void windowsAreClippedToTheHorizon() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withHorizon(new PlanRequest.Horizon(LocalDate.parse("2026-09-01"),
                             LocalDate.parse("2026-09-01")))
                     .withAvailability(List.of(
@@ -499,7 +501,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("overlapping windows produce no overlapping sessions")
         void overlappingWindowsProduceNoOverlappingSessions() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withAvailability(List.of(
                             slot("2026-09-01T20:00:00Z", "2026-09-01T22:00:00Z"),
                             slot("2026-09-01T19:00:00Z", "2026-09-01T21:00:00Z")))
@@ -523,7 +525,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("a block is never split across two windows, even adjacent ones")
         void aBlockIsNeverSplitAcrossWindows() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withAvailability(List.of(
                             slot("2026-09-01T19:00:00Z", "2026-09-01T19:40:00Z"),
                             slot("2026-09-01T19:40:00Z", "2026-09-01T20:40:00Z")))
@@ -540,7 +542,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("not enough availability produces a declared partial plan, a prefix of the order")
         void notEnoughAvailabilityProducesADeclaredPartialPlan() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withAvailability(List.of(slot("2026-09-01T19:00:00Z", "2026-09-01T20:30:00Z")))
                     .build();
 
@@ -561,7 +563,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("a topic whose revision does not fit is dropped whole, study block included")
         void aTopicIsPlacedWholeOrNotAtAll() {
-            PlanRequest request = BaselineRequests.builder()
+            PlanRequest request = PlanRequests.builder()
                     .withAvailability(List.of(slot("2026-09-01T19:00:00Z", "2026-09-01T20:00:00Z")))
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                             topic(TOPIC_2, SUBJECT_FIRST, 2, 30)))
@@ -586,7 +588,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("fitness names only the terms this scheduler computes, plus the strategy")
         void fitnessNamesOnlyWhatItComputes() {
-            PlanResponse response = scheduler.schedule(BaselineRequests.builder().build());
+            PlanResponse response = scheduler.schedule(PlanRequests.builder().build());
 
             assertThat(response.fitness())
                     .containsOnlyKeys("strategy", "topics-total", "topics-scheduled",
@@ -604,7 +606,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("none of the genetic run's fitness terms are reported, because none are computed")
         void doesNotReportTermsItNeverComputed() {
-            PlanResponse response = scheduler.schedule(BaselineRequests.builder().build());
+            PlanResponse response = scheduler.schedule(PlanRequests.builder().build());
 
             assertThat(response.fitness())
                     .as("the reference document's terms belong to an evolutionary run, not to this one")
@@ -615,7 +617,7 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("the seed is echoed exactly and never consumed")
         void theSeedIsEchoedExactly() {
-            PlanRequest request = BaselineRequests.builder().withSeed(Long.MIN_VALUE).build();
+            PlanRequest request = PlanRequests.builder().withSeed(Long.MIN_VALUE).build();
 
             assertThat(scheduler.schedule(request).metadata().randomSeed())
                     .isEqualTo(Long.MIN_VALUE);
@@ -625,7 +627,7 @@ class GreedyBaselineSchedulerTest {
         @DisplayName("generations and elapsedMillis are zero, because neither happened")
         void generationsAndElapsedAreZero() {
             PlanResponse.ExecutionMetadata metadata =
-                    scheduler.schedule(BaselineRequests.builder().build()).metadata();
+                    scheduler.schedule(PlanRequests.builder().build()).metadata();
 
             assertThat(metadata.coreVersion()).isEqualTo(CORE_VERSION);
             assertThat(metadata.generations())
@@ -639,8 +641,8 @@ class GreedyBaselineSchedulerTest {
         @Test
         @DisplayName("an effortTier outside the closed set is accepted and changes nothing")
         void anUnknownEffortTierChangesNothing() {
-            PlanRequest known = BaselineRequests.builder().build();
-            PlanRequest unknown = BaselineRequests.builder()
+            PlanRequest known = PlanRequests.builder().build();
+            PlanRequest unknown = PlanRequests.builder()
                     .withTopics(known.topics().stream()
                             .map(topic -> new PlanRequest.Topic(topic.id(), topic.subjectId(),
                                     topic.position(), "GALACTIC", topic.estimatedMinutes()))

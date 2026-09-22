@@ -29,7 +29,7 @@ public class MethodologyMutation implements TacticalMutationStrategy {
 
                 // Do not mutate into Spaced Repetition randomly, that is controlled by the RetentionEngine
                 if (newMethod != StudyMethodology.SPACED_REPETITION_REVIEW) {
-                    newSchedule.put(entry.getKey(), new TacticalStudyBlock(block.subject(),
+                    newSchedule.put(entry.getKey(), new TacticalStudyBlock(block.item(),
                             newMethod, block.durationMinutes()));
                 }
             }

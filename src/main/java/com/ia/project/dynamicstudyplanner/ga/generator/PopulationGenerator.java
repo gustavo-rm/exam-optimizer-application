@@ -1,6 +1,5 @@
 package com.ia.project.dynamicstudyplanner.ga.generator;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Population;
 
@@ -18,5 +17,5 @@ public interface PopulationGenerator {
      * @param context        The evolution context (constraints and importance scores).
      * @return The initial calculated Population.
      */
-    Population generate(Exam exam, int totalDays, int populationSize, EvolutionContext context);
+    Population generate(int totalDays, int populationSize, EvolutionContext context);
 }

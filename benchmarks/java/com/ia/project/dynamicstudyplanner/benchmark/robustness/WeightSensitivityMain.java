@@ -7,6 +7,7 @@ import com.ia.project.dynamicstudyplanner.benchmark.strategy.ProductionGeneticAl
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.exam.SubjectPlanningItemMapper;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
@@ -189,9 +190,11 @@ public final class WeightSensitivityMain {
         Map<Subject, Integer> minimumDays = new BaselineCalculator(importanceCalculator)
                 .calculateMinimumDays(instance.exam(), instance.profile());
 
+        // Mesma travessia de fronteira que EvolutionContextAssembler faz na producao.
         return EvolutionContext.builder()
-                .importanceScores(importance)
-                .minimumDaysPerSubject(minimumDays)
+                .importanceScores(SubjectPlanningItemMapper.rekey(importance))
+                .items(SubjectPlanningItemMapper.toItems(instance.exam().getAllSubjects()))
+                .minimumDaysPerItem(SubjectPlanningItemMapper.rekey(minimumDays))
                 .studentState(instance.profile().getState())
                 .fitnessEvaluator(evaluator)
                 .retentionProfile(new RetentionProfile(Map.of()))

@@ -1,6 +1,6 @@
 package com.ia.project.dynamicstudyplanner.service.calculation.retention;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.retention.SubjectRetentionState;
 import org.springframework.stereotype.Service;
@@ -49,7 +49,7 @@ public class HybridRetentionEngine implements RetentionAlgorithm {
     }
 
     @Override
-    public boolean isReviewMandatory(Subject subject, SubjectRetentionState state, LocalDate targetDate) {
+    public boolean isReviewMandatory(PlanningItem item, SubjectRetentionState state, LocalDate targetDate) {
         if (state == null) {
             return true; // Never studied, must be studied/reviewed.
         }

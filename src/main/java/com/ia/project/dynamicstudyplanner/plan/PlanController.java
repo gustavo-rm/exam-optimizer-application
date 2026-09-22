@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.api.exception.ProblemDetails;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
@@ -50,19 +50,19 @@ import org.springframework.web.bind.annotation.RestController;
  * no psychological state reaches an error body or a log line, which is this repository's standing rule.
  */
 @RestController
-@Profile(BaselineCore.PROFILE)
+@Profile(PlanProtocol.PROFILE)
 @Hidden
-public class BaselinePlanController {
+public class PlanController {
 
-    private static final Logger log = LoggerFactory.getLogger(BaselinePlanController.class);
+    private static final Logger log = LoggerFactory.getLogger(PlanController.class);
 
     /** RFC 7807 extension naming what a refusal tripped over. */
     private static final String OFFENDING_PROPERTY = "offending";
 
-    private final GreedyBaselineScheduler scheduler;
+    private final PlanEngineSelector engines;
 
-    public BaselinePlanController(GreedyBaselineScheduler scheduler) {
-        this.scheduler = scheduler;
+    public PlanController(PlanEngineSelector engines) {
+        this.engines = engines;
     }
 
     /**
@@ -71,11 +71,11 @@ public class BaselinePlanController {
      * @param request the snapshot the platform assembled
      * @return the plan, in the shape {@code docs/CORE_CONTRACT_SURVEY.md} §2.2 describes
      */
-    @PostMapping(path = BaselineCore.PLANS_PATH,
+    @PostMapping(path = PlanProtocol.PLANS_PATH,
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public PlanResponse plan(@RequestBody PlanRequest request) {
-        return scheduler.schedule(request);
+        return engines.plan(request);
     }
 
     /**
@@ -87,7 +87,7 @@ public class BaselinePlanController {
     public ResponseEntity<ProblemDetail> onRejected(PlanRejectedException exception,
             HttpServletRequest request) {
 
-        log.warn("Baseline plan refused on path {}: {} {}", request.getRequestURI(),
+        log.warn("Plan refused on path {}: {} {}", request.getRequestURI(),
                 exception.reason(), exception.offending());
 
         ProblemDetail problem = ProblemDetails.of(HttpStatus.UNPROCESSABLE_ENTITY,
@@ -106,12 +106,12 @@ public class BaselinePlanController {
     public ResponseEntity<ProblemDetail> onInvariantViolation(
             PlanInvariantViolationException exception, HttpServletRequest request) {
 
-        log.error("Baseline plan broke an output invariant on path {}: {}",
+        log.error("Plan broke an output invariant on path {}: {}",
                 request.getRequestURI(), exception.getMessage());
 
         return ResponseEntity.internalServerError().body(ProblemDetails.of(
-                HttpStatus.INTERNAL_SERVER_ERROR, "baseline-invariant-violation",
-                "The scheduler produced a plan that violates its own output invariants and refused "
+                HttpStatus.INTERNAL_SERVER_ERROR, "plan-invariant-violation",
+                "The engine produced a plan that violates its own output invariants and refused "
                         + "to return it.", request));
     }
 }

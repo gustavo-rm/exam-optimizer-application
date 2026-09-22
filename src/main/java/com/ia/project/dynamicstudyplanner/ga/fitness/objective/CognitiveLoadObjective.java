@@ -1,7 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness.objective;
 
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItemIndex;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 import org.springframework.stereotype.Component;
@@ -22,11 +22,12 @@ import org.springframework.stereotype.Component;
  * <h2>What it models</h2>
  *
  * Cognitive load theory holds that working memory has a hard capacity limit, and that instruction
- * exceeding it produces no learning regardless of how much time is spent. {@code Subject.cognitiveLoad}
- * is the intrinsic-load proxy the API already collects (1-5), and {@code CognitiveLoadCalculator}
- * turns the student's availability and psychological state into a sustainable daily budget. This
- * objective compares the two: a plan weighted towards high-load material implies harder average
- * days, and is penalised in proportion to how far past the budget it lands.
+ * exceeding it produces no learning regardless of how much time is spent.
+ * {@code PlanningItem.difficultyBand} is the intrinsic-load proxy the API already collects (1-5),
+ * and {@code CognitiveLoadCalculator} turns the student's availability and psychological state
+ * into a sustainable daily budget. This objective compares the two: a plan weighted towards
+ * high-load material implies harder average days, and is penalised in proportion to how far past
+ * the budget it lands.
  *
  * <h2>Why the student's state enters here rather than as a separate penalty</h2>
  *
@@ -40,7 +41,7 @@ import org.springframework.stereotype.Component;
  * <h2>Honest limits</h2>
  *
  * Sweller's construct is about load within a single learning episode, and this term can only speak
- * about the <em>expected</em> daily load implied by the mix of subjects, because the macro
+ * about the <em>expected</em> daily load implied by the mix of planning items, because the macro
  * chromosome has no calendar (docs/revisao-ag/01-auditoria-fitness.md §3.3). A plan can satisfy this
  * objective and still produce individual overloaded days. Enforcing a real per-day cap needs a
  * time-indexed encoding; until then the tactical layer's
@@ -68,10 +69,10 @@ public class CognitiveLoadObjective implements FitnessObjective {
         }
 
         // Percurso por posicao (pendencia P18): sem entrada de mapa criada por gene.
-        SubjectIndex ordem = context.geneVectors().index();
+        PlanningItemIndex ordem = context.geneVectors().index();
         double weightedLoad = 0.0;
         for (int i = 0; i < ordem.size(); i++) {
-            weightedLoad += plan.daysAt(ordem, i) * (double) ordem.subject(i).cognitiveLoad();
+            weightedLoad += plan.daysAt(ordem, i) * (double) ordem.item(i).difficultyBand();
         }
 
         double expectedDailyLoad = context.hoursPerStudyDay() * weightedLoad / totalDays;

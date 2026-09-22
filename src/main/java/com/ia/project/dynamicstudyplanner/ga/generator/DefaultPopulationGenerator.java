@@ -1,6 +1,5 @@
 package com.ia.project.dynamicstudyplanner.ga.generator;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import com.ia.project.dynamicstudyplanner.ga.Population;
@@ -24,14 +23,13 @@ public class DefaultPopulationGenerator implements PopulationGenerator {
     }
 
     @Override
-    public Population generate(Exam exam, int totalDays, int populationSize, EvolutionContext context) {
+    public Population generate(int totalDays, int populationSize, EvolutionContext context) {
         Population population = new Population(populationSize);
-        var allSubjects = exam.getAllSubjects();
 
         for (int i = 0; i < populationSize; i++) {
             population.addIndividual(new Individual(planFactory.createRandomPlan(
-                    context.geneVectors().index(), allSubjects,
-                    totalDays, context.minimumDaysPerSubject())));
+                    context.geneVectors().index(), context.geneVectors().index().items(),
+                    totalDays, context.minimumDaysPerItem())));
         }
 
         population.calculateFitness(context);

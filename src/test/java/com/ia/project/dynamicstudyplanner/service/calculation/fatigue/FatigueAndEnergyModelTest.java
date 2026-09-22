@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.service.calculation.fatigue;
 
 import com.ia.project.dynamicstudyplanner.domain.Chronotype;
 import com.ia.project.dynamicstudyplanner.domain.StudentState;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
@@ -60,7 +60,7 @@ class FatigueAndEnergyModelTest {
 
     private final FatigueAndEnergyModel modelo = new FatigueAndEnergyModel();
 
-    private static final Subject DISCIPLINA = new Subject("Portugues", 10, 3);
+    private static final PlanningItem DISCIPLINA = new PlanningItem("Portugues", "Portugues", 3);
     private static final LocalDate DIA = LocalDate.of(2026, 3, 2);
 
     private static StudentState estadoComFadiga(double fadiga) {

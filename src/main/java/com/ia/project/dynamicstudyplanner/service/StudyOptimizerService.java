@@ -153,7 +153,7 @@ public class StudyOptimizerService {
             EvolutionContext context = contextAssembler.assemble(exam, profile);
             capturado[0] = context;
             GeneticAlgorithm ga = gaFactory.create();
-            Population inicial = populationGenerator.generate(exam, totalDays, populationSize, context);
+            Population inicial = populationGenerator.generate(totalDays, populationSize, context);
             return runEvolution(inicial, ga, numGenerations, context).getFittest();
         });
 

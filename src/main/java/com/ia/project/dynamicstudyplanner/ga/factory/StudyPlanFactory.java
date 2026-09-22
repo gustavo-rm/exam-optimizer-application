@@ -1,8 +1,8 @@
 package com.ia.project.dynamicstudyplanner.ga.factory;
 
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.SubjectIndex;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItemIndex;
 import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
 
 import java.util.List;
@@ -35,7 +35,7 @@ public final class StudyPlanFactory {
      *              deriva uma da lista de disciplinas.
      * @param subjects The list of all subjects to be included in the plan.
      * @param totalDays The total number of days to be allocated in the plan.
-     * @param minimumDaysPerSubject A map containing the calculated minimum days for each subject.
+     * @param minimumDaysPerItem A map containing the calculated minimum days for each subject.
      * @return A new, randomly generated {@code StudyPlan}.
      * @throws DomainException          se o edital não tiver disciplinas, ou se o piso de dias
      *                                  mínimos exceder o orçamento disponível — situações em que a
@@ -45,19 +45,19 @@ public final class StudyPlanFactory {
      *                                  chama e não situação de negócio
      */
     public StudyPlan createRandomPlan(
-            SubjectIndex index,
-            List<Subject> subjects,
+            PlanningItemIndex index,
+            List<PlanningItem> items,
             int totalDays,
-            Map<Subject, Integer> minimumDaysPerSubject
+            Map<PlanningItem, Integer> minimumDaysPerItem
     ) {
         // Guarded explicitly: without this the random distribution below reaches
         // Random.nextInt(0) and surfaces the JDK's "bound must be positive", which tells the
         // caller nothing about what is actually wrong with their exam.
-        if (subjects == null || subjects.isEmpty()) {
+        if (items == null || items.isEmpty()) {
             // Regra de negocio, nao argumento malformado: DomainException para que o cliente receba
             // 422 e nao 400. Ver ADR-0005.
             throw new DomainException(
-                    "Cannot build a study plan: the exam has no subjects."
+                    "Cannot build a study plan: there are no planning items."
             );
         }
 
@@ -70,7 +70,7 @@ public final class StudyPlanFactory {
             );
         }
 
-        int totalMinimumDays = minimumDaysPerSubject.values().stream()
+        int totalMinimumDays = minimumDaysPerItem.values().stream()
                 .mapToInt(Integer::intValue)
                 .sum();
 
@@ -85,9 +85,9 @@ public final class StudyPlanFactory {
         }
 
         // Todos os individuos da populacao compartilham esta ordem de genes (pendencia P18): e o
-        // que permite recombinar dois planos posicao a posicao, sem consultar disciplina nenhuma.
-        SubjectIndex ordem = index != null ? index : SubjectIndex.of(subjects);
-        int[] dias = ordem.projectInts(minimumDaysPerSubject, 1);
+        // que permite recombinar dois planos posicao a posicao, sem consultar item nenhum.
+        PlanningItemIndex ordem = index != null ? index : PlanningItemIndex.of(items);
+        int[] dias = ordem.projectInts(minimumDaysPerItem, 1);
 
         int remainingDays = totalDays - totalMinimumDays;
         for (int i = 0; i < remainingDays; i++) {

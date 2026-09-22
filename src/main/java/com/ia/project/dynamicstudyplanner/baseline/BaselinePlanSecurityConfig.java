@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -80,7 +81,7 @@ public class BaselinePlanSecurityConfig {
     @Order(BEFORE_APPLICATION_CHAIN)
     public SecurityFilterChain baselinePlanSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-                .securityMatcher(BaselineCore.PLANS_PATH)
+                .securityMatcher(PlanProtocol.PLANS_PATH)
                 // Stateless protocol endpoint called by a server, never by a browser form — the same
                 // reasoning SecurityConfig applies to /api/v1/**.
                 .csrf(AbstractHttpConfigurer::disable)
