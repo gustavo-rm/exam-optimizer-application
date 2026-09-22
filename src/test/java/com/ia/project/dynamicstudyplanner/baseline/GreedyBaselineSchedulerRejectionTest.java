@@ -1,5 +1,7 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
+import com.ia.project.dynamicstudyplanner.plan.PlanRejectedException;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -10,14 +12,14 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.SUBJECT_FIRST;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_1;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_2;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_3;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_4;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.hard;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.slot;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.topic;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.SUBJECT_FIRST;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_1;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_2;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_3;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_4;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.hard;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.slot;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.topic;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -52,7 +54,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @DisplayName("an absent horizon denotes no stretch of calendar")
         void absentHorizon() {
             PlanRejectedException refusal =
-                    refusalOf(BaselineRequests.builder().withHorizon(null).build());
+                    refusalOf(PlanRequests.builder().withHorizon(null).build());
 
             assertThat(refusal.reason()).isEqualTo("unusable-horizon");
             assertThat(refusal.offending()).containsExactly("horizon");
@@ -61,7 +63,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a half-declared horizon is refused too")
         void halfDeclaredHorizon() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withHorizon(new PlanRequest.Horizon(LocalDate.parse("2026-09-01"), null))
                     .build());
 
@@ -71,7 +73,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a horizon with no start date is refused on the same rule")
         void horizonWithoutAStart() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withHorizon(new PlanRequest.Horizon(null, LocalDate.parse("2026-09-28")))
                     .build());
 
@@ -81,7 +83,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a horizon that ends before it starts is named with both dates")
         void invertedHorizon() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withHorizon(new PlanRequest.Horizon(LocalDate.parse("2026-09-28"),
                             LocalDate.parse("2026-09-01")))
                     .build());
@@ -98,7 +100,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a request with no topics has nothing to plan")
         void noTopics() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withTopics(List.of()).withPrerequisites(List.of()).build());
 
             assertThat(refusal.reason()).isEqualTo("no-topics");
@@ -107,7 +109,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a topic without an identifier cannot be scheduled or referred to")
         void unidentifiedTopic() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                             topic(null, SUBJECT_FIRST, 2, 30)))
                     .withPrerequisites(List.of()).build());
@@ -119,7 +121,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("the same topic sent twice is refused rather than silently de-duplicated")
         void duplicateTopic() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 30),
                             topic(TOPIC_1, SUBJECT_FIRST, 2, 90)))
                     .withPrerequisites(List.of()).build());
@@ -131,7 +133,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a topic claiming no minutes would break the positive-duration invariant")
         void nonPositiveEstimate() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withTopics(List.of(topic(TOPIC_1, SUBJECT_FIRST, 1, 0),
                             topic(TOPIC_2, SUBJECT_FIRST, 2, -5),
                             topic(TOPIC_3, SUBJECT_FIRST, 3, 30)))
@@ -152,7 +154,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @DisplayName("a request with no windows has nowhere to put a session")
         void noAvailability() {
             PlanRejectedException refusal =
-                    refusalOf(BaselineRequests.builder().withAvailability(List.of()).build());
+                    refusalOf(PlanRequests.builder().withAvailability(List.of()).build());
 
             assertThat(refusal.reason()).isEqualTo("no-availability");
         }
@@ -160,7 +162,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a window that closes before it opens is not a window")
         void invertedWindow() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withAvailability(List.of(
                             slot("2026-09-01T19:00:00Z", "2026-09-01T21:00:00Z"),
                             slot("2026-09-03T21:00:00Z", "2026-09-03T19:00:00Z")))
@@ -173,7 +175,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a window with no opening instant is refused on the same rule")
         void windowWithoutAnOpening() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withAvailability(List.of(new PlanRequest.AvailabilitySlot(
                             null, Instant.parse("2026-09-01T21:00:00Z"))))
                     .build());
@@ -184,7 +186,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("an empty window is refused on the same rule")
         void emptyWindow() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withAvailability(List.of(
                             slot("2026-09-01T19:00:00Z", "2026-09-01T19:00:00Z")))
                     .build());
@@ -195,7 +197,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a window missing one of its instants is refused on the same rule")
         void halfDeclaredWindow() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withAvailability(List.of(new PlanRequest.AvailabilitySlot(
                             Instant.parse("2026-09-01T19:00:00Z"), null)))
                     .build());
@@ -211,7 +213,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a two-topic cycle is refused with the topics of the cycle named")
         void twoTopicCycle() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withPrerequisites(List.of(hard(TOPIC_1, TOPIC_2), hard(TOPIC_2, TOPIC_1)))
                     .build());
 
@@ -227,7 +229,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("a topic that is its own prerequisite is a cycle of one")
         void selfCycle() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withPrerequisites(List.of(hard(TOPIC_1, TOPIC_1)))
                     .build());
 
@@ -238,7 +240,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("only the cycle is named, not everything the cycle blocks")
         void namesTheCycleAndNotItsDownstream() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withPrerequisites(List.of(hard(TOPIC_1, TOPIC_2), hard(TOPIC_2, TOPIC_3),
                             hard(TOPIC_3, TOPIC_1), hard(TOPIC_3, TOPIC_4)))
                     .build());
@@ -259,7 +261,7 @@ class GreedyBaselineSchedulerRejectionTest {
             assertThatExceptionOfType(PlanRejectedException.class)
                     .as("a four-topic ring is answered, not spun on")
                     .isThrownBy(() -> scheduler.schedule(
-                            BaselineRequests.builder().withPrerequisites(ring).build()));
+                            PlanRequests.builder().withPrerequisites(ring).build()));
         }
     }
 
@@ -270,7 +272,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @Test
         @DisplayName("windows entirely outside the horizon leave nothing to allocate")
         void windowsOutsideTheHorizon() {
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withHorizon(new PlanRequest.Horizon(LocalDate.parse("2026-09-01"),
                             LocalDate.parse("2026-09-01")))
                     .withAvailability(List.of(
@@ -284,7 +286,7 @@ class GreedyBaselineSchedulerRejectionTest {
         @DisplayName("an empty plan is refused here rather than rejected by the platform")
         void firstTopicTooLongForEveryWindow() {
             UUID onlyTopic = TOPIC_1;
-            PlanRejectedException refusal = refusalOf(BaselineRequests.builder()
+            PlanRejectedException refusal = refusalOf(PlanRequests.builder()
                     .withTopics(List.of(topic(onlyTopic, SUBJECT_FIRST, 1, 600)))
                     .withPrerequisites(List.of())
                     .build());

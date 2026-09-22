@@ -85,9 +85,13 @@ class DynamicStudyPlannerApplicationTests {
 
         assertThat(objetivos)
                 .as("""
-                        A composicao de fitness de producao mudou.
+                        A composicao de fitness do caminho de CONCURSO mudou.
 
-                        Ela e remontada a mao, de proposito, em seis lugares fora da producao:
+                        Este contexto nao tem o profile baseline-core, entao os beans do caminho
+                        SINAPSE nao existem nele e esta assercao ve so os tres objetivos do
+                        concurso. A composicao SINAPSE e travada por SinapseFitnessTermsTest.
+
+                        Esta e remontada a mao, de proposito, em seis lugares fora da producao:
                           benchmarks/.../harness/BenchmarkHarness
                           benchmarks/.../robustness/WeightSensitivityMain
                           benchmarks/.../robustness/WeightTradeoffMain

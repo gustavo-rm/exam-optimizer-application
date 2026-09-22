@@ -1,6 +1,5 @@
 package com.ia.project.dynamicstudyplanner.ga.generator;
 
-import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import com.ia.project.dynamicstudyplanner.ga.Population;
@@ -24,7 +23,7 @@ public class DefaultPopulationGenerator implements PopulationGenerator {
     }
 
     @Override
-    public Population generate(Exam exam, int totalDays, int populationSize, EvolutionContext context) {
+    public Population generate(int totalDays, int populationSize, EvolutionContext context) {
         Population population = new Population(populationSize);
 
         for (int i = 0; i < populationSize; i++) {

@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.EdgeStrength;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
@@ -45,7 +45,7 @@ import java.util.UUID;
  * {@code HashSet}. This graph decides which topic {@link StudyOrder} considers next and which topics
  * a cycle rejection names, so its iteration order is observable in the answer.
  */
-final class HardPrerequisiteGraph {
+public final class HardPrerequisiteGraph {
 
     /**
      * Topic identifiers compared as text, lexicographically.
@@ -54,7 +54,7 @@ final class HardPrerequisiteGraph {
      * {@code ffffffff-…} sorts before {@code 00000000-…} — an order no reader of the identifier would
      * predict. The tie-break this module promises is the lexicographic one, so it compares the text.
      */
-    static final Comparator<UUID> BY_TEXT = Comparator.comparing(UUID::toString);
+    public static final Comparator<UUID> BY_TEXT = Comparator.comparing(UUID::toString);
 
     /** Prerequisite topic to the topics that depend on it. */
     private final Map<UUID, Set<UUID>> dependents;
@@ -75,7 +75,7 @@ final class HardPrerequisiteGraph {
      * @param edges  every edge the platform sent, of either strength
      * @return the applied constraints, in both directions
      */
-    static HardPrerequisiteGraph of(List<PlanRequest.Topic> topics,
+    public static HardPrerequisiteGraph of(List<PlanRequest.Topic> topics,
             List<PlanRequest.PrerequisiteEdge> edges) {
 
         Set<UUID> known = new TreeSet<>(BY_TEXT);
@@ -105,22 +105,22 @@ final class HardPrerequisiteGraph {
     }
 
     /** The topics that require {@code topicId}, in lexicographic order. */
-    Set<UUID> dependentsOf(UUID topicId) {
+    public Set<UUID> dependentsOf(UUID topicId) {
         return dependents.getOrDefault(topicId, Set.of());
     }
 
     /** The topics {@code topicId} requires first, in lexicographic order. */
-    Set<UUID> prerequisitesOf(UUID topicId) {
+    public Set<UUID> prerequisitesOf(UUID topicId) {
         return prerequisites.getOrDefault(topicId, Set.of());
     }
 
     /** How many distinct constraints were applied. Reported in {@code fitness}. */
-    int appliedEdgeCount() {
+    public int appliedEdgeCount() {
         return prerequisites.values().stream().mapToInt(Set::size).sum();
     }
 
     /** Every topic that requires at least one other, in lexicographic order. */
-    Set<UUID> constrainedTopics() {
+    public Set<UUID> constrainedTopics() {
         return Collections.unmodifiableSet(prerequisites.keySet());
     }
 
@@ -138,7 +138,7 @@ final class HardPrerequisiteGraph {
      * @param residue the topics the sort could not place; never empty when this is called
      * @return one cycle, as topic identifiers, prerequisite first
      */
-    List<UUID> cycleWithin(Set<UUID> residue) {
+    public List<UUID> cycleWithin(Set<UUID> residue) {
         UUID current = residue.stream().min(BY_TEXT).orElseThrow();
         List<UUID> walk = new ArrayList<>();
         Set<UUID> visited = new LinkedHashSet<>();

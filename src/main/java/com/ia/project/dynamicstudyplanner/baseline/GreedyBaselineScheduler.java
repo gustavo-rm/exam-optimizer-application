@@ -1,5 +1,13 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanInvariantViolationException;
+import com.ia.project.dynamicstudyplanner.plan.PlanRejectedException;
+import com.ia.project.dynamicstudyplanner.plan.AvailabilityAllocator;
+import com.ia.project.dynamicstudyplanner.plan.PlanOutputInvariants;
+import com.ia.project.dynamicstudyplanner.plan.PlanRequestGuard;
+import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
+import com.ia.project.dynamicstudyplanner.plan.PlacedSession;
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanResponse;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.SessionKind;
@@ -77,7 +85,7 @@ import java.util.stream.IntStream;
  * that one call, so any number of threads may share one instance.
  */
 @Component
-@Profile(BaselineCore.PROFILE)
+@Profile(PlanProtocol.PROFILE)
 public class GreedyBaselineScheduler {
 
     /** No evolutionary run happened. Reported as such rather than left plausible. */

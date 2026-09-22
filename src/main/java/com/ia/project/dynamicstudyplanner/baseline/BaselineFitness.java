@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlacedSession;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.SessionKind;
 
 import java.util.Collections;
@@ -28,10 +29,10 @@ import java.util.Map;
  * {@code Map.copyOf}, whose iteration order is its own. The order of the keys is therefore not part
  * of what this side promises; the set of keys and their values are.
  */
-final class BaselineFitness {
+public final class BaselineFitness {
 
     /** The value of {@code strategy}: which condition of the experiment produced this plan. */
-    static final String STRATEGY = "greedy-baseline";
+    public static final String STRATEGY = "greedy-baseline";
 
     private BaselineFitness() {
     }

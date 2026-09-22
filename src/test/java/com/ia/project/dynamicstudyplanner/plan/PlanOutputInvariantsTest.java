@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanResponse;
@@ -12,9 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_1;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_2;
-import static com.ia.project.dynamicstudyplanner.baseline.BaselineRequests.TOPIC_OUTSIDE;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_1;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_2;
+import static com.ia.project.dynamicstudyplanner.plan.PlanRequests.TOPIC_OUTSIDE;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -35,13 +35,13 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 @DisplayName("Plan output invariants")
 class PlanOutputInvariantsTest {
 
-    private static final PlanRequest REQUEST = BaselineRequests.builder().build();
+    private static final PlanRequest REQUEST = PlanRequests.builder().build();
 
     private static final HardPrerequisiteGraph GRAPH =
             HardPrerequisiteGraph.of(REQUEST.topics(), REQUEST.prerequisites());
 
     private static final PlanResponse.ExecutionMetadata METADATA =
-            new PlanResponse.ExecutionMetadata("2.0.1", BaselineRequests.SEED, 0, 0L);
+            new PlanResponse.ExecutionMetadata("2.0.1", PlanRequests.SEED, 0, 0L);
 
     /** A plan the checker accepts: both topics inside the first window, prerequisite first. */
     private static final List<PlanResponse.ScheduledSession> VALID = List.of(
@@ -108,14 +108,14 @@ class PlanOutputInvariantsTest {
         @DisplayName("4: metadata that does not name a core version")
         void noCoreVersion() {
             assertViolation(withMetadata(new PlanResponse.ExecutionMetadata(
-                    null, BaselineRequests.SEED, 0, 0L)), "must name the core version");
+                    null, PlanRequests.SEED, 0, 0L)), "must name the core version");
         }
 
         @Test
         @DisplayName("4: a blank core version is as useless as none")
         void blankCoreVersion() {
             assertViolation(withMetadata(new PlanResponse.ExecutionMetadata(
-                    "   ", BaselineRequests.SEED, 0, 0L)), "must name the core version");
+                    "   ", PlanRequests.SEED, 0, 0L)), "must name the core version");
         }
 
         @Test

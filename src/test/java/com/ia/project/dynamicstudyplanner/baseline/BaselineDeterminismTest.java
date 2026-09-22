@@ -1,5 +1,7 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.RecallRating;
@@ -37,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@ActiveProfiles(BaselineCore.PROFILE)
+@ActiveProfiles(PlanProtocol.PROFILE)
 @DisplayName("Determinism of the greedy baseline")
 class BaselineDeterminismTest {
 
@@ -52,11 +54,11 @@ class BaselineDeterminismTest {
 
     /** A request that exercises revision sessions and a truncated plan, not just the simple path. */
     private static PlanRequest richRequest() {
-        return BaselineRequests.builder()
+        return PlanRequests.builder()
                 .withHistory(List.of(
-                        BaselineRequests.studied(BaselineRequests.TOPIC_1, "2026-07-01T10:00:00Z",
+                        PlanRequests.studied(PlanRequests.TOPIC_1, "2026-07-01T10:00:00Z",
                                 RecallRating.GOOD, RecallRating.AGAIN),
-                        BaselineRequests.studied(BaselineRequests.TOPIC_3, "2026-06-15T10:00:00Z",
+                        PlanRequests.studied(PlanRequests.TOPIC_3, "2026-06-15T10:00:00Z",
                                 RecallRating.HARD)))
                 .build();
     }

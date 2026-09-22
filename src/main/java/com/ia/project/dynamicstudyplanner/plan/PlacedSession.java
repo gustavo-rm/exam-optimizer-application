@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.SessionKind;
 
@@ -19,5 +19,5 @@ import java.util.UUID;
  * @param start           when the block opens
  * @param durationMinutes how long the block runs
  */
-record PlacedSession(UUID topicId, SessionKind kind, Instant start, int durationMinutes) {
+public record PlacedSession(UUID topicId, SessionKind kind, Instant start, int durationMinutes) {
 }

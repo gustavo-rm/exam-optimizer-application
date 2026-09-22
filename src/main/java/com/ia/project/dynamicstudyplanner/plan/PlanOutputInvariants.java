@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanResponse;
@@ -49,7 +49,7 @@ import java.util.UUID;
  * violation means this module has a defect, so it is answered with {@code 500}, never {@code 422}.
  * The cost is one pass over a list whose length is the number of sessions.
  */
-final class PlanOutputInvariants {
+public final class PlanOutputInvariants {
 
     private PlanOutputInvariants() {
     }
@@ -62,7 +62,7 @@ final class PlanOutputInvariants {
      * @param graph    the applied {@code HARD} constraints
      * @throws PlanInvariantViolationException naming the invariant and where it broke
      */
-    static void check(PlanRequest request, PlanResponse response, HardPrerequisiteGraph graph) {
+    public static void check(PlanRequest request, PlanResponse response, HardPrerequisiteGraph graph) {
         checkEnvelope(request, response);
         checkSequence(response);
         checkSessions(request, response);

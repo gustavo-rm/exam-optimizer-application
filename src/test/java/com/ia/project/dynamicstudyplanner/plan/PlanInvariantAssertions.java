@@ -1,4 +1,4 @@
-package com.ia.project.dynamicstudyplanner.baseline;
+package com.ia.project.dynamicstudyplanner.plan;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.EdgeStrength;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
@@ -33,13 +33,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code validated} does <b>not</b> check — which is exactly why they are asserted here: nothing
  * downstream catches them.
  */
-final class PlanInvariantAssertions {
+public final class PlanInvariantAssertions {
 
     private PlanInvariantAssertions() {
     }
 
     /** Asserts all twelve, plus contiguity and the hard-prerequisite ordering. */
-    static void assertEveryInvariant(PlanRequest request, PlanResponse response) {
+    public static void assertEveryInvariant(PlanRequest request, PlanResponse response) {
         assertPlatformChecks(request, response);
         assertWhatThePlatformDoesNotCheck(request, response);
         assertSequenceIsContiguous(response);
@@ -47,7 +47,7 @@ final class PlanInvariantAssertions {
     }
 
     /** The eight checks of {@code RestSinapseCore.validated}, in its own order. */
-    static void assertPlatformChecks(PlanRequest request, PlanResponse response) {
+    public static void assertPlatformChecks(PlanRequest request, PlanResponse response) {
         assertThat(response)
                 .as("1. RestSinapseCore.java:97 — the body is not empty")
                 .isNotNull();
@@ -87,7 +87,7 @@ final class PlanInvariantAssertions {
     }
 
     /** The four the platform trusts blindly, listed at the end of {@code CORE_CONTRACT_SURVEY} §3. */
-    static void assertWhatThePlatformDoesNotCheck(PlanRequest request, PlanResponse response) {
+    public static void assertWhatThePlatformDoesNotCheck(PlanRequest request, PlanResponse response) {
         Instant horizonFrom = request.horizon().start().atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant horizonUntil = request.horizon().end().plusDays(1)
                 .atStartOfDay(ZoneOffset.UTC).toInstant();
@@ -112,7 +112,7 @@ final class PlanInvariantAssertions {
     }
 
     /** 11. not checked by the platform — two sessions never occupy the same minute. */
-    static void assertNoOverlap(PlanResponse response) {
+    public static void assertNoOverlap(PlanResponse response) {
         List<PlanResponse.ScheduledSession> ordered = inSequenceOrder(response);
         for (int index = 1; index < ordered.size(); index++) {
             PlanResponse.ScheduledSession previous = ordered.get(index - 1);
@@ -129,7 +129,7 @@ final class PlanInvariantAssertions {
      * <p>The platform only requires the indices to be distinct, so {@code [0, 7, 9]} would satisfy it.
      * A gap would let a consumer conclude that sessions had been lost in transit.
      */
-    static void assertSequenceIsContiguous(PlanResponse response) {
+    public static void assertSequenceIsContiguous(PlanResponse response) {
         assertThat(inSequenceOrder(response))
                 .extracting(PlanResponse.ScheduledSession::sequenceIndex)
                 .as("sequenceIndex is contiguous from zero, not merely unique")
@@ -138,7 +138,7 @@ final class PlanInvariantAssertions {
     }
 
     /** No session of a dependent topic before every session of its hard prerequisites. */
-    static void assertHardPrerequisitesComeFirst(PlanRequest request, PlanResponse response) {
+    public static void assertHardPrerequisitesComeFirst(PlanRequest request, PlanResponse response) {
         List<PlanResponse.ScheduledSession> ordered = inSequenceOrder(response);
         Set<UUID> scheduled = ordered.stream()
                 .map(PlanResponse.ScheduledSession::topicId)
@@ -158,13 +158,13 @@ final class PlanInvariantAssertions {
                 });
     }
 
-    static List<PlanResponse.ScheduledSession> inSequenceOrder(PlanResponse response) {
+    public static List<PlanResponse.ScheduledSession> inSequenceOrder(PlanResponse response) {
         return response.sessions().stream()
                 .sorted(Comparator.comparingInt(PlanResponse.ScheduledSession::sequenceIndex))
                 .toList();
     }
 
-    static Instant endOf(PlanResponse.ScheduledSession session) {
+    public static Instant endOf(PlanResponse.ScheduledSession session) {
         return session.scheduledStart().plus(session.durationMinutes(), ChronoUnit.MINUTES);
     }
 

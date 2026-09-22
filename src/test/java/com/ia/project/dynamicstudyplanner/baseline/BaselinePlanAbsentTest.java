@@ -1,5 +1,7 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanController;
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +45,7 @@ class BaselinePlanAbsentTest {
     @Test
     @DisplayName("POST /plans answers 404, because nothing handles it")
     void postToPlansIs404() throws Exception {
-        assertThat(mockMvc.perform(post(BaselineCore.PLANS_PATH)
+        assertThat(mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                                 .contentType(MediaType.APPLICATION_JSON).content("{}"))
                         .andReturn().getResponse().getStatus())
                 .as("not 401: the endpoint is absent, not protected")
@@ -56,7 +58,7 @@ class BaselinePlanAbsentTest {
         assertThat(context.getBeanNamesForType(GreedyBaselineScheduler.class))
                 .as("@Profile(\"baseline-core\") keeps the scheduler out of the default context")
                 .isEmpty();
-        assertThat(context.getBeanNamesForType(BaselinePlanController.class))
+        assertThat(context.getBeanNamesForType(PlanController.class))
                 .as("and the endpoint with it")
                 .isEmpty();
     }

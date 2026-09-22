@@ -1,5 +1,8 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanRejectedException;
+import com.ia.project.dynamicstudyplanner.plan.PlanRequestGuard;
+import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 
 import java.util.ArrayList;

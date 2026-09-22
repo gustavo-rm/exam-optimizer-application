@@ -1,5 +1,7 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.HorizonBounds;
+import com.ia.project.dynamicstudyplanner.plan.PlanRequestGuard;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.RecallRating;
 

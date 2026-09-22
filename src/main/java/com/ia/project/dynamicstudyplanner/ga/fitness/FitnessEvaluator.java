@@ -3,7 +3,6 @@ package com.ia.project.dynamicstudyplanner.ga.fitness;
 import com.ia.project.dynamicstudyplanner.domain.FitnessBreakdown;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
-import org.springframework.stereotype.Component;
 
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.ConstraintValidator;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.FitnessObjective;
@@ -58,7 +57,7 @@ import java.util.List;
  * data to act on for a {@code TacticalStudyPlan} — so today the product is the identity. Keeping the
  * hook costs one multiplication and preserves the tactical layer's contract.
  */
-@Component
+
 public class FitnessEvaluator {
 
     /** Tolerance for the weight-sum assertion, to absorb double representation only. */

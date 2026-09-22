@@ -71,7 +71,7 @@ public final class ConfigurableGaRunner {
 
             long start = System.nanoTime();
             Population population = populationGenerator.generate(
-                    instance.exam(), instance.totalStudyDays(), populationSize, context);
+                    instance.totalStudyDays(), populationSize, context);
             for (int g = 0; g < generations; g++) {
                 population = ga.evolvePopulation(population, context);
             }
