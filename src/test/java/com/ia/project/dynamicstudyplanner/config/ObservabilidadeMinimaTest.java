@@ -7,9 +7,11 @@ import org.springframework.boot.test.autoconfigure.actuate.observability.AutoCon
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.ia.project.dynamicstudyplanner.support.RequestPayloads;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,13 +37,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Uma métrica que ninguém publica é uma pergunta que ninguém consegue responder às 3 da manhã.
  * Este teste é o que impede que uma delas desapareça sem que alguém perceba.
+ *
+ * <h2>O que EOA-4b levou junto, e por quê</h2>
+ *
+ * Quatro instrumentos saíram porque a máquina que eles mediam saiu:
+ *
+ * <ul>
+ *   <li>{@code dynamicstudyplanner_optimization_duration_seconds} — vinha de
+ *       {@code service.OptimizationMetrics}, que instrumentava o serviço síncrono de concurso. O
+ *       caminho que ficou <b>não tem substituto</b>: {@code GeneticPlanEngine} responde
+ *       {@code elapsedMillis: 0} de propósito, e nenhum cronômetro mede a busca. É a única das três
+ *       perguntas acima que ficou sem instrumento, e está registrada como tal;</li>
+ *   <li>{@code dynamicstudyplanner_overload_rejected_total} e
+ *       {@code dynamicstudyplanner_optimizer_queue_saturation} — contavam a fila do executor
+ *       assíncrono, que não existe mais: {@code /plans} é síncrono;</li>
+ *   <li>{@code dynamicstudyplanner_shared_state_replicavel} e os contadores
+ *       {@code dynamicstudyplanner_jobs_*} — mediam o armazenamento compartilhado e o ciclo de vida
+ *       dos trabalhos assíncronos, ambos removidos com o endpoint que os usava.</li>
+ * </ul>
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @AutoConfigureObservability
+@ActiveProfiles(PlanProtocol.PROFILE)
 @TestPropertySource(properties = {
-        "api.rate-limit.capacity=100",
-        "api.rate-limit.refill-tokens=100",
         "spring.security.user.name=metricas",
         "spring.security.user.password=senha-de-teste"
 })
@@ -59,10 +78,10 @@ class ObservabilidadeMinimaTest {
     }
 
     @Test
-    @DisplayName("latencia: por rota e do motor de planejamento")
+    @DisplayName("latencia: por rota")
     void latencia() throws Exception {
         // Uma requisicao real primeiro: http_server_requests so aparece depois que algo passa.
-        mvc.perform(post("/api/v1/optimizer/generate")
+        mvc.perform(post(PlanProtocol.PLANS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(RequestPayloads.requisicaoValida()));
 
@@ -70,35 +89,25 @@ class ObservabilidadeMinimaTest {
 
         assertThat(metricas)
                 .as("latencia por requisicao HTTP, com rotulo de metodo e status")
-                .contains("http_server_requests_active_seconds")
-                .as("tempo interno do motor, separado do tempo de HTTP e de serializacao — e o que "
-                        + "permitiu, na etapa 05b, atribuir 51 % da requisicao ao algoritmo")
-                .contains("dynamicstudyplanner_optimization_duration_seconds");
+                .contains("http_server_requests_active_seconds");
     }
 
     @Test
-    @DisplayName("taxa de erro: recusa por capacidade contada a parte dos erros de verdade")
+    @DisplayName("taxa de erro: contagem por codigo de status")
     void taxaDeErro() throws Exception {
         String metricas = coletar();
 
         assertThat(metricas)
-                .as("sem um contador proprio, sobrecarga e defeito se confundem na taxa de 5xx")
-                .contains("dynamicstudyplanner_overload_rejected_total")
                 .as("contagem por codigo de status")
                 .contains("http_server_requests_seconds_count");
     }
 
     @Test
-    @DisplayName("saturacao: fila, threads do conector e memoria")
+    @DisplayName("saturacao: memoria")
     void saturacao() throws Exception {
         String metricas = coletar();
 
         assertThat(metricas)
-                .as("a razao pronta e o que um alarme usa direto, sem repetir aritmetica no painel")
-                .contains("dynamicstudyplanner_optimizer_queue_saturation")
-                .as("profundidade e capacidade restante da fila")
-                .contains("executor_queued_tasks")
-                .contains("executor_queue_remaining_tasks")
                 .as("memoria")
                 .contains("jvm_memory_used_bytes");
     }
@@ -157,26 +166,4 @@ class ObservabilidadeMinimaTest {
         }
     }
 
-    @Test
-    @DisplayName("replicabilidade: o modo do estado compartilhado e observavel")
-    void replicabilidade() throws Exception {
-        String metricas = coletar();
-
-        // Duas replicas reportando 0 aqui sao o defeito E1 acontecendo. Era invisivel; agora e
-        // uma condicao de alarme.
-        assertThat(metricas).contains("dynamicstudyplanner_shared_state_replicavel");
-    }
-
-    @Test
-    @DisplayName("ciclo de vida dos trabalhos assincronos")
-    void trabalhos() throws Exception {
-        String metricas = coletar();
-
-        assertThat(metricas)
-                .contains("dynamicstudyplanner_jobs_accepted_total")
-                .contains("dynamicstudyplanner_jobs_completed_total")
-                .contains("dynamicstudyplanner_jobs_failed_total")
-                .as("da aceitacao ao fim, incluindo o tempo na fila — o que o cliente sente")
-                .contains("dynamicstudyplanner_jobs_duration_seconds");
-    }
 }

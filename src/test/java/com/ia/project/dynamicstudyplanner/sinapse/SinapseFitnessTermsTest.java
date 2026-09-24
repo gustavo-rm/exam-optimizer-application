@@ -1,7 +1,6 @@
 package com.ia.project.dynamicstudyplanner.sinapse;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanResponse;
-import com.ia.project.dynamicstudyplanner.ga.config.FitnessCompositionConfig;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 import com.ia.project.dynamicstudyplanner.plan.PlanEngines;
 import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
@@ -82,28 +81,4 @@ class SinapseFitnessTermsTest {
                 .containsEntry("path", SinapseFitnessConfig.PATH);
     }
 
-    @Test
-    @DisplayName("a composicao de concurso mantem as duas penalidades")
-    void aComposicaoDeConcursoMantemAsPenalidades() {
-        // A contraprova: se a remocao tivesse sido feita globalmente em vez de por caminho, o
-        // caminho de concurso — que TEM o dado, porque StudentProfileDto o exige — perderia dois
-        // termos sem que nada acusasse.
-        FitnessCompositionConfig config = new FitnessCompositionConfig();
-        assertThat(config.concursoFitnessComposition(
-                new com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective(),
-                new com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjective(),
-                new com.ia.project.dynamicstudyplanner.ga.fitness.objective.CognitiveLoadObjective(),
-                new com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint(),
-                new com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint(
-                        new com.ia.project.dynamicstudyplanner.service.calculation.retention
-                                .HybridRetentionEngine()),
-                new com.ia.project.dynamicstudyplanner.ga.fitness.penalty.DropoutRiskPenalty(
-                        new com.ia.project.dynamicstudyplanner.service.calculation.engagement
-                                .DropoutRiskPredictor()),
-                new com.ia.project.dynamicstudyplanner.ga.fitness.penalty
-                        .FatigueAndSustainabilityPenalty(
-                        new com.ia.project.dynamicstudyplanner.service.calculation.fatigue
-                                .FatigueAndEnergyModel())).penalties())
-                .hasSize(2);
-    }
 }

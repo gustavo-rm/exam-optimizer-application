@@ -2,7 +2,7 @@ package com.ia.project.dynamicstudyplanner.service.calculation.retention;
 
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
-import com.ia.project.dynamicstudyplanner.domain.retention.SubjectRetentionState;
+import com.ia.project.dynamicstudyplanner.domain.retention.ItemRetentionState;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -33,7 +33,7 @@ public class HybridRetentionEngine implements RetentionAlgorithm {
     public static final double MANDATORY_REVIEW_THRESHOLD = Math.exp(-1.0);
 
     @Override
-    public double calculateRetentionProbability(SubjectRetentionState state, LocalDate targetDate) {
+    public double calculateRetentionProbability(ItemRetentionState state, LocalDate targetDate) {
         if (state == null || state.getLastReviewDate() == null) {
             return 0.0; // No prior knowledge recorded
         }
@@ -49,7 +49,7 @@ public class HybridRetentionEngine implements RetentionAlgorithm {
     }
 
     @Override
-    public boolean isReviewMandatory(PlanningItem item, SubjectRetentionState state, LocalDate targetDate) {
+    public boolean isReviewMandatory(PlanningItem item, ItemRetentionState state, LocalDate targetDate) {
         if (state == null) {
             return true; // Never studied, must be studied/reviewed.
         }
@@ -59,7 +59,7 @@ public class HybridRetentionEngine implements RetentionAlgorithm {
     }
 
     @Override
-    public SubjectRetentionState processReview(SubjectRetentionState currentState, LocalDate reviewDate,
+    public ItemRetentionState processReview(ItemRetentionState currentState, LocalDate reviewDate,
             int performanceGrade) {
         // SM-2 Algorithm adaptation
 
@@ -90,6 +90,6 @@ public class HybridRetentionEngine implements RetentionAlgorithm {
             nextEasinessFactor = 1.3; // Hard floor to prevent infinite loops of short intervals
         }
 
-        return new SubjectRetentionState(nextRepetitionCount, nextEasinessFactor, nextIntervalDays, reviewDate);
+        return new ItemRetentionState(nextRepetitionCount, nextEasinessFactor, nextIntervalDays, reviewDate);
     }
 }

@@ -10,16 +10,18 @@
  *
  * <h2>A regra que governa o pacote inteiro</h2>
  *
- * <b>Nada aqui alcança um tipo que exija dado que a plataforma não envia.</b> Sem
- * {@code StudentProfile}, sem {@code StudentState}, sem {@code Exam}, e sem as três calculadoras que
- * os exigem. Não é preferência de estilo: {@code CognitiveLoadCalculator} <i>tolera</i> a ausência —
- * a lacuna média cai para 3,0 e os modificadores de estado são descartados em silêncio — e
- * {@code ImportanceCalculator} e {@code BaselineCalculator} levariam essa mesma lacuna inventada
- * para o peso da maestria, o da retenção e o piso de dias mínimos. Uma constante só reponderaria a
- * função inteira, e cada termo continuaria reportando um número.
+ * <b>Nada aqui alcança um tipo que exija dado que a plataforma não envia.</b> Enquanto o caminho de
+ * concurso existiu, isso significava: sem {@code StudentProfile}, sem {@code StudentState}, sem
+ * {@code Exam}, e sem as três calculadoras que os exigiam. Não era preferência de estilo —
+ * {@code CognitiveLoadCalculator} <i>tolerava</i> a ausência (a lacuna média caía para 3,0 e os
+ * modificadores de estado eram descartados em silêncio), e {@code ImportanceCalculator} e
+ * {@code BaselineCalculator} levariam essa mesma lacuna inventada para o peso da maestria, o da
+ * retenção e o piso de dias mínimos. Uma constante só reponderaria a função inteira, e cada termo
+ * continuaria reportando um número.
  *
- * <p>{@code SinapseAdapterIsolationTest} lê os {@code import} deste pacote e reprova se qualquer um
- * desses tipos aparecer. É a forma forte do critério "nenhum campo é preenchido com constante":
+ * <p>EOA-4b removeu os seis. A regra continua valendo e mudou de forma:
+ * {@code SinapseAdapterIsolationTest} confere que nenhum deles voltou a existir. É a forma forte do
+ * critério "nenhum campo é preenchido com constante":
  * proíbe o alcance, não um valor.
  *
  * <h2>Onde procurar o quê</h2>

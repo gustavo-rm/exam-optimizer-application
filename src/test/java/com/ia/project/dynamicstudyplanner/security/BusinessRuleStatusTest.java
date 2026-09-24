@@ -1,22 +1,22 @@
 package com.ia.project.dynamicstudyplanner.security;
 
+import com.ia.project.dynamicstudyplanner.api.exception.BusinessRuleErrorAdvice;
+import com.ia.project.dynamicstudyplanner.api.exception.RequestErrorAdvice;
+import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
+import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
+import com.ia.project.dynamicstudyplanner.ga.factory.StudyPlanFactory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
 
-import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * O {@code 422} deixou de ser decorativo — achado E3.
@@ -31,90 +31,83 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <h2>A distinção que este teste trava</h2>
  *
  * A RFC 9110 separa as duas situações com precisão: <b>400</b> é "não consegui entender a
- * requisição"; <b>422</b> é "entendi perfeitamente, mas não posso processar". Um aluno que declara
- * um edital de 25 disciplinas e 365 dias de estudo enviou uma requisição impecável — é o edital que
- * exige mais dias do que ele tem. Devolver 400 sugere que ele digitou algo errado; devolver 422 diz
- * a verdade.
+ * requisição"; <b>422</b> é "entendi perfeitamente, mas não posso processar". Quem pede um plano
+ * cujo piso de dias mínimos não cabe no orçamento enviou uma requisição impecável — é a instância
+ * que é insatisfazível. Devolver 400 sugere que ele digitou algo errado; devolver 422 diz a verdade.
  *
- * <p>Só a etapa 03d tornou isso alcançável, reclassificando <b>duas</b> das treze exceções — não
- * todas. As outras onze continuam {@code IllegalArgumentException} de propósito, porque são defeitos
- * de quem chama e não situações em que o aluno possa estar. O critério está no ADR-0005.
+ * <h2>Por que este teste deixou de subir o contexto em EOA-4b</h2>
+ *
+ * Ele postava um edital de 25 disciplinas no endpoint síncrono de concurso e lia o 422
+ * pela porta HTTP. O endpoint saiu, e no caminho que ficou <b>nenhuma requisição chega a produzir
+ * uma {@code DomainException}</b>: {@code GeneticPlanEngine} pisa o orçamento no somatório dos
+ * pisos antes de gerar a população, e {@code PlanRequestGuard} recusa o que sobraria — com um 422
+ * próprio, do controlador, que {@code plan/PlanControllerErrorMappingTest} cobre.
+ *
+ * <p>Fingir um cenário HTTP que não existe seria pior do que não testar: passaria a proteger uma
+ * encenação. O que continua valendo, e é o que este arquivo trava, são as duas metades separadas —
+ * o domínio ainda distingue regra de negócio de argumento malformado, e o <i>advice</i> ainda
+ * traduz essa distinção em 422 contra 400.
  */
-@SpringBootTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = {
-        "api.rate-limit.capacity=100",
-        "api.rate-limit.refill-tokens=100"
-})
 @DisplayName("E3: regra de negocio violada devolve 422")
 class BusinessRuleStatusTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private static final String PATH = "/plans";
 
-    /**
-     * Edital de 25 disciplinas de peso igual. O piso de dias mínimos cresce linearmente com o número
-     * de disciplinas, então passa de 365 — que é o teto que {@code GaConfigDto} aceita. É a situação
-     * medida em {@code GaEdgeCasesTest.minimumDaysFloorGrowsWithSubjectCount}, agora vista pela porta
-     * HTTP.
-     */
-    private String editalImpossivel() {
-        StringBuilder disciplinas = new StringBuilder();
-        StringBuilder lacunas = new StringBuilder();
-        for (int i = 1; i <= 25; i++) {
-            if (i > 1) {
-                disciplinas.append(",");
-                lacunas.append(",");
-            }
-            disciplinas.append("{\"name\":\"Disciplina").append(i)
-                    .append("\",\"questionCount\":10,\"cognitiveLoad\":3}");
-            lacunas.append("\"Disciplina").append(i).append("\":3.0");
-        }
-        return """
-                {"exam":{"name":"Concurso Impossivel","examDate":"%s","generalKnowledgeTotalScore":100.0,
-                  "generalKnowledgeSubjects":[%s],"specificKnowledgeAxes":[]},
-                 "studentProfile":{"name":"Aluno","knowledgeGaps":{%s},"weeklyAvailability":{"MONDAY":4}},
-                 "gaConfig":{"totalStudyDays":365,"numGenerations":10,"populationSize":10}}
-                """.formatted(LocalDate.now().plusDays(400), disciplinas, lacunas);
+    private static MockHttpServletRequest requisicao() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", PATH);
+        request.setRequestURI(PATH);
+        return request;
     }
 
     @Test
-    @DisplayName("piso de dias minimos acima do orcamento devolve 422, nao 400")
-    void pisoAcimaDoOrcamentoDevolve422() throws Exception {
-        MvcResult inicial = mockMvc.perform(post("/api/v1/optimizer/generate")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(editalImpossivel()))
-                .andReturn();
+    @DisplayName("piso de dias minimos acima do orcamento e DomainException, nao IllegalArgument")
+    void pisoAcimaDoOrcamentoEhRegraDeNegocio() {
+        PlanningItem um = new PlanningItem("T1", "T1", 3);
+        PlanningItem dois = new PlanningItem("T2", "T2", 3);
 
-        MvcResult resultado = inicial.getRequest().isAsyncStarted()
-                ? mockMvc.perform(asyncDispatch(inicial)).andReturn()
-                : inicial;
-
-        org.assertj.core.api.Assertions.assertThat(resultado.getResponse().getStatus())
+        assertThatThrownBy(() -> new StudyPlanFactory().createRandomPlan(null,
+                List.of(um, dois), 5, Map.of(um, 10, dois, 10)))
                 .as("""
-                        A requisicao e bem formada: o cliente nao tem nada a corrigir na sintaxe.
-                        O que a impede e uma regra de negocio — o edital exige mais dias do que o
-                        aluno declarou ter. Isso e 422, nao 400 (RFC 9110).""")
-                .isEqualTo(422);
+                        O pedido e bem formado: quem chama nao tem nada a corrigir na sintaxe.
+                        O que o impede e uma regra de negocio — os topicos exigem mais dias do que
+                        o orcamento tem. Isso e 422, nao 400 (RFC 9110).""")
+                .isInstanceOf(DomainException.class)
+                .hasMessageContaining("Total minimum study days required");
+    }
 
-        org.assertj.core.api.Assertions.assertThat(resultado.getResponse().getContentAsString())
-                .as("o corpo segue RFC 7807 e diz qual regra foi violada, com os numeros")
-                .contains("\"status\":422")
-                .contains("Unprocessable Entity")
-                .contains("domain-rule-violation")
+    @Test
+    @DisplayName("o advice traduz DomainException em 422 com corpo RFC 7807")
+    void oAdviceTraduzEm422() {
+        ResponseEntity<ProblemDetail> resposta = new BusinessRuleErrorAdvice()
+                .handleDomainException(
+                        new DomainException("Total minimum study days required (20) exceeds "
+                                + "total available days (5)."),
+                        requisicao());
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+        ProblemDetail corpo = resposta.getBody();
+        assertThat(corpo).isNotNull();
+        assertThat(corpo.getStatus()).isEqualTo(422);
+        assertThat(corpo.getTitle()).isEqualTo("Unprocessable Entity");
+        assertThat(String.valueOf(corpo.getType())).endsWith("domain-rule-violation");
+        assertThat(corpo.getDetail())
+                .as("o detalhe repassa a mensagem do dominio: sem ela o 422 seria indistinguivel "
+                        + "de uma recusa arbitraria")
                 .contains("Total minimum study days required");
     }
 
     @Test
     @DisplayName("o 400 continua sendo 400 para erro de sintaxe — a distincao nao foi perdida")
-    void erroDeSintaxeContinua400() throws Exception {
+    void erroDeSintaxeContinua400() {
         // Contraprova. Reclassificar demais seria tao errado quanto reclassificar de menos: se todo
-        // erro virasse 422, o cliente perderia a informacao de que ha algo a corrigir na requisicao.
-        mockMvc.perform(post("/api/v1/optimizer/generate")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"exam\":null,\"studentProfile\":null,\"gaConfig\":null}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
-                .andExpect(jsonPath("$.status").value(400));
+        // erro virasse 422, o cliente perderia a informacao de que ha algo a corrigir no pedido.
+        ResponseEntity<ProblemDetail> resposta = new RequestErrorAdvice()
+                .handleIllegalArgumentException(
+                        new IllegalArgumentException("Total available days cannot be negative."),
+                        requisicao());
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(resposta.getBody()).isNotNull();
+        assertThat(resposta.getBody().getStatus()).isEqualTo(400);
     }
 }

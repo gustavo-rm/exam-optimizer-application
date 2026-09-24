@@ -1,8 +1,5 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
-import com.ia.project.dynamicstudyplanner.domain.StudentState;
-import com.ia.project.dynamicstudyplanner.domain.Chronotype;
-import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import org.junit.jupiter.api.DisplayName;
@@ -115,15 +112,16 @@ class EvolutionContextBuilderTest {
         @Test
         @DisplayName("omitidos ficam nulos — o mesmo que os chamadores passavam antes")
         void omitidosFicamNulos() {
-            // Preserva exatamente a semantica anterior: o caminho macro passava null nestes cinco,
+            // Preserva exatamente a semantica anterior: o caminho macro passava null nestes tres,
             // e os consumidores guardam contra isso. A refatoracao nao muda comportamento.
+            //
+            // Eram cinco ate EOA-4b. studentState e engagementProfile sairam junto com os dois
+            // termos de fitness que os liam — ver EvolutionContext.Builder.
             EvolutionContext contexto = minimo().build();
 
-            assertThat(contexto.studentState()).isNull();
             assertThat(contexto.fitnessEvaluator()).isNull();
             assertThat(contexto.retentionProfile()).isNull();
             assertThat(contexto.planStartDate()).isNull();
-            assertThat(contexto.engagementProfile()).isNull();
         }
 
         @Test
@@ -131,22 +129,16 @@ class EvolutionContextBuilderTest {
         void informadosChegamIntactos() {
             // A assercao que o formato posicional nao permitia fazer: verificar que cada valor foi
             // parar no campo certo. Com dez parametros posicionais, trocar dois compilava.
-            StudentState estado = new StudentState(3.0, 2.0, 4.0, Chronotype.NIGHT_OWL);
             RetentionProfile retencao = new RetentionProfile(Map.of());
             LocalDate inicio = LocalDate.of(2026, 3, 2);
-            EngagementProfile engajamento = EngagementProfile.baseline();
 
             EvolutionContext contexto = minimo()
-                    .studentState(estado)
                     .retentionProfile(retencao)
                     .planStartDate(inicio)
-                    .engagementProfile(engajamento)
                     .build();
 
-            assertThat(contexto.studentState()).isSameAs(estado);
             assertThat(contexto.retentionProfile()).isSameAs(retencao);
             assertThat(contexto.planStartDate()).isEqualTo(inicio);
-            assertThat(contexto.engagementProfile()).isSameAs(engajamento);
         }
 
         @Test

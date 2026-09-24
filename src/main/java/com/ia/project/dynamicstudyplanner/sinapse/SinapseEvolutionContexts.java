@@ -17,15 +17,16 @@ import java.util.List;
  *
  * <h2>This class is the boundary the whole path is built around</h2>
  *
- * The concurso path assembles its context from an {@code Exam} and a {@code StudentProfile}. This
- * one <b>never constructs either</b>, and never calls {@code ImportanceCalculator},
- * {@code BaselineCalculator} or {@code CognitiveLoadCalculator}. That is not a stylistic preference;
- * it is the rule that keeps a missing field from becoming a quiet constant.
+ * The concurso path assembled its context from an {@code Exam} and a {@code StudentProfile}, by way
+ * of {@code ImportanceCalculator}, {@code BaselineCalculator} and {@code CognitiveLoadCalculator}.
+ * This one <b>never reached for any of them</b>, and EOA-4b removed all six. The rule that kept them
+ * out is what follows, and it is not a stylistic preference: it is what keeps a missing field from
+ * becoming a quiet constant.
  *
  * <p>The reasoning, in the order it has to be read:
  *
  * <ol>
- *   <li>{@code StudentProfile} requires self-assessed knowledge gaps and a psychological state.
+ *   <li>{@code StudentProfile} required self-assessed knowledge gaps and a psychological state.
  *       The platform collects neither.</li>
  *   <li>Those two do not stay on the budget side. The gap reaches
  *       <b>{@code importanceScores}</b> through {@code ImportanceCalculator.applyKnowledgeGapFactor}
@@ -50,9 +51,11 @@ import java.util.List;
  *
  * <h2>What is deliberately not set on the builder</h2>
  *
- * {@code studentState} and {@code engagementProfile} are left null. The two terms that read them are
- * not in this path's composition, so nothing consults them — see {@code FitnessCompositionConfig}.
- * Setting them to a baseline value would have put the inert terms back in business.
+ * Nothing, any more. {@code studentState} and {@code engagementProfile} were left null here while
+ * they existed, because the two terms that read them were not in this path's composition; EOA-4b
+ * removed the two fields and the two terms with the concurso path that filled them. Reintroducing
+ * either would mean setting it from data the platform does not send — see
+ * {@code SinapseFitnessConfig}.
  */
 public final class SinapseEvolutionContexts {
 

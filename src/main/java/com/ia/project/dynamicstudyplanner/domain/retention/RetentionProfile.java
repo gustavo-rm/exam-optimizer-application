@@ -11,24 +11,24 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class RetentionProfile {
 
-    private final Map<PlanningItem, SubjectRetentionState> retentionStates;
+    private final Map<PlanningItem, ItemRetentionState> retentionStates;
 
-    public RetentionProfile(Map<PlanningItem, SubjectRetentionState> initialStates) {
+    public RetentionProfile(Map<PlanningItem, ItemRetentionState> initialStates) {
         this.retentionStates = new ConcurrentHashMap<>();
         if (initialStates != null) {
             this.retentionStates.putAll(initialStates);
         }
     }
 
-    public SubjectRetentionState getState(PlanningItem item) {
+    public ItemRetentionState getState(PlanningItem item) {
         return retentionStates.get(item);
     }
 
-    public void updateState(PlanningItem item, SubjectRetentionState newState) {
+    public void updateState(PlanningItem item, ItemRetentionState newState) {
         this.retentionStates.put(item, newState);
     }
 
-    public Map<PlanningItem, SubjectRetentionState> getAllStates() {
+    public Map<PlanningItem, ItemRetentionState> getAllStates() {
         return Collections.unmodifiableMap(retentionStates);
     }
 }

@@ -39,7 +39,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 @DisplayName("Security posture of /plans")
 class BaselinePlanSecurityPostureTest {
 
-    private static final String OPTIMIZER = "/api/v1/optimizer/generate";
+    /**
+     * A path under the prefix the application chain declares {@code permitAll}.
+     *
+     * <p>Nothing handles it since EOA-4b — the concurso endpoints left with their path
+     * — and that is exactly what makes it usable here: {@code permitAll} on a path with no handler
+     * answers {@code 404}, while the chain's {@code anyRequest().authenticated()} would answer
+     * {@code 401}. The status tells the two apart, which is the property this file is about.
+     */
+    private static final String PERMITTED_PREFIX = "/api/v1/nothing-handles-this";
 
     /**
      * A snapshot that deserialises cleanly and cannot be planned: it carries no topics.
@@ -79,10 +87,11 @@ class BaselinePlanSecurityPostureTest {
             assertThat(statusOf(plans()))
                     .as("/plans reaches the handler and is answered on its merits")
                     .isEqualTo(422);
-            assertThat(statusOf(post(OPTIMIZER).contentType(MediaType.APPLICATION_JSON)
+            assertThat(statusOf(post(PERMITTED_PREFIX).contentType(MediaType.APPLICATION_JSON)
                     .content("{}")))
-                    .as("and so does the existing endpoint — the same posture, not a different one")
-                    .isEqualTo(400);
+                    .as("and /api/v1/** is answered on its merits too — 404 for "
+                            + "\"nothing handles it\", not 401 for \"prove who you are\"")
+                    .isEqualTo(404);
         }
 
         @Test

@@ -1,6 +1,5 @@
 package com.ia.project.dynamicstudyplanner.api.exception;
 
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.ia.project.dynamicstudyplanner.domain.exception.DomainException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -15,12 +14,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.net.URI;
 import java.time.Instant;
 import java.util.Set;
-import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -31,21 +28,26 @@ import static org.mockito.Mockito.when;
  *
  * <h2>Por que estes casos são testados aqui, e não por MockMvc</h2>
  *
- * Os demais códigos do contrato de erro têm teste de ponta a ponta em {@code ApiErrorContractTest},
- * {@code ApiFailureContractTest} e {@code security/ClientErrorStatusTest}. Os desta classe não têm,
- * e o motivo é o mesmo em cada caso: <b>não existe requisição HTTP capaz de provocá-los na
- * configuração atual</b>.
+ * Os demais códigos do contrato de erro têm teste de ponta a ponta em
+ * {@code security/ClientErrorStatusTest} e {@code plan/PlanControllerErrorMappingTest}. Os desta
+ * classe não têm, e o motivo é o mesmo em cada caso: <b>não existe requisição HTTP capaz de
+ * provocá-los na configuração atual</b>.
  *
  * <ul>
  *   <li><b>401 e 403.</b> {@code SecurityConfig} aplica {@code permitAll()} a todo
- *       {@code /api/v1/**} e à Swagger UI. Nenhuma rota sob o contrato público chega a produzir
+ *       {@code /api/v1/**} e à Swagger UI, e {@code BaselinePlanSecurityConfig} faz o mesmo com
+ *       {@code /plans}. Nenhuma rota do contrato chega a produzir
  *       {@code AuthenticationException} ou {@code AccessDeniedException}.</li>
  *   <li><b>Tudo que depende de parâmetro de rota ou de consulta</b> —
  *       {@code ConstraintViolationException}, parâmetro obrigatório ausente e parâmetro de tipo
- *       incompatível. O único endpoint da API recebe apenas corpo, validado por
- *       {@code MethodArgumentNotValidException}; nenhuma requisição chega a produzi-las.</li>
- *   <li><b>{@code AsyncRequestTimeoutException} e o catch-all de {@code Exception}.</b> Dependem de
- *       o contêiner ou um defeito nosso dispararem — não há entrada de cliente que os produza.</li>
+ *       incompatível. O único endpoint do serviço recebe apenas corpo; nenhuma requisição chega a
+ *       produzi-las.</li>
+ *   <li><b>O catch-all de {@code Exception}.</b> Depende de um defeito nosso disparar — não há
+ *       entrada de cliente que o produza.</li>
+ *   <li><b>{@code DomainException}.</b> Saiu do alcance da porta HTTP em EOA-4b, no sentido
+ *       inverso: {@code GeneticPlanEngine} pisa o orçamento no somatório dos pisos antes de gerar a
+ *       população, então a única origem em produção deixou de ser alcançável por requisição. O
+ *       raciocínio está em {@code security/BusinessRuleStatusTest}.</li>
  * </ul>
  *
  * <p>Testar o tratador diretamente é o recorte honesto: garante que o formato RFC 7807 está certo
@@ -54,15 +56,6 @@ import static org.mockito.Mockito.when;
  * {@code docs/qualidade/01b-correcao-testes.md} — a decisão sobre removê-los ou tornar o caminho
  * alcançável é de estrutura e de segurança, não de teste.
  *
- * <h2>O que mudou na etapa 03d</h2>
- *
- * O {@code 422} <b>saiu</b> da lista de inalcançáveis. Até a etapa 03c a única origem de
- * {@code DomainException} em produção era {@code Exam.calculateBaseImportance}, num ramo que a
- * validação {@code @Min(1)} tornava impossível. A reclassificação do achado E3 passou duas
- * verificações de {@code StudyPlanFactory} de {@code IllegalArgumentException} para
- * {@code DomainException}, e {@code security/BusinessRuleStatusTest} prova o caminho de ponta a
- * ponta. O teste de formato continua aqui por proximidade com os demais.
- *
  * <p>Esta classe se chamava {@code GlobalExceptionHandlerTest} e instanciava um único tratador. Com
  * a divisão do achado E7 em três {@code @RestControllerAdvice}, ela passou a instanciar os três —
  * o recorte dela nunca foi "uma classe de produção", e sim "o que o MockMvc não alcança".
@@ -70,12 +63,11 @@ import static org.mockito.Mockito.when;
 @DisplayName("Contrato de erro: os tratadores fora do alcance da porta HTTP")
 class ErrorAdviceContractTest {
 
-    private static final String CAMINHO = "/api/v1/optimizer/generate";
+    private static final String CAMINHO = "/plans";
 
     private final RequestErrorAdvice requisicoes = new RequestErrorAdvice();
     private final BusinessRuleErrorAdvice regrasDeNegocio = new BusinessRuleErrorAdvice();
-    private final InfrastructureErrorAdvice infraestrutura =
-            new InfrastructureErrorAdvice(new SimpleMeterRegistry(), 30);
+    private final InfrastructureErrorAdvice infraestrutura = new InfrastructureErrorAdvice();
 
     private MockHttpServletRequest requisicao() {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", CAMINHO);
@@ -227,26 +219,6 @@ class ErrorAdviceContractTest {
         assertThat(problema.getDetail())
                 .as("a mensagem precisa ser acionavel: diz o que estava errado")
                 .isEqualTo(mensagem);
-    }
-
-    @Test
-    @DisplayName("408: AsyncRequestTimeoutException usa o mesmo tratador do TimeoutException")
-    void asyncRequestTimeoutUsaOMesmoTratador() {
-        // O tratador declara os dois tipos. O TimeoutException tem cobertura de ponta a ponta em
-        // ApiFailureContractTest; o AsyncRequestTimeoutException, disparado pelo container quando o
-        // proprio Servlet estoura o prazo, so e alcancavel aqui.
-        for (Exception excecao : new Exception[]{
-                new TimeoutException("futuro estourou"), new AsyncRequestTimeoutException()}) {
-
-            ResponseEntity<ProblemDetail> resposta =
-                    infraestrutura.handleTimeoutException(excecao, requisicao());
-
-            assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.REQUEST_TIMEOUT);
-            ProblemDetail problema = resposta.getBody();
-            assertThat(problema).isNotNull();
-            verificaFormatoComum(problema, HttpStatus.REQUEST_TIMEOUT, "Request Timeout", "request-timeout");
-            assertThat(problema.getDetail()).isEqualTo("The computation took too long and timed out.");
-        }
     }
 
     @Test

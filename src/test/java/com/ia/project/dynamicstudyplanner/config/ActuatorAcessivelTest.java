@@ -59,12 +59,12 @@ class ActuatorAcessivelTest {
     }
 
     @Test
-    @DisplayName("a metrica de tempo da otimizacao e legivel com credencial")
-    void aMetricaDeTempoEhLegivelComCredencial() throws Exception {
+    @DisplayName("a metrica de memoria da JVM e legivel com credencial")
+    void aMetricaDeMemoriaEhLegivelComCredencial() throws Exception {
         mvc().perform(get("/actuator/prometheus").with(basica()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(
-                        "dynamicstudyplanner_optimization_duration")));
+                        "jvm_memory_used_bytes")));
     }
 
     @Test

@@ -64,7 +64,7 @@ public final class StudyPlanFactory {
         if (totalDays < 0) {
             // Continua IllegalArgumentException de proposito: um numero de dias negativo nao e uma
             // situacao em que o aluno possa estar, e sim um defeito de quem chama. A validacao da
-            // API ja impede que chegue do cliente (@Min(1) em GaConfigDto).
+            // chamada interna: o orcamento e derivado, nunca vem do corpo da requisicao.
             throw new IllegalArgumentException(
                     "Total available days cannot be negative (received " + totalDays + ")."
             );

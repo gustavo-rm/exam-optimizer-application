@@ -15,7 +15,7 @@ import java.time.LocalDate;
  * contrato, e fechava um ciclo de dependência entre os dois módulos
  * ({@code docs/qualidade/03-diagnostico-estrutura.md}, achados E4 e E5).
  *
- * <p>Todos os tipos da assinatura — {@link PlanningItem}, {@link SubjectRetentionState},
+ * <p>Todos os tipos da assinatura — {@link PlanningItem}, {@link ItemRetentionState},
  * {@link LocalDate} — já são de domínio, então o contrato pertence naturalmente aqui. A decisão está
  * registrada em {@code docs/adr/0001-abstracoes-de-calculo-no-dominio.md}.
  * <p>
@@ -31,12 +31,12 @@ public interface RetentionAlgorithm {
      *
      * @return Probability between 0.0 and 1.0.
      */
-    double calculateRetentionProbability(SubjectRetentionState state, LocalDate targetDate);
+    double calculateRetentionProbability(ItemRetentionState state, LocalDate targetDate);
 
     /**
      * Determines if a spaced repetition review is mandatory on or before the target date.
      */
-    boolean isReviewMandatory(PlanningItem item, SubjectRetentionState state, LocalDate targetDate);
+    boolean isReviewMandatory(PlanningItem item, ItemRetentionState state, LocalDate targetDate);
 
     /**
      * Calculates the new memory state after a study/review session.
@@ -46,5 +46,5 @@ public interface RetentionAlgorithm {
      * @param performanceGrade Subjective grade of performance (0 to 5) similar to SM-2.
      * @return The updated memory state.
      */
-    SubjectRetentionState processReview(SubjectRetentionState currentState, LocalDate reviewDate, int performanceGrade);
+    ItemRetentionState processReview(ItemRetentionState currentState, LocalDate reviewDate, int performanceGrade);
 }

@@ -12,8 +12,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.PrintWriter;
@@ -43,14 +44,28 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * recebe os três. Isso é mais do que conveniência: a regra de privacidade vale para <b>qualquer</b>
  * tratador de erro, inclusive um que venha a ser criado depois — apontar para uma classe deixaria o
  * tratador novo fora da rede.
+ *
+ * <h2>Dois dos três achados deixaram de ter como acontecer em EOA-4b</h2>
+ *
+ * <b>S3</b> era a autoavaliação do aluno aparecendo na pilha quando ele errava o nome de uma
+ * disciplina. O contrato que o serviço fala hoje <b>não carrega autoavaliação, nem nome, nem estado
+ * psicológico</b>: {@code PlanRequest} traz identificadores, durações e datas, e é por isso que
+ * {@code SinapseEvolutionContexts} teve de re-derivar a demanda em vez de inventar um valor neutro.
+ * O risco foi removido na fonte, não no tratador — e {@code SinapseAdapterIsolationTest} é o que
+ * impede que ele volte.
+ *
+ * <p><b>S1</b> era o endereço do cliente mascarado na linha de bloqueio por limite de taxa. O filtro
+ * de limite existia para os endpoints de concurso, precificava o pedido por
+ * {@code gaConfig} e pela contagem de disciplinas do edital, e saiu junto com eles. Nenhum endereço
+ * de cliente é registrado hoje.
+ *
+ * <p><b>S2</b> continua valendo integralmente, e é o que este arquivo trava: o valor que o Jackson
+ * recusou é entrada de quem chama e não pode chegar ao agregador, nem pela mensagem nem pela pilha.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = {
-        "api.rate-limit.capacity=2",
-        "api.rate-limit.refill-tokens=2"
-})
-@DisplayName("S1, S2, S3: dado pessoal nao vaza pelo log")
+@ActiveProfiles(PlanProtocol.PROFILE)
+@DisplayName("S2: valor recusado pelo Jackson nao vaza pelo log")
 class LogPrivacyTest {
 
     /** Logger do pacote: recebe, por propagacao, os eventos dos tres tratadores de erro. */
@@ -101,91 +116,32 @@ class LogPrivacyTest {
     @Test
     @DisplayName("S2: o valor recusado pelo Jackson nao aparece no log")
     void valorRecusadoNaoVaiParaOLog() throws Exception {
-        String segredoDoAluno = "VALOR_PESSOAL_DO_ALUNO_4242";
+        String segredoDoCliente = "VALOR_PESSOAL_DO_ALUNO_4242";
         String payload = """
-                { "exam": {"name":"C","examDate":"2030-01-01","generalKnowledgeTotalScore":10,
-                  "generalKnowledgeSubjects":[],"specificKnowledgeAxes":[]},
-                  "studentProfile": {"name":"Maria Silva","knowledgeGaps":{"X":"%s"},
-                  "weeklyAvailability":{"MONDAY":3}},
-                  "gaConfig": {"totalStudyDays":100,"numGenerations":30,"populationSize":20} }
-                """.formatted(segredoDoAluno);
+                {"contractVersion":"1.0",
+                 "horizon":{"start":"2026-09-01","end":"2026-09-28"},
+                 "availability":[],"goals":[],
+                 "topics":[{"id":"a0000001-0000-4000-8000-000000000001",
+                            "subjectId":"11111111-1111-4111-8111-111111111111",
+                            "position":1,"effortTier":"STANDARD","estimatedMinutes":"%s"}],
+                 "prerequisites":[],"history":[],"algorithmParams":{},"randomSeed":1}
+                """.formatted(segredoDoCliente);
 
-        mockMvc.perform(post("/api/v1/optimizer/generate")
+        mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                 .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isBadRequest());
 
         String log = textoCompletoDoLog();
 
         assertThat(log)
-                .as("o valor enviado pelo aluno nao pode chegar ao agregador de logs")
-                .doesNotContain(segredoDoAluno);
-        assertThat(log)
-                .as("o nome do aluno tambem nao")
-                .doesNotContain("Maria Silva");
+                .as("o valor enviado por quem chama nao pode chegar ao agregador de logs")
+                .doesNotContain(segredoDoCliente);
         assertThat(log)
                 .as("o caminho do campo e informacao de contrato, e continua util para diagnostico")
-                .contains("knowledgeGaps.X");
+                .contains("estimatedMinutes");
         assertThat(niveisRegistrados())
                 .as("erro de cliente e WARN, nao ERROR: nao deve poluir alerta de 5xx")
                 .containsExactly(Level.WARN);
-    }
-
-    @Test
-    @DisplayName("S3: a autoavaliacao do aluno nao aparece no log quando ele erra o nome da disciplina")
-    void autoavaliacaoNaoVaiParaOLog() throws Exception {
-        // Duas disciplinas fora do edital: e o cenario que antes produzia
-        // "Duplicate key null (attempted merging values 4.5 and 2.0)" na pilha, em nivel ERROR.
-        String payload = """
-                { "exam": {"name":"C","examDate":"2030-01-01","generalKnowledgeTotalScore":10,
-                  "generalKnowledgeSubjects":[{"name":"Portugues","questionCount":10,"cognitiveLoad":2}],
-                  "specificKnowledgeAxes":[]},
-                  "studentProfile": {"name":"Maria Silva","knowledgeGaps":{"Portuges":4.5,"Matematica":2.0},
-                  "weeklyAvailability":{"MONDAY":3}},
-                  "gaConfig": {"totalStudyDays":100,"numGenerations":30,"populationSize":20} }
-                """;
-
-        mockMvc.perform(post("/api/v1/optimizer/generate")
-                .contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isBadRequest());
-
-        String log = textoCompletoDoLog();
-
-        assertThat(log)
-                .as("as notas de autoavaliacao sao o dado mais sensivel do payload")
-                .doesNotContain("4.5")
-                .doesNotContain("2.0")
-                .doesNotContain("Duplicate key")
-                .doesNotContain("Maria Silva");
-        assertThat(log)
-                .as("os nomes nao reconhecidos vem do edital que o proprio cliente enviou "
-                        + "e sao o que ele precisa corrigir")
-                .contains("Portuges");
-        assertThat(niveisRegistrados())
-                .as("erro do cliente e WARN, nao ERROR")
-                .containsExactly(Level.WARN);
-    }
-
-    @Test
-    @DisplayName("S1: o IP registrado no bloqueio por limite vem mascarado")
-    void ipNoBloqueioVemMascarado() throws Exception {
-        String ip = "203.0.113.77";
-        for (int i = 0; i < 3; i++) {
-            mockMvc.perform(post("/api/v1/optimizer/generate")
-                    .with(req -> {
-                        req.setRemoteAddr(ip);
-                        return req;
-                    })
-                    .contentType(MediaType.APPLICATION_JSON).content("{}"));
-        }
-
-        String log = textoCompletoDoLog();
-
-        assertThat(log)
-                .as("o endereco completo identifica o assinante e nao deve sair do processo")
-                .doesNotContain(ip);
-        assertThat(log)
-                .as("a granularidade de rede basta para reconhecer abuso, que e a finalidade")
-                .contains("203.0.113.x");
     }
 
     @Test

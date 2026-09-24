@@ -5,7 +5,7 @@ import com.ia.project.dynamicstudyplanner.coreapi.contract.RecallRating;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
-import com.ia.project.dynamicstudyplanner.domain.retention.SubjectRetentionState;
+import com.ia.project.dynamicstudyplanner.domain.retention.ItemRetentionState;
 
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -74,7 +74,7 @@ public final class RetentionHistory {
         Map<UUID, PlanningItem> itemsByTopic = new LinkedHashMap<>();
         topics.forEach(topic -> itemsByTopic.put(topic.id(), TopicPlanningItems.toItem(topic)));
 
-        Map<PlanningItem, SubjectRetentionState> states = new LinkedHashMap<>();
+        Map<PlanningItem, ItemRetentionState> states = new LinkedHashMap<>();
         for (PlanRequest.TopicHistory entry : history) {
             PlanningItem item = itemsByTopic.get(entry.topicId());
             if (item == null || entry.lastStudiedAt() == null) {
@@ -88,11 +88,11 @@ public final class RetentionHistory {
     }
 
     /** Folds one topic's ratings through the SM-2 recurrence, ending at its last studied date. */
-    private static SubjectRetentionState rebuild(PlanRequest.TopicHistory entry,
+    private static ItemRetentionState rebuild(PlanRequest.TopicHistory entry,
             RetentionAlgorithm model) {
 
         LocalDate lastStudied = LocalDate.ofInstant(entry.lastStudiedAt(), ZoneOffset.UTC);
-        SubjectRetentionState state = new SubjectRetentionState(lastStudied);
+        ItemRetentionState state = new ItemRetentionState(lastStudied);
         for (RecallRating rating : entry.recallRatings()) {
             state = model.processReview(state, lastStudied, gradeOf(rating));
         }

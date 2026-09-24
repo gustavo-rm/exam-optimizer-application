@@ -1,39 +1,23 @@
 package com.ia.project.dynamicstudyplanner.ga.fitness;
 
-import com.ia.project.dynamicstudyplanner.domain.Chronotype;
 import com.ia.project.dynamicstudyplanner.domain.FitnessBreakdown;
-import com.ia.project.dynamicstudyplanner.domain.StudentProfile;
-import com.ia.project.dynamicstudyplanner.domain.StudentState;
-import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
-import com.ia.project.dynamicstudyplanner.domain.exam.Exam;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
-import com.ia.project.dynamicstudyplanner.domain.exam.Subject;
-import com.ia.project.dynamicstudyplanner.domain.exam.SubjectPlanningItemMapper;
+import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
-import com.ia.project.dynamicstudyplanner.ga.fitness.objective.CognitiveLoadObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective;
-import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.DropoutRiskPenalty;
-import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty;
-import com.ia.project.dynamicstudyplanner.service.EvolutionContextAssembler;
-import com.ia.project.dynamicstudyplanner.service.calculation.BaselineCalculator;
-import com.ia.project.dynamicstudyplanner.service.calculation.CognitiveLoadCalculator;
-import com.ia.project.dynamicstudyplanner.service.calculation.ImportanceCalculator;
-import com.ia.project.dynamicstudyplanner.service.calculation.engagement.DropoutRiskPredictor;
-import com.ia.project.dynamicstudyplanner.service.calculation.fatigue.FatigueAndEnergyModel;
+import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FitnessPenalty;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
+import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
+import com.ia.project.dynamicstudyplanner.support.TopicPlans;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +40,20 @@ import static org.assertj.core.api.Assertions.assertThat;
  * composição da fitness não é a que o código documenta</b>. Por isso a cadeia inteira é conferida,
  * e não só o total.
  *
+ * <h2>A composição usada aqui</h2>
+ *
+ * Os três objetivos e as duas restrições são os do caminho SINAPSE, o único que ficou. Nenhuma
+ * composição de produção declara penalidade — as duas que existiam saíram em EOA-4b com o estado
+ * psicológico que liam —, e mesmo assim este teste compõe <b>duas penalidades de teste</b>, com
+ * fatores fixos e distintos de 1.
+ *
+ * <p>É deliberado, e é o que a versão anterior não fazia: com as penalidades de produção, sobre um
+ * plano macro as duas devolviam {@code 1.0} pelo {@code instanceof} que as guardava, e a asserção
+ * "agregado = clamp(soma) × produto das penalidades" multiplicava por 1 — passava sem exercitar o
+ * elo. Fatores fixos diferentes de 1 fazem o elo contar. O que está sob teste aqui é o
+ * <b>maquinário</b> de {@link FitnessEvaluator}, que segue sendo ponto de extensão, e não um termo
+ * de produção que não existe.
+ *
  * <h2>Tolerância declarada</h2>
  *
  * {@code 1e-12} para as identidades reconstruídas passo a passo, porque somar os mesmos termos em
@@ -70,42 +68,32 @@ class FitnessBreakdownTest {
     /** Folga para reconstruções passo a passo. Ver o Javadoc da classe. */
     private static final Offset<Double> TOLERANCIA = Offset.offset(1e-12);
 
-    private static final LocalDate HOJE = LocalDate.now();
-
     private static FitnessEvaluator avaliador() {
         return new FitnessEvaluator(
-                List.of(new ScoreGainObjective(), new RetentionObjective(), new CognitiveLoadObjective()),
-                List.of(new DropoutRiskPenalty(new DropoutRiskPredictor()),
-                        new FatigueAndSustainabilityPenalty(new FatigueAndEnergyModel())),
+                List.of(new ScoreGainObjective(), new RetentionObjective(),
+                        new DailyLoadBudgetObjective()),
+                List.of(new PenalidadeFixa("PenalidadeA", 0.90),
+                        new PenalidadeFixa("PenalidadeB", 0.75)),
                 List.of(new MinimumDaysConstraint(),
                         new MandatoryReviewConstraint(new HybridRetentionEngine())));
     }
 
-    private static Exam exame(int disciplinas) {
-        List<Subject> lista = new ArrayList<>();
-        for (int i = 0; i < disciplinas; i++) {
-            lista.add(new Subject("D" + i, 5 + (i * 3) % 25, 1 + (i % 5)));
+    /** Penalidade de fator constante: exercita o elo multiplicativo sem depender de dado ausente. */
+    private record PenalidadeFixa(String nome, double fator) implements FitnessPenalty {
+
+        @Override
+        public double calculatePenaltyFactor(StudyPlan plan, EvolutionContext context) {
+            return fator;
         }
-        return new Exam("Concurso", HOJE.plusDays(400), 100.0, lista, List.of());
+
+        @Override
+        public String name() {
+            return nome;
+        }
     }
 
-    private static StudentProfile perfil(Exam exame) {
-        Map<Subject, Double> lacunas = new HashMap<>();
-        for (Subject s : exame.getGeneralKnowledgeSubjects()) {
-            lacunas.put(s, 3.0);
-        }
-        Map<DayOfWeek, Integer> disponibilidade = new EnumMap<>(DayOfWeek.class);
-        for (DayOfWeek d : DayOfWeek.values()) {
-            disponibilidade.put(d, 5);
-        }
-        return new StudentProfile("Aluno", lacunas, disponibilidade,
-                new StudentState(3.0, 3.0, 3.0, Chronotype.INTERMEDIATE));
-    }
-
-    private static EvolutionContext contexto(Exam exame, StudentProfile perfil) {
-        ImportanceCalculator importancia = new ImportanceCalculator();
-        return new EvolutionContextAssembler(new BaselineCalculator(importancia), importancia,
-                new CognitiveLoadCalculator(), avaliador()).assemble(exame, perfil);
+    private static EvolutionContext contexto(int topicos) {
+        return TopicPlans.context(topicos);
     }
 
     /**
@@ -116,10 +104,8 @@ class FitnessBreakdownTest {
      * a soma abaixo de zero, fazendo o {@code clamp} morder — que é justamente o passo onde a
      * igualdade ingênua "soma == agregado" deixaria de valer.
      */
-    private static List<StudyPlan> planos(Exam exame) {
-        // Mesma travessia de fronteira que a producao faz: o edital vira itens de planejamento
-        // antes de qualquer coisa chegar ao cromossomo.
-        List<PlanningItem> itens = SubjectPlanningItemMapper.toItems(exame.getAllSubjects());
+    private static List<StudyPlan> planos(EvolutionContext contexto) {
+        List<PlanningItem> itens = List.copyOf(contexto.importanceScores().keySet());
         List<StudyPlan> planos = new ArrayList<>();
 
         Map<PlanningItem, Integer> distribuido = new LinkedHashMap<>();
@@ -153,10 +139,9 @@ class FitnessBreakdownTest {
         @DisplayName("o agregado da decomposicao e, bit a bit, o double que evaluate devolve")
         void oAgregadoEhExatamenteODeEvaluate() {
             FitnessEvaluator avaliador = avaliador();
-            Exam exame = exame(12);
-            EvolutionContext context = contexto(exame, perfil(exame));
+            EvolutionContext context = contexto(12);
 
-            for (StudyPlan plano : planos(exame)) {
+            for (StudyPlan plano : planos(context)) {
                 double historico = avaliador.evaluate(plano, context);
                 FitnessBreakdown decomposto = avaliador.explain(plano, context);
 
@@ -171,10 +156,9 @@ class FitnessBreakdownTest {
         @DisplayName("a soma das contribuicoes ponderadas reconstroi o rawScore")
         void aSomaDasContribuicoesReconstroiORawScore() {
             FitnessEvaluator avaliador = avaliador();
-            Exam exame = exame(12);
-            EvolutionContext context = contexto(exame, perfil(exame));
+            EvolutionContext context = contexto(12);
 
-            for (StudyPlan plano : planos(exame)) {
+            for (StudyPlan plano : planos(context)) {
                 FitnessBreakdown decomposto = avaliador.explain(plano, context);
                 double somado = decomposto.terms().stream()
                         .mapToDouble(FitnessBreakdown.Term::weightedContribution)
@@ -191,10 +175,9 @@ class FitnessBreakdownTest {
         @DisplayName("a cadeia completa fecha: clamp do rawScore, vezes o produto das penalidades")
         void aCadeiaCompletaFecha() {
             FitnessEvaluator avaliador = avaliador();
-            Exam exame = exame(12);
-            EvolutionContext context = contexto(exame, perfil(exame));
+            EvolutionContext context = contexto(12);
 
-            for (StudyPlan plano : planos(exame)) {
+            for (StudyPlan plano : planos(context)) {
                 FitnessBreakdown d = avaliador.explain(plano, context);
 
                 assertThat(d.boundedScore())
@@ -216,10 +199,9 @@ class FitnessBreakdownTest {
         @DisplayName("cada contribuicao e o valor vezes o peso, com o sinal do tipo do termo")
         void cadaContribuicaoEhValorVezesPeso() {
             FitnessEvaluator avaliador = avaliador();
-            Exam exame = exame(12);
-            EvolutionContext context = contexto(exame, perfil(exame));
+            EvolutionContext context = contexto(12);
 
-            for (StudyPlan plano : planos(exame)) {
+            for (StudyPlan plano : planos(context)) {
                 for (FitnessBreakdown.Term termo : avaliador.explain(plano, context).terms()) {
                     double esperado = termo.kind() == FitnessBreakdown.TermKind.OBJECTIVE
                             ? termo.value() * termo.weight()
@@ -235,30 +217,32 @@ class FitnessBreakdownTest {
     @Test
     @DisplayName("os nomes dos termos sao os estaveis, que viram chave de API")
     void osNomesSaoOsEstaveis() {
-        Exam exame = exame(6);
-        EvolutionContext context = contexto(exame, perfil(exame));
+        EvolutionContext context = contexto(6);
         FitnessBreakdown d = avaliador().explain(new StudyPlan(Map.of()), context);
 
         assertThat(d.terms()).extracting(FitnessBreakdown.Term::name)
                 .as("renomear qualquer um destes e quebra de contrato, nao refatoracao")
-                .containsExactly("syllabusMastery", "retention", "cognitiveLoad",
+                .containsExactly("syllabusMastery", "retention", DailyLoadBudgetObjective.NAME,
                         "MinimumDaysConstraint", "MandatoryReviewConstraint");
         assertThat(d.penalties()).extracting(FitnessBreakdown.Penalty::name)
-                .containsExactly("DropoutRiskPenalty", "FatigueAndSustainabilityPenalty");
+                .as("o nome vem do proprio termo, e nao do tipo dele")
+                .containsExactly("PenalidadeA", "PenalidadeB");
+        assertThat(d.penaltyFactor())
+                .as("o produto das penalidades e diferente de 1: o elo multiplicativo conta")
+                .isEqualTo(0.90 * 0.75, TOLERANCIA);
     }
 
     @Test
     @DisplayName("os pesos publicados sao os declarados em FitnessWeights")
     void osPesosSaoOsDeclarados() {
-        Exam exame = exame(6);
-        EvolutionContext context = contexto(exame, perfil(exame));
+        EvolutionContext context = contexto(6);
         Map<String, Double> pesos = new LinkedHashMap<>();
         avaliador().explain(new StudyPlan(Map.of()), context).terms()
                 .forEach(t -> pesos.put(t.name(), t.weight()));
 
         assertThat(pesos).containsEntry("syllabusMastery", FitnessWeights.SYLLABUS_MASTERY)
                 .containsEntry("retention", FitnessWeights.RETENTION)
-                .containsEntry("cognitiveLoad", FitnessWeights.COGNITIVE_LOAD)
+                .containsEntry(DailyLoadBudgetObjective.NAME, FitnessWeights.COGNITIVE_LOAD)
                 .containsEntry("MinimumDaysConstraint", FitnessWeights.CONSTRAINT_VIOLATION);
     }
 }

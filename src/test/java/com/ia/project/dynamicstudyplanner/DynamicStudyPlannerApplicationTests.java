@@ -1,14 +1,20 @@
 package com.ia.project.dynamicstudyplanner;
 
-import com.ia.project.dynamicstudyplanner.api.mapper.FullPlannerResultMapper;
-import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
+import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineEngine;
+import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessComposition;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.FitnessObjective;
-import com.ia.project.dynamicstudyplanner.usecase.GenerateStudyPlanUseCase;
+import com.ia.project.dynamicstudyplanner.plan.PlanController;
+import com.ia.project.dynamicstudyplanner.plan.PlanEngineSelector;
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
+import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
+import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -22,35 +28,58 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <h2>O que havia aqui antes</h2>
  *
  * Um {@code contextLoads()} vazio, sem nenhuma asserção. O diagnóstico da etapa 01 §2.1(c) apontou
- * que ele <b>não</b> era inútil: como {@code FitnessEvaluator} é um {@code @Component} cujo construtor
- * valida se os pesos dos objetivos somam 1,0, subir o contexto já falharia se a composição de beans
- * de produção ficasse desbalanceada. O problema é que essa proteção era acidental — invisível para
- * quem lesse o teste, e perdida no dia em que alguém apagasse "o teste vazio".
+ * que ele <b>não</b> era inútil: como o construtor de {@code FitnessEvaluator} valida se os pesos
+ * dos objetivos somam 1,0, subir o contexto já falharia se a composição de produção ficasse
+ * desbalanceada. O problema é que essa proteção era acidental — invisível para quem lesse o teste, e
+ * perdida no dia em que alguém apagasse "o teste vazio".
  *
- * <p>A etapa 01b mantém a proteção e a torna explícita, e acrescenta a garantia sobre o jar.
+ * <h2>Por que o profile está ligado</h2>
+ *
+ * Desde EOA-4b, {@code /plans} é a única coisa que esta aplicação serve, e ele vive sob
+ * {@code baseline-core}. Sem o profile o contexto sobe sem <b>nenhum</b> endpoint e sem nenhuma
+ * composição de fitness, e "o contexto subiu" deixaria de significar "subiu com o que o serviço
+ * precisa". Que ele também sobe sem o profile, e que {@code /plans} então responde {@code 404}, é o
+ * que {@code baseline/BaselinePlanAbsentTest} cobre.
  */
 @SpringBootTest
+@ActiveProfiles(PlanProtocol.PROFILE)
 @DisplayName("Aplicacao: contexto do Spring e artefato de implantacao")
 class DynamicStudyPlannerApplicationTests {
+
+    /**
+     * Objetivos que existem como bean e <b>não</b> entram em composição nenhuma.
+     *
+     * <p>Vazia, e é para continuar vazia: um {@code FitnessObjective} que é bean e não é avaliado
+     * por ninguém aparenta estar ativo e não está. {@code CognitiveLoadObjective} esteve aqui por
+     * um instante durante EOA-4b e foi removido — ele lia {@code context.cognitiveLoad()}, que só o
+     * caminho de concurso preenchia, e {@code DailyLoadBudgetObjective} o substituiu na escala que
+     * a plataforma de fato envia.
+     *
+     * <p>Acrescentar um nome aqui exige escrever por que ele existe sem compor nada.
+     */
+    private static final List<String> OBJETIVOS_SEM_COMPOSICAO = List.of();
 
     @Autowired
     private ApplicationContext context;
 
     @Autowired
-    private FitnessEvaluator fitnessEvaluator;
+    @Qualifier("sinapseFitnessComposition")
+    private FitnessComposition composicaoDeProducao;
 
     @Test
     @DisplayName("o contexto sobe com a composicao de producao inteira")
     void contextLoads() {
         assertThat(context).isNotNull();
 
-        // Estes são os beans do caminho de produção. Nomeá-los transforma "o contexto subiu" em
+        // Estes sao os beans do caminho de producao. Nomea-los transforma "o contexto subiu" em
         // "o contexto subiu com o que o endpoint precisa".
-        assertThat(context.getBean(GenerateStudyPlanUseCase.class)).isNotNull();
-        assertThat(context.getBean(FullPlannerResultMapper.class)).isNotNull();
-        assertThat(fitnessEvaluator)
-                .as("o construtor do FitnessEvaluator valida a soma dos pesos: se o contexto subiu, "
-                        + "a composicao de beans de producao passou por essa validacao")
+        assertThat(context.getBean(PlanController.class)).isNotNull();
+        assertThat(context.getBean(PlanEngineSelector.class)).isNotNull();
+        assertThat(context.getBean(GreedyBaselineEngine.class)).isNotNull();
+        assertThat(context.getBean(GeneticPlanEngine.class)).isNotNull();
+        assertThat(composicaoDeProducao.evaluator())
+                .as("o construtor do FitnessEvaluator valida a soma dos pesos: se ele foi criado, "
+                        + "a composicao de producao passou por essa validacao")
                 .isNotNull();
     }
 
@@ -59,56 +88,55 @@ class DynamicStudyPlannerApplicationTests {
      *
      * <h2>Por que os tipos, e não só a soma</h2>
      *
-     * A etapa 03 registrou (achado E2) que a composição de produção é remontada à mão em seis
-     * lugares fora dela: três programas de benchmark e três classes de teste. Diferente da cadeia de
-     * alocação — que a etapa 03b unificou em {@code AllocationChains} —, essa duplicação é
-     * <b>deliberada</b>: os benchmarks precisam construir variantes com pesos perturbados, que é
-     * literalmente o que {@code WeightSensitivityMain} mede. Unificar removeria a capacidade de
-     * variar.
+     * Acrescentar um {@code FitnessObjective} novo custa uma anotação, e o Spring o cria sozinho.
+     * Antes de EOA-4b o risco era que as cópias da composição feitas à mão nos benchmarks e nos
+     * testes continuassem rodando sem ele; hoje o risco é o oposto e pior: a composição de produção
+     * é uma lista explícita, então um objetivo novo <b>não</b> entra nela, e nada avisaria que ele
+     * existe como bean sem ser avaliado por ninguém.
      *
-     * <p>O risco que sobra é outro: acrescentar um {@code FitnessObjective} novo em produção custa
-     * uma anotação, o Spring o injeta sozinho, e as seis cópias continuam rodando sem ele — em
-     * silêncio. Os números publicados em {@code docs/revisao-ag/} passariam a medir uma fitness que
-     * não é a de produção.
-     *
-     * <p>Verificar a soma dos pesos não pega esse caso: um objetivo novo com peso 0,0 mantém a soma
-     * em 1,0. Por isso este teste fixa também <b>quais</b> tipos compõem a fitness. Acrescentar,
-     * remover ou trocar um objetivo falha aqui, e a mensagem manda atualizar as cópias.
+     * <p>Verificar a soma dos pesos não pega esse caso — um objetivo fora da composição não soma
+     * nada. Por isso este teste confere as duas listas: <b>quais</b> tipos compõem a fitness, e
+     * quais objetivos existem no contexto sem compor nada. Acrescentar um objetivo falha aqui até
+     * que alguém escreva em qual das duas listas ele entra.
      *
      * <p>Decisão registrada em {@code docs/adr/0003-composicao-de-producao-unica.md}.
      */
     @Test
     @DisplayName("a composicao de fitness fiada pelo Spring e exatamente a canonica")
     void aComposicaoDeFitnessFiadaPeloSpringEhACanonica() {
-        List<FitnessObjective> objetivos = context.getBeanProvider(FitnessObjective.class)
-                .stream().toList();
-
-        assertThat(objetivos)
+        assertThat(composicaoDeProducao.objectives())
                 .as("""
-                        A composicao de fitness do caminho de CONCURSO mudou.
+                        A composicao de fitness de producao mudou.
 
-                        Este contexto nao tem o profile baseline-core, entao os beans do caminho
-                        SINAPSE nao existem nele e esta assercao ve so os tres objetivos do
-                        concurso. A composicao SINAPSE e travada por SinapseFitnessTermsTest.
+                        Ela e declarada em sinapse/SinapseFitnessConfig e e a unica que roda:
+                        o caminho de concurso, com a sua, saiu em EOA-4b.""")
+                .extracting(FitnessObjective::name)
+                .containsExactly("syllabusMastery", "retention", DailyLoadBudgetObjective.NAME);
 
-                        Esta e remontada a mao, de proposito, em seis lugares fora da producao:
-                          benchmarks/.../harness/BenchmarkHarness
-                          benchmarks/.../robustness/WeightSensitivityMain
-                          benchmarks/.../robustness/WeightTradeoffMain
-                          src/test/.../ga/IndividualTest
-                          src/test/.../ga/GaEdgeCasesTest
-                          src/test/.../ga/PrerequisiteSequencingDiagnosticTest
-
-                        Atualize as seis no MESMO commit, ou os numeros publicados em
-                        docs/revisao-ag/ passarao a medir uma fitness que nao e a de producao.""")
-                .extracting(objetivo -> objetivo.getClass().getSimpleName())
-                .containsExactlyInAnyOrder(
-                        "ScoreGainObjective", "RetentionObjective", "CognitiveLoadObjective");
-
-        double soma = objetivos.stream().mapToDouble(FitnessObjective::getWeight).sum();
+        double soma = composicaoDeProducao.objectives().stream()
+                .mapToDouble(FitnessObjective::getWeight).sum();
         assertThat(soma)
                 .as("a fitness agregada so e comparavel entre releases se os pesos somarem 1,0")
                 .isEqualTo(1.0, org.assertj.core.data.Offset.offset(1e-9));
+    }
+
+    @Test
+    @DisplayName("nenhum objetivo existe como bean sem entrar numa composicao ou na lista de excecoes")
+    void nenhumObjetivoFicaForaSemRegistro() {
+        List<String> naComposicao = composicaoDeProducao.objectives().stream()
+                .map(FitnessObjective::name).toList();
+
+        assertThat(context.getBeanProvider(FitnessObjective.class).stream()
+                .map(FitnessObjective::name).toList())
+                .as("""
+                        Um FitnessObjective novo apareceu no contexto.
+
+                        Ou ele entra na composicao de producao (sinapse/SinapseFitnessConfig), ou
+                        ele entra em OBJETIVOS_SEM_COMPOSICAO com a razao escrita. Um objetivo que
+                        e bean e nao e avaliado por ninguem aparenta estar ativo e nao esta.""")
+                .containsExactlyInAnyOrderElementsOf(
+                        java.util.stream.Stream.concat(naComposicao.stream(),
+                                OBJETIVOS_SEM_COMPOSICAO.stream()).toList());
     }
 
     @Test
