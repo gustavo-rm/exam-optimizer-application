@@ -41,6 +41,23 @@ build pass is forbidden.** Write the missing test, or split the method, or stop 
 code genuinely adds uncovered branches, the fix is a test that exercises them — a real one, pinning
 behaviour that matters. If you believe a floor must move, do not move it: stop and say why.
 
+## 1b. What this service is, after EOA-4b
+
+One endpoint: `POST /plans`, under the `baseline-core` profile, answered by one of two engines
+(`greedy-baseline`, `ga`). The older `/api/v1/optimizer/**` API — its DTOs, its mappers, its service
+layer, `Exam`, `Subject`, `StudentProfile` and the asynchronous job flow — was removed in EOA-4b, and
+with it the fitness terms that read self-declared psychological state (`DropoutRiskPenalty`,
+`FatigueAndSustainabilityPenalty`) and the subject-scale load term (`CognitiveLoadObjective`).
+
+Three consequences worth knowing before touching anything:
+
+* **Without the `baseline-core` profile the application serves no endpoint at all.** That gate is
+  unchanged on purpose; removing it is a deployment decision, not a cleanup.
+* **The search runs on the Tomcat worker thread.** There is no dedicated executor and no request
+  timeout any more.
+* **There is no rate limiting**, and `/plans` never had any. The private-network requirement in the
+  README is what stands in its place.
+
 ## 2. The Core contract package (`coreapi/contract`)
 
 Mirrors `br.com.sinapse.platform.coreclient.contract` from `sinapse-platform`. Records and enums
@@ -70,9 +87,10 @@ the `support/RandomProviderIsolation` JUnit extension (auto-registered for every
 `META-INF/services` and `junit-platform.properties`) restores it afterwards. Do not introduce
 `Math.random()`, `ThreadLocalRandom` (not seedable) or a bare `new Random()` into GA code.
 
-Two things outside the GA are not covered by that rule and should not be "fixed": job ids come from
-`UUID.randomUUID()` in `service/OptimizationJobService`, and `config/RandomConfig` declares a
-`SecureRandom` bean that **nothing injects** — dead configuration, not the GA's source.
+`RandomProvider` is now the only source of randomness in the whole application: the two exceptions
+this section used to list — job ids from `UUID.randomUUID()` in `service/OptimizationJobService`, and
+a `SecureRandom` bean in `config/RandomConfig` that nothing injected — are both gone with the
+concurso path.
 
 **The offspring loop in `ga/GeneticAlgorithm.evolvePopulation` is sequential on purpose.**
 Parallelising it has been tried and measured: two runs with the same seed stop agreeing, because
@@ -105,8 +123,8 @@ covered by a test; leave it alone.
 ## 5. `GaResultadoInalteradoTest`
 
 Four tests. It pins that the GA is **reproducible**: with the seed fixed to `20260903L`, the same
-input yields the same plan, subject by subject, and the same fitness to the last bit — plus the
-counter-proof that different seeds diverge, and that the day budget is respected exactly. It is
+input yields the same plan, item by item, and the same fitness to the last bit — plus the
+counter-proof that different seeds diverge, and that the session budget is respected exactly. It is
 stricter than it looks: any change to the **order** or **count** of random draws fails it, even one
 that changes no arithmetic.
 

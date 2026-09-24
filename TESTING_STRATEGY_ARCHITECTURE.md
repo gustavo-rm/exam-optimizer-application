@@ -4,12 +4,17 @@ The transition from a simple objective function to a multi-objective, stochastic
 
 This document outlines the testing architecture for the ITS.
 
+> **Updated in EOA-4b.** The `/api/v1/optimizer/**` path was removed, and with it the fatigue,
+> dropout-risk and cognitive-load-calculator components this document used to target. What remains
+> is the `POST /plans` path and the genetic core behind it; the sections below name only what
+> exists.
+
 ## 1. Test Classifications
 
 ### A. Deterministic Component Tests
 Testing the pure, stateless functions within the pipeline.
-*   **Target:** `FatigueAndEnergyModel`, `HybridRetentionEngine`, `DropoutRiskPredictor`, `FitnessEvaluator`.
-*   **Strategy:** Provide mocked inputs and assert exact expected outputs. For example, assert that `calculateBurnoutRisk` returns exactly `0.2` when the fatigue parameter crosses the `50.0` threshold.
+*   **Target:** `HybridRetentionEngine`, `FitnessEvaluator`, `SinapseLoadBudget`, `SinapseMinimumDays`, the two `ImportanceStrategy` implementations.
+*   **Strategy:** Provide fixed inputs and assert exact expected outputs. For example, assert that `FitnessEvaluator.explain` reconstructs, bit for bit, the aggregate that `evaluate` returns — the identity `ga/fitness/FitnessBreakdownTest` pins.
 
 ### B. Property-Based Testing
 Instead of testing exact outputs, we test the *properties* or invariants that must hold true regardless of the input.
@@ -23,16 +28,17 @@ Testing the heuristic schedulers and the `ChromosomeRepairer`.
 *   **Target:** `HybridHeuristicScheduler`, `SpacedRepetitionRepairer`.
 *   **Strategy:**
     *   *No Overlap:* Assert that no two `TacticalStudyBlock` start/end times intersect.
-    *   *Fatigue Thresholds:* Assert that if the `FatigueAndEnergyModel` flags acute burnout, the repairer forcibly truncates the schedule.
-    *   *Review Enforcement:* Assert that if a subject's retention probability is < 0.85, the final output *always* contains a `SPACED_REPETITION_REVIEW` block.
-    *   *Emergency Mode:* Assert that passing `emergencyMode=true` results in 0 `PASSIVE_READING` blocks.
+    *   *Review Enforcement:* Assert that if a topic's retention probability is < 0.85, the final output *always* contains a `SPACED_REPETITION_REVIEW` block.
+    *   *Prerequisites:* Assert that the scheduled set is a prefix of a topological order of the `HARD` edges — `plan/PlanOutputInvariants` refuses any plan that breaks it.
 
 ### D. Probabilistic & Convergence Tests (GA End-to-End)
 Testing the emergent behavior of the entire GA.
-*   **Target:** `StudyOptimizerService.optimize()`.
-*   **Strategy:** We cannot assert the exact schedule generated. Instead, we run the GA 50 times and assert statistical boundaries:
-    *   *Convergence:* Assert that the final Generation's Best Fitness is strictly greater than the Initial Generation's Best Fitness in 95% of runs.
-    *   *Adaptive Scheduling:* Assert that when a "High Risk" student profile is provided, the average total scheduled hours across 50 runs is statistically significantly lower than the average hours for a "Low Risk" profile.
+*   **Target:** `sinapse.GeneticPlanEngine.plan()`, through `plan.PlanEngineSelector`.
+*   **Strategy:** We cannot assert the exact schedule generated. What is asserted instead is
+    reproducibility, and the counter-proof that reproducibility is not constancy: the same request
+    and seed produce the same plan on any thread (`plan/PlanEngineDeterminismTest`), different seeds
+    reach different plans where the instance has slack, and a seed left installed never leaks into
+    the next request on that pool thread.
 
 ## 2. Managing Stochasticity (Reproducibility)
 
@@ -47,5 +53,5 @@ This guarantees that for a given test input, the crossover choices, mutation tri
 ## 3. Performance & Stress Testing
 
 The GA is highly CPU-bound. The transition to MOOP adds significant overhead (evaluating fatigue curves, retention decay, etc., for every individual in every generation).
-*   **Load Testing (JMeter/Gatling):** Simulate concurrent optimization requests. The primary metric is *Thread Exhaustion*. The existing `ThreadPoolTaskExecutor` (with its 30-second CompletableFuture timeout) must be validated to ensure it returns 408 Timeouts gracefully rather than crashing the Tomcat thread pool.
+*   **Load Testing (JMeter/Gatling):** Simulate concurrent plan requests. The primary metric is *Thread Exhaustion*, and it matters more than it used to: since EOA-4b `POST /plans` runs the search **on the Tomcat worker thread**. The dedicated `ThreadPoolTaskExecutor`, its bounded queue and the 30-second timeout left with the asynchronous job flow, so there is no longer a bulkhead between the search and the HTTP connector. Sizing `plan.engine.ga.generations` and `plan.engine.ga.population-size` against the connector's thread count is now a deployment concern.
 *   **Benchmarking (JMH):** Write JMH microbenchmarks for the `FitnessEvaluator.evaluate()` method. If evaluating a single chromosome takes more than 1ms, the GA will fail SLA targets (e.g., 500 pop * 100 gen = 50,000 evaluations = 50 seconds). The heuristic math must be kept hyper-optimized.

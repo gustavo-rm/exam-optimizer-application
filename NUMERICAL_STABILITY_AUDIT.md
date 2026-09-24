@@ -15,7 +15,7 @@ This audit identifies potential risks involving floating-point instability, domi
 *   **Risk - Floating Point Instability:** Iteratively summing many small `double` values can lead to precision loss (catastrophic cancellation), although less likely to be fatal in a GA than in financial systems.
 
 ### B. Penalty Scaling
-*   **Current State:** Penalties (Fatigue, Dropout Risk) are calculated as multiplicative factors (`0.0` to `1.0`).
+*   **Current State:** The composition supports multiplicative penalty factors (`0.0` to `1.0`). The two that existed — fatigue and dropout risk — were removed in EOA-4b with the path that fed them, so no production composition declares one today; the analysis below applies to any that is added.
 *   **Risk - Fitness Saturation (The Zero Problem):** Multiplicative penalties compound. If a student is burned out (penalty 0.1) and misses mandatory reviews (constraint penalty 0.5), the fitness drops geometrically. If fitness approaches `0.0`, the GA loses gradient information. A population where 90% of individuals have fitness `0.001` becomes a random walk because Selection operators (like Roulette Wheel) can no longer distinguish between slightly bad and catastrophically bad individuals.
 
 ## 3. Data Type Evaluation for Hot Loops
@@ -44,7 +44,7 @@ This audit identifies potential risks involving floating-point instability, domi
     *   **Recommendation:** To prevent Fitness Saturation, transition from multiplicative factors (`score *= penalty`) to additive penalty offsets (`score -= penaltyWeight * penaltySeverity`). This maintains a linear gradient, allowing the GA to navigate out of "valleys of death."
 
 3.  **Use `double` for Fitness, `long` for Tactical Metrics:**
-    *   **Recommendation:** Ensure `CognitiveLoadCalculator` and `HybridRetentionEngine` stick to `double` for probabilities. Ensure `TimeSlot` and `TacticalStudyBlock` strictly use `long` (minutes) to prevent fractional time drift (e.g., losing 1 second every time a block is split).
+    *   **Recommendation:** Ensure `SinapseLoadBudget` and `HybridRetentionEngine` stick to `double` for probabilities. Ensure `TimeSlot` and `TacticalStudyBlock` strictly use `long` (minutes) to prevent fractional time drift (e.g., losing 1 second every time a block is split).
 
 4.  **Fitness Floor:**
     *   **Recommendation:** Ensure the `FitnessEvaluator` enforces a hard floor (`Math.max(1.0, score)`). A fitness of exactly `0.0` or negative values will break Roulette Wheel selection algorithms.
