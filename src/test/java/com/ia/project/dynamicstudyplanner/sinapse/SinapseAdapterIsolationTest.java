@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <h2>O que o adaptador usa no lugar</h2>
  *
- * Importância de {@code goals[].priority} ({@code TopicImportance}), piso de dias da definição de
+ * Importância de uma {@code ImportanceStrategy} escolhida por requisição, piso de dias derivado de
  * que todo tópico em escopo precisa de uma sessão ({@code SinapseEvolutionContexts}), e teto de
  * carga de disponibilidade e dificuldade média ({@code SinapseLoadBudget}).
  */
@@ -65,6 +65,16 @@ class SinapseAdapterIsolationTest {
      * {@code Subject} porque são a modelagem de concurso e alcançá-los significaria que o núcleo
      * voltou a falar de disciplina em vez de item de planejamento.
      */
+    /**
+     * Arquivos cujo {@code Map.copyOf} e consultado por {@code get} e nunca iterado.
+     *
+     * <p>Um mapa assim nao tem como levar a ordem embaralhada por execucao da JVM ate uma soma de
+     * ponto flutuante. Acrescentar um arquivo aqui exige dize-lo no Javadoc dele — a lista e uma
+     * afirmacao verificavel, nao uma valvula de escape.
+     */
+    private static final List<String> LOOKUP_ONLY_MAPS = List.of(
+            "EffortTierBands.java", "ImportanceStrategies.java");
+
     private static final List<String> FORBIDDEN = List.of(
             "domain.StudentProfile",
             "domain.StudentState",
@@ -124,12 +134,13 @@ class SinapseAdapterIsolationTest {
         // PlanEngineDeterminismTest falhando 1 em 3 execucoes separadas. A unica guarda que
         // funciona e estrutural.
         //
-        // EffortTierBands e a excecao declarada: seu mapa e lido por get e nunca iterado.
+        // As excecoes declaradas: mapas lidos por get, nunca iterados em ordem, cujo embaralhamento
+        // por execucao da JVM nao alcanca aritmetica nenhuma. Cada um diz isso no proprio Javadoc.
         List<String> offenders = new ArrayList<>();
         try (Stream<Path> files = Files.walk(ADAPTER)) {
             for (Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
                 String name = file.getFileName().toString();
-                if (name.equals("EffortTierBands.java")) {
+                if (LOOKUP_ONLY_MAPS.contains(name)) {
                     continue;
                 }
                 for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {

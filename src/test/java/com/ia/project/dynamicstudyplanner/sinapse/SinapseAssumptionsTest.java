@@ -9,6 +9,7 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.AvailabilityWindow;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.plan.PlanEngines;
 import com.ia.project.dynamicstudyplanner.plan.PlanRejectedException;
+import com.ia.project.dynamicstudyplanner.sinapse.importance.GoalPriorityImportance;
 import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
 import org.junit.jupiter.api.DisplayName;
@@ -167,12 +168,12 @@ class SinapseAssumptionsTest {
                     PlanRequests.goal(PlanRequests.SUBJECT_FIRST, "2026-09-20", 5))).build();
 
             Map<PlanningItem, Double> importance =
-                    TopicImportance.of(request.topics(), request.goals());
+                    GoalPriorityImportance.of(request.topics(), request.goals());
             PlanningItem doSegundoAssunto = TopicPlanningItems.toItem(request.topics().get(2));
 
             assertThat(importance.get(doSegundoAssunto))
                     .as("zero deixaria o topico agendado e invisivel para todo termo da fitness")
-                    .isEqualTo(TopicImportance.PRIORITY_WITHOUT_GOAL);
+                    .isEqualTo(GoalPriorityImportance.PRIORITY_WITHOUT_GOAL);
         }
 
         @Test
@@ -183,7 +184,7 @@ class SinapseAssumptionsTest {
                     PlanRequests.goal(PlanRequests.SUBJECT_FIRST, "2026-09-25", 5))).build();
 
             Map<PlanningItem, Double> importance =
-                    TopicImportance.of(request.topics(), request.goals());
+                    GoalPriorityImportance.of(request.topics(), request.goals());
 
             assertThat(importance.get(TopicPlanningItems.toItem(request.topics().get(0))))
                     .as("o contrato nao envia identificador de meta, entao duas entradas para uma "

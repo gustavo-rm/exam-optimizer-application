@@ -73,7 +73,7 @@ public final class SinapseMinimumDays {
             floor.put(TopicPlanningItems.toItem(topic),
                     sessionsFor(topic.estimatedMinutes(), minutesPerStudyDay));
         }
-        // unmodifiableMap over LinkedHashMap, never Map.copyOf: see TopicImportance.
+        // unmodifiableMap over LinkedHashMap, never Map.copyOf: see GoalPriorityImportance.
         return Collections.unmodifiableMap(floor);
     }
 

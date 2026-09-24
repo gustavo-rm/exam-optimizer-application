@@ -27,8 +27,8 @@
  * <ul>
  *   <li>{@link com.ia.project.dynamicstudyplanner.sinapse.EffortTierBands} — o único lugar em que
  *       {@code effortTier} vira faixa de dificuldade, e o único que recusa uma faixa desconhecida;</li>
- *   <li>{@link com.ia.project.dynamicstudyplanner.sinapse.TopicImportance} — o único ponto de
- *       cálculo de importância, para que EOA-6 o troque sem tocar em mais nada;</li>
+ *   <li>{@code sinapse.importance} — de onde vem o peso do termo que carrega metade do fitness, em
+ *       duas estratégias escolhidas por requisição, e por que são duas;</li>
  *   <li>{@link com.ia.project.dynamicstudyplanner.sinapse.RetentionHistory} — a janela de noventa
  *       dias e a ambiguidade que ela deixa;</li>
  *   <li>{@link com.ia.project.dynamicstudyplanner.sinapse.SinapseLoadBudget} — por que o orçamento

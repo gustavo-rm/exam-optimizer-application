@@ -14,6 +14,8 @@ import com.ia.project.dynamicstudyplanner.ga.config.GeneticAlgorithmFactory;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessComposition;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.generator.PopulationGenerator;
+import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
+import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
 import com.ia.project.dynamicstudyplanner.plan.PlanEngine;
 import com.ia.project.dynamicstudyplanner.plan.PlanOutputInvariants;
@@ -81,6 +83,7 @@ public class GeneticPlanEngine implements PlanEngine {
     private final PopulationGenerator populations;
     private final FitnessComposition composition;
     private final RetentionAlgorithm retention;
+    private final ImportanceStrategies importanceStrategies;
     private final String coreVersion;
     private final int generations;
     private final int populationSize;
@@ -97,6 +100,7 @@ public class GeneticPlanEngine implements PlanEngine {
             PopulationGenerator populations,
             @Qualifier("sinapseFitnessComposition") FitnessComposition composition,
             RetentionAlgorithm retention,
+            ImportanceStrategies importanceStrategies,
             @Value("${baseline.core.version}") String coreVersion,
             @Value("${plan.engine.ga.generations}") int generations,
             @Value("${plan.engine.ga.population-size}") int populationSize) {
@@ -105,6 +109,7 @@ public class GeneticPlanEngine implements PlanEngine {
         this.populations = populations;
         this.composition = composition;
         this.retention = retention;
+        this.importanceStrategies = importanceStrategies;
         this.coreVersion = coreVersion;
         this.generations = generations;
         this.populationSize = populationSize;
@@ -133,8 +138,9 @@ public class GeneticPlanEngine implements PlanEngine {
         List<PlanningItem> items = TopicPlanningItems.of(request.topics());
         List<AvailabilityWindow> windows = AvailabilityWindows.of(request.availability());
         FitnessEvaluator evaluator = composition.evaluator();
-        EvolutionContext context =
-                SinapseEvolutionContexts.of(request, items, windows, evaluator, retention);
+        ImportanceStrategy importance = importanceStrategies.resolve(request);
+        EvolutionContext context = SinapseEvolutionContexts.of(
+                request, items, windows, evaluator, retention, importance);
 
         StudyPlan chromosome = evolve(context, sessionBudget(request, context));
 
@@ -158,7 +164,8 @@ public class GeneticPlanEngine implements PlanEngine {
         PlanResponse response = new PlanResponse(
                 PlanRequest.VERSION,
                 TacticalSessions.of(placed.plan(), topicsByItem),
-                SinapseFitness.of(composition, breakdown, placed, placed.plan(), context),
+                SinapseFitness.of(composition, breakdown, placed, placed.plan(), context,
+                        importance),
                 new PlanResponse.ExecutionMetadata(coreVersion, request.randomSeed(),
                         generations, ELAPSED_MILLIS));
 

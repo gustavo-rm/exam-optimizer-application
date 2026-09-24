@@ -6,6 +6,7 @@ import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.tactical.AvailabilityWindow;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
+import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -36,8 +37,8 @@ import java.util.List;
  *   <li>So a synthesised profile with a neutral gap would not merely soften one term. <b>One
  *       invented constant would reweigh the two heaviest objectives and the heaviest constraint at
  *       once</b>, and every one of them would keep reporting a number.</li>
- *   <li>Therefore the demand side is re-sourced rather than defaulted: importance from
- *       {@code goals[].priority} ({@link TopicImportance}), the day floor from
+ *   <li>Therefore the demand side is re-sourced rather than defaulted: importance from a
+ *       {@link ImportanceStrategy} chosen per request, the day floor from
  *       {@code estimatedMinutes} over the student's measured study day
  *       ({@link SinapseMinimumDays}), and the load ceiling from availability and mean difficulty
  *       alone ({@link SinapseLoadBudget}).</li>
@@ -66,11 +67,13 @@ public final class SinapseEvolutionContexts {
      * @param windows   the availability, already converted
      * @param evaluator this path's fitness, from its own composition
      * @param retention the recurrence used to rebuild the history
+     * @param importance where the weight of the heaviest fitness term comes from; chosen per
+     *                   request and echoed in the answer
      * @return the context, with no field derived from data the platform did not send
      */
     public static EvolutionContext of(PlanRequest request, List<PlanningItem> items,
             List<AvailabilityWindow> windows, FitnessEvaluator evaluator,
-            RetentionAlgorithm retention) {
+            RetentionAlgorithm retention, ImportanceStrategy importance) {
 
         LocalDate planStart = request.horizon().start();
         int horizonDays = horizonDays(request);
@@ -79,7 +82,7 @@ public final class SinapseEvolutionContexts {
 
         return EvolutionContext.builder()
                 .items(items)
-                .importanceScores(TopicImportance.of(request.topics(), request.goals()))
+                .importanceScores(importance.importanceOf(request))
                 .minimumDaysPerItem(SinapseMinimumDays.of(request.topics(), windows))
                 .retentionProfile(RetentionHistory.of(request.topics(), request.history(), retention))
                 .planStartDate(planStart)
