@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.domain.FitnessBreakdown;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessComposition;
+import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -53,14 +54,18 @@ public final class SinapseFitness {
      * @param composition the terms this path declared
      * @param breakdown   the decomposition of the winning plan's fitness
      * @param placed      what the calendar could hold
+     * @param importance  which meaning of importance ran, echoed so the run is reconstructable
      * @return the map to report, read-only
      */
     public static Map<String, Object> of(FitnessComposition composition,
             FitnessBreakdown breakdown, SessionPlacement.Result placed,
-            StudyPlan plan, EvolutionContext context) {
+            StudyPlan plan, EvolutionContext context, ImportanceStrategy importance) {
 
         Map<String, Object> fitness = new LinkedHashMap<>();
         fitness.put("path", composition.path());
+        // Sem isto, uma execucao registrada nao e reproduzivel: nada diz o que "importance"
+        // significava naquela execucao, e ela alimenta o termo que carrega metade da fitness.
+        fitness.put(ImportanceStrategy.FITNESS_KEY, importance.id());
         fitness.put("aggregate", breakdown.aggregate());
 
         for (FitnessBreakdown.Term term : breakdown.terms()) {

@@ -64,7 +64,7 @@ public final class EffortTierBands {
      * <p>{@code Map.copyOf} is safe <b>here and only here</b> in this package: this map is read by
      * {@code get} and never iterated, so its iteration order — which {@code Map.copyOf} randomises
      * with a per-JVM-run salt — cannot reach any arithmetic. Every other map in the adapter is an
-     * {@code unmodifiableMap} over a {@code LinkedHashMap}; see {@code TopicImportance} for what
+     * {@code unmodifiableMap} over a {@code LinkedHashMap}; see {@code GoalPriorityImportance} for what
      * went wrong when one of them was not, and {@code SinapseAdapterIsolationTest} for the guard.
      */
     private static final Map<String, Integer> BANDS = bands();

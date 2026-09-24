@@ -88,6 +88,48 @@ with a zero, it does not appear. Reporting `"fatigue-penalty": 1.0` would be tru
 false statement — it would say the function looked at fatigue and found nothing wrong, when the
 function has no fatigue data at all.
 
+### The heaviest term changed its nature, and that is a product fact, not a refactor
+
+`syllabusMastery` carries **0.50 — half the fitness** — and computes `importance x mastery(days)`.
+On the concurso product, `importance` was the subject's value on the exam
+(`questionCount x thematic-axis weight`): external, objective, written in the published syllabus.
+**The SINAPSE domain has no such input.** `PlanRequest` carries no question count, no axis weight and
+no syllabus, so the substitute changes what the dominant term *means*.
+
+Two strategies are implemented, selected per request via `algorithmParams.importance` and defaulting
+to `plan.fitness.sinapse.importance-strategy`:
+
+| id | Source | Nature |
+|---|---|---|
+| **`goal-priority`** *(default)* | `goals[].priority`, propagated to the subject's topics | **self-declared by the student** |
+| `prerequisite-centrality` | how many topics transitively depend on a topic (`HARD` edges) | **objective, structural** |
+
+**The default is in tension with the platform's decision L1** (ADR 0012, *"the student declares
+nothing"*), which avoided self-declared input deliberately — and it is now the input to half the
+fitness. That tension is not resolved and is not hidden: it is precisely why the second strategy
+exists. `prerequisite-centrality` is objective and consistent with L1, and turns a graph that today
+only *constrains* the plan into a *signal* about it — but it is a hypothesis, and nothing here yet
+measures whether it plans better. Both are implemented so the comparison is possible at all.
+
+Raw scales differ on purpose (1..5 against 1..n); one shared normalisation step puts both on the
+unit simplex, so the two conditions produce comparable fitness values. **The strategy that ran is
+always echoed in `fitness["importance-strategy"]`** — without it a recorded run cannot be
+reconstructed, because nothing would say what `importance` meant in that execution. Details in
+[`docs/SINAPSE_ADAPTER.md`](docs/SINAPSE_ADAPTER.md) §5.
+
+### O termo de maior peso mudou de natureza
+
+`syllabusMastery` carrega **0,50 — metade do fitness**. No produto de concurso, `importance` era o
+valor da disciplina na prova (`questionCount x peso do eixo`): externo e objetivo, está no edital. O
+domínio SINAPSE **não tem esse insumo**, então o substituto muda o que o termo dominante significa.
+
+Duas estratégias, escolhidas por requisição: **`goal-priority`** (padrão) lê `goals[].priority` —
+**autodeclarada pelo aluno**, o que contraria a decisão L1 (ADR 0012, "o aluno não informa nada"); e
+`prerequisite-centrality`, que deriva da estrutura do currículo — **objetiva**, coerente com L1, e
+ainda **hipótese não validada**. A tensão com L1 existe, alimenta metade do fitness, e está
+registrada aqui de propósito. A estratégia que rodou é sempre ecoada em
+`fitness["importance-strategy"]`.
+
 ### The load term survives under a different name, because it is a different term
 
 `cognitiveLoad` becomes **`dailyLoadBudget`** on the SINAPSE path. It lost two of its three inputs —

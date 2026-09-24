@@ -1,7 +1,10 @@
-package com.ia.project.dynamicstudyplanner.sinapse;
+package com.ia.project.dynamicstudyplanner.sinapse.importance;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
+import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
+import com.ia.project.dynamicstudyplanner.sinapse.TopicPlanningItems;
+import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -11,14 +14,25 @@ import java.util.TreeMap;
 import java.util.UUID;
 
 /**
- * How much each topic matters, from the goals the student declared.
+ * Importance from what the student said matters: {@code goals[].priority}. <b>The default.</b>
  *
- * <h2>The single point of calculation</h2>
+ * <h2>The rule</h2>
  *
- * Importance is {@code goals[].priority}, propagated to every topic of the goal's subject. That is
- * the whole rule, and it lives in this one method so that <b>EOA-6 can replace it without touching
- * anything else</b>: the adapter, the context builder and the fitness all read the map this class
- * returns and none of them knows how it was produced.
+ * The goal's priority, propagated to every topic of the goal's subject. That is the whole of it. The
+ * propagation is what the contract prescribes: "every topic of the subject is in scope with it;
+ * there is no exclusion list". A goal names a {@code subjectId} and a priority from 1 to 5, and
+ * every topic carrying that {@code subjectId} inherits it.
+ *
+ * <h2>It is the default, and it is in tension with decision L1</h2>
+ *
+ * This is the substitute whose meaning a product decision already endorsed, so it runs unless a
+ * request asks otherwise. It is also, unavoidably, <b>self-declared input feeding half the
+ * fitness</b> — and the platform's decision L1 (ADR 0012, "the student declares nothing") avoided
+ * self-declared input on purpose.
+ *
+ * <p>That tension is not resolved here and is not hidden: it is why
+ * {@link PrerequisiteCentralityImportance} exists and why the choice is a configuration change. See
+ * the README and {@code docs/SINAPSE_ADAPTER.md} §5.
  *
  * <p>The propagation is what the contract prescribes: "every topic of the subject is in scope with
  * it; there is no exclusion list". A goal names a {@code subjectId} and a priority from 1 to 5, and
@@ -44,7 +58,11 @@ import java.util.UUID;
  * Both are recorded in {@code docs/SINAPSE_ADAPTER.md} §3 and pinned by
  * {@code SinapseAssumptionsTest}.
  */
-public final class TopicImportance {
+@Component
+public class GoalPriorityImportance implements ImportanceStrategy {
+
+    /** The id this strategy answers to in {@code algorithmParams.importance}. */
+    public static final String ID = "goal-priority";
 
     /**
      * The priority a topic gets when its subject appears in no goal.
@@ -54,11 +72,18 @@ public final class TopicImportance {
      */
     public static final double PRIORITY_WITHOUT_GOAL = 1.0;
 
-    private TopicImportance() {
+    @Override
+    public String id() {
+        return ID;
+    }
+
+    @Override
+    public Map<PlanningItem, Double> importanceOf(PlanRequest request) {
+        return of(request.topics(), request.goals());
     }
 
     /**
-     * Raw importance per planning item.
+     * Raw importance per item.
      *
      * @param topics the topics as they arrived
      * @param goals  the goals as they arrived
@@ -94,7 +119,7 @@ public final class TopicImportance {
      */
     private static Map<UUID, Integer> prioritiesBySubject(List<PlanRequest.Goal> goals) {
         Map<UUID, Integer> bySubject =
-                new TreeMap<>(com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph.BY_TEXT);
+                new TreeMap<>(HardPrerequisiteGraph.BY_TEXT);
         for (PlanRequest.Goal goal : goals) {
             if (goal.subjectId() != null) {
                 bySubject.merge(goal.subjectId(), goal.priority(), Math::max);

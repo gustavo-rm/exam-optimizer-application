@@ -19,6 +19,9 @@ import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRe
 import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.SinapseFitnessConfig;
+import com.ia.project.dynamicstudyplanner.sinapse.importance.GoalPriorityImportance;
+import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
+import com.ia.project.dynamicstudyplanner.sinapse.importance.PrerequisiteCentralityImportance;
 
 import java.util.HashMap;
 import java.util.List;
@@ -120,7 +123,20 @@ public final class PlanEngines {
                         new MandatoryReviewConstraint(new HybridRetentionEngine()),
                         dailyLoadBudget),
                 new HybridRetentionEngine(),
+                importanceStrategies(),
                 CORE_VERSION, generations, populationSize);
+    }
+
+    /**
+     * As duas estratégias de importância, com {@code goal-priority} como padrão — como em produção.
+     *
+     * <p>As duas registradas mesmo nos testes que não trocam de estratégia: o seletor recusa um id
+     * desconhecido, e um registro com uma só estratégia não exercitaria essa recusa.
+     */
+    public static ImportanceStrategies importanceStrategies() {
+        return new ImportanceStrategies(
+                List.of(new GoalPriorityImportance(), new PrerequisiteCentralityImportance()),
+                GoalPriorityImportance.ID);
     }
 
     /** The same request, asking for one engine by name. */

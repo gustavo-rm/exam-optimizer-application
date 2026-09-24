@@ -347,7 +347,7 @@ por execução da JVM** (o Javadoc a declara "unspecified and subject to change"
 numa conta: `EvolutionContext.normalize` soma `raw.values()` para dividir as importâncias pelo total,
 e soma de ponto flutuante não é associativa.
 
-`TopicImportance.of` devolvia `Map.copyOf(...)`. Consequência observada: **o mesmo pedido com a mesma
+`TopicImportance.of` — hoje `GoalPriorityImportance.of` — devolvia `Map.copyOf(...)`. Consequência observada: **o mesmo pedido com a mesma
 semente produzia planos diferentes em execuções diferentes da JVM** — o total mudava no último bit, as
 importâncias normalizadas com ele, e num ótimo degenerado (dois tópicos indistinguíveis para a
 fitness) o desempate virava.
@@ -379,8 +379,91 @@ impede a implementação; impede que o resultado seja apresentado como modelo ca
 | 5 | pesos 0,50 / 0,30 / 0,20 | `FitnessWeights` | julgamentos de produto; o que é medido é a **estabilidade** deles (`WeightSensitivityMain`), não a otimalidade |
 | 6 | `plan.engine.ga.generations` e `population-size` | `application-baseline-core.properties` | teto de custo, não ótimo ajustado: nenhum estudo diz onde a curva de qualidade achata neste caminho |
 | 7 | fração de revisão (metade do primeiro passe) | `SessionPlacement.revisionMinutes` | julgamento de planejamento, duplicado de propósito do baseline para os motores poderem divergir |
+| 8 | qual estratégia de importância planeja melhor | `sinapse/importance/` | **a medição que ainda não foi feita.** `prerequisite-centrality` é hipótese; nada aqui mede se ela planeja melhor do que perguntar ao aluno. As duas existem para que a comparação seja possível (§5) |
 
 A banda de um tópico atravessa (1) na plataforma e (2)+(3) aqui antes de virar tempo na fitness. Um
 plano gerado hoje é **internamente consistente e externamente não validado**: reprodutível, auditável
 termo a termo por `FitnessBreakdown`, e sem nenhuma evidência de que as constantes correspondam a como
 um aluno real aprende.
+
+---
+
+## 5. Importância: o termo dominante mudou de natureza
+
+`ScoreGainObjective` carrega **0,50 — metade do fitness** — e calcula `importance x mastery(dias)`.
+
+No produto de concurso, `importance` era o valor da disciplina na prova: `questionCount x peso do
+eixo temático`. **Externo e objetivo** — está no edital, e nem o aluno nem o sistema o escolhem.
+
+**O domínio SINAPSE não tem esse insumo.** O `PlanRequest` não carrega contagem de questões, peso de
+eixo nem edital. Então o substituto não é uma troca de fórmula: muda **o que o termo dominante
+significa**.
+
+### 5.1. Duas estratégias, e por que duas
+
+| id | Fonte | Natureza | Tensão |
+|---|---|---|---|
+| `goal-priority` *(padrão)* | `goals[].priority`, propagada aos tópicos da disciplina | **autodeclarada pelo aluno** | contraria a decisão L1 (ADR 0012, "o aluno não informa nada") |
+| `prerequisite-centrality` | nº de tópicos que dependem transitivamente do tópico (arestas `HARD`) | **objetiva, estrutural** | hipótese não validada |
+
+Não é indecisão. A opção do grafo é **hipótese**, e uma hipótese sem nada contra o quê testar não é
+mensurável. A primeira é o padrão porque é a substituta cujo significado uma decisão de produto já
+endossou.
+
+A tensão com L1 é real e fica registrada: a plataforma evitou dado autodeclarado de propósito, e o
+padrão de hoje alimenta metade do fitness exatamente com dado autodeclarado.
+
+### 5.2. Escala: brutas diferentes, normalizada igual
+
+As escalas **brutas** são incomparáveis de propósito — prioridade de 1 a 5, centralidade de 1 a n. O
+que as torna comparáveis é haver **um único procedimento de normalização**:
+`EvolutionContext.normalize` projeta o que chegar no simplex unitário. As estratégias devolvem bruto
+e não normalizam nada.
+
+Se uma delas normalizasse por conta própria, a outra passaria a ser medida contra outra escala e
+nada acusaria — por isso `ImportanceScaleTest` é parametrizado por estratégia e afirma as duas
+pontas: depois de `normalize` os pesos somam 1, e **antes** dele a soma é maior que 1 (a contraprova
+de que ninguém normalizou por conta própria).
+
+### 5.3. A centralidade conta só o que está no escopo, e essa restrição é o ponto honesto
+
+A plataforma envia `graph.edgesTouchingSubjects(subjectIds)`
+(`docs/CORE_CONTRACT_SURVEY.md` §4, item 2). Disso decorre:
+
+- toda aresta **entre dois tópicos planejados** é enviada — o subgrafo em escopo é **completo**;
+- arestas com **uma ponta fora** das disciplinas planejadas também são enviadas;
+- arestas **inteiramente fora** não são enviadas.
+
+Contar as pontas de fora alcançaria **exatamente um salto além da fronteira e pararia** — não um
+fecho menor, um fecho **enviesado**, inflando quem estiver na borda do escopo. Foi a regra de parada
+do enunciado que forçou a verificação, e a conclusão é que ela **não dispara**: as arestas
+necessárias para centralidade transitiva **entre os tópicos planejados** estão todas presentes. O
+que não está é a visão do currículo inteiro, e o código não finge tê-la.
+
+Um tópico pode ter dependentes além do pedido. Rankeá-lo como se não tivesse é um erro menor do que
+rankeá-lo por uma contagem completa para uns e truncada para outros.
+
+### 5.4. Determinismo e ciclo
+
+A contagem é a **cardinalidade de um conjunto**, então a ordem em que as arestas chegam não a
+alcança; a travessia ainda roda sobre a adjacência ordenada de `HardPrerequisiteGraph`.
+`PrerequisiteCentralityImportanceTest` embaralha o mesmo grafo em 25 ordens e exige valores
+idênticos.
+
+Ciclo `HARD` é **recusa declarada**, como em EOA-2: dentro de um ciclo "quantos dependem deste" não
+tem resposta — todos dependem de todos, inclusive de si mesmos. A travessia terminaria (o conjunto
+de visitados torna a alcançabilidade segura) e devolveria um número sem significado. A recusa é
+`PrerequisiteCycles`, compartilhada com a ordem de estudo, para que as duas não divirjam em
+categoria ou mensagem.
+
+### 5.5. A resposta diz qual estratégia rodou
+
+`fitness["importance-strategy"]`, sempre. Sem isso um resultado registrado **não é reproduzível**:
+nada diz o que `importance` significava naquela execução, e ela alimenta metade do fitness. A chave
+é estampada a partir da estratégia que de fato resolveu, não da configuração — a resposta tem de ser
+reconstruível meses depois sem consultar o que o deploy daquele dia tinha configurado.
+
+Selecionada por `algorithmParams.importance`, com padrão em
+`plan.fitness.sinapse.importance-strategy`. Trocar de condição **não exige recompilar nem
+reimplantar**. Um id desconhecido é recusado com `422` listando os que existem — cair no padrão
+rodaria um significado enquanto quem chamou registrou outro.
