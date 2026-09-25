@@ -13,11 +13,13 @@ import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.CreepMutation;
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
+import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.SoftPrerequisiteOrderConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
+import com.ia.project.dynamicstudyplanner.sinapse.GeneticSearchBudget;
 import com.ia.project.dynamicstudyplanner.sinapse.SinapseFitnessConfig;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.GoalPriorityImportance;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
@@ -61,6 +63,14 @@ public final class PlanEngines {
     /** A versão reportada como {@code metadata.coreVersion}; qualquer string não vazia serve aqui. */
     private static final String CORE_VERSION = "2.0.1";
 
+    /**
+     * The widest provenance condition, which is what every test that is not about the ablation
+     * wants: it sees exactly the edges the request carries, so a fixture's edges all apply and a
+     * test never has to know this key exists to reason about its own graph.
+     */
+    public static final PrerequisiteProvenance ALL_PROVENANCE =
+            new PrerequisiteProvenance(EdgeProvenanceFilter.ALL.id());
+
     private PlanEngines() {
     }
 
@@ -93,7 +103,7 @@ public final class PlanEngines {
 
     /** O motor guloso (EOA-2). */
     public static GreedyBaselineEngine greedy() {
-        return new GreedyBaselineEngine(new GreedyBaselineScheduler(CORE_VERSION));
+        return new GreedyBaselineEngine(new GreedyBaselineScheduler(CORE_VERSION, ALL_PROVENANCE));
     }
 
     /** O motor genético (EOA-5), com a composição de fitness do caminho SINAPSE. */
@@ -121,10 +131,13 @@ public final class PlanEngines {
                         new ScoreGainObjective(), new RetentionObjective(),
                         new DailyLoadBudgetObjective(), new MinimumDaysConstraint(),
                         new MandatoryReviewConstraint(new HybridRetentionEngine()),
+                        new SoftPrerequisiteOrderConstraint(),
                         dailyLoadBudget),
                 new HybridRetentionEngine(),
                 importanceStrategies(),
-                CORE_VERSION, generations, populationSize);
+                ALL_PROVENANCE,
+                CORE_VERSION,
+                new GeneticSearchBudget(generations, populationSize));
     }
 
     /**
@@ -135,7 +148,7 @@ public final class PlanEngines {
      */
     public static ImportanceStrategies importanceStrategies() {
         return new ImportanceStrategies(
-                List.of(new GoalPriorityImportance(), new PrerequisiteCentralityImportance()),
+                List.of(new GoalPriorityImportance(), new PrerequisiteCentralityImportance(ALL_PROVENANCE)),
                 GoalPriorityImportance.ID);
     }
 

@@ -19,6 +19,8 @@ import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.WeightedAverageC
 import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.CreepMutation;
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
+import com.ia.project.dynamicstudyplanner.plan.EdgeProvenanceFilter;
+import com.ia.project.dynamicstudyplanner.plan.SoftPrerequisiteEdges;
 import com.ia.project.dynamicstudyplanner.sinapse.AvailabilityWindows;
 import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
 import com.ia.project.dynamicstudyplanner.sinapse.SinapseEvolutionContexts;
@@ -124,7 +126,11 @@ public final class TopicPlans {
         List<PlanningItem> items = TopicPlanningItems.of(request.topics());
         return SinapseEvolutionContexts.of(request, items,
                 AvailabilityWindows.of(request.availability()), evaluator(),
-                new HybridRetentionEngine(), new GoalPriorityImportance());
+                new HybridRetentionEngine(), new GoalPriorityImportance(),
+                SinapseEvolutionContexts.softPrerequisites(
+                        SoftPrerequisiteEdges.of(request.topics(), request.prerequisites(),
+                                EdgeProvenanceFilter.ALL),
+                        request.topics()));
     }
 
     /** Atalho para {@code context(request(topics))}. */

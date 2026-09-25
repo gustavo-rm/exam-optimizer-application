@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.sinapse.importance;
 
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.plan.PlanRejectedException;
@@ -25,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DisplayName("Centralidade de pre-requisitos como importancia")
 class PrerequisiteCentralityImportanceTest {
 
-    private final PrerequisiteCentralityImportance strategy = new PrerequisiteCentralityImportance();
+    private final PrerequisiteCentralityImportance strategy =
+            new PrerequisiteCentralityImportance(new PrerequisiteProvenance("all"));
 
     private double importanceOf(PlanRequest request, int topicIndex) {
         Map<PlanningItem, Double> importance = strategy.importanceOf(request);

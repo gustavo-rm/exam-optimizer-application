@@ -24,8 +24,12 @@ import java.util.UUID;
  *
  * <ul>
  *   <li><b>{@code SOFT}</b> is a preference, not a constraint — the contract says so explicitly
- *       ({@code EdgeStrength}), and this baseline does not model preferences. It orders by goal
- *       pressure and curricular position, which is the whole of its opinion.</li>
+ *       ({@code EdgeStrength}). It is not ignored: {@link SoftPrerequisiteEdges} collects the same
+ *       edges and the genetic path prices an inversion of one. It is simply never allowed to decide
+ *       which orders exist.</li>
+ *   <li><b>An edge the run's {@link EdgeProvenanceFilter} does not admit.</b> The three provenance
+ *       conditions are an ablation, and an edge outside the condition has to be invisible to every
+ *       consumer of the graph, not only to the scheduler.</li>
  *   <li><b>An endpoint outside {@code topics}</b> cannot be scheduled by this plan, so the edge
  *       cannot be satisfied by any ordering of the topics that were sent. The platform sends these
  *       deliberately ({@code docs/CORE_CONTRACT_SURVEY.md} §4, item 2), so they are normal traffic
@@ -73,10 +77,11 @@ public final class HardPrerequisiteGraph {
      *
      * @param topics the topics in scope, each with a non-null identifier
      * @param edges  every edge the platform sent, of either strength
+     * @param filter the run's provenance condition; an edge it does not admit is not a constraint
      * @return the applied constraints, in both directions
      */
     public static HardPrerequisiteGraph of(List<PlanRequest.Topic> topics,
-            List<PlanRequest.PrerequisiteEdge> edges) {
+            List<PlanRequest.PrerequisiteEdge> edges, EdgeProvenanceFilter filter) {
 
         Set<UUID> known = new TreeSet<>(BY_TEXT);
         topics.forEach(topic -> known.add(topic.id()));
@@ -84,7 +89,7 @@ public final class HardPrerequisiteGraph {
         Map<UUID, Set<UUID>> dependents = new TreeMap<>(BY_TEXT);
         Map<UUID, Set<UUID>> prerequisites = new TreeMap<>(BY_TEXT);
         for (PlanRequest.PrerequisiteEdge edge : edges) {
-            if (applies(edge, known)) {
+            if (applies(edge, known, filter)) {
                 link(dependents, edge.prerequisiteTopicId(), edge.dependentTopicId());
                 link(prerequisites, edge.dependentTopicId(), edge.prerequisiteTopicId());
             }
@@ -92,12 +97,15 @@ public final class HardPrerequisiteGraph {
         return new HardPrerequisiteGraph(dependents, prerequisites);
     }
 
-    private static boolean applies(PlanRequest.PrerequisiteEdge edge, Set<UUID> known) {
+    private static boolean applies(PlanRequest.PrerequisiteEdge edge, Set<UUID> known,
+            EdgeProvenanceFilter filter) {
+
         return edge.strength() == EdgeStrength.HARD
                 && edge.prerequisiteTopicId() != null
                 && edge.dependentTopicId() != null
                 && known.contains(edge.prerequisiteTopicId())
-                && known.contains(edge.dependentTopicId());
+                && known.contains(edge.dependentTopicId())
+                && filter.admits(edge);
     }
 
     private static void link(Map<UUID, Set<UUID>> side, UUID from, UUID to) {

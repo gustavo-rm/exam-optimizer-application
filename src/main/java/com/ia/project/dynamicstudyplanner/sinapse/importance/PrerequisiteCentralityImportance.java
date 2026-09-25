@@ -1,10 +1,13 @@
 package com.ia.project.dynamicstudyplanner.sinapse.importance;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
 import com.ia.project.dynamicstudyplanner.plan.PrerequisiteCycles;
 import com.ia.project.dynamicstudyplanner.sinapse.TopicPlanningItems;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayDeque;
@@ -73,6 +76,7 @@ import java.util.UUID;
  * the same message the study order uses. That is the behaviour EOA-2 fixed for the greedy baseline.
  */
 @Component
+@Profile(PlanProtocol.PROFILE)
 public class PrerequisiteCentralityImportance implements ImportanceStrategy {
 
     /** The id this strategy answers to in {@code algorithmParams.importance}. */
@@ -92,6 +96,13 @@ public class PrerequisiteCentralityImportance implements ImportanceStrategy {
      */
     public static final double LEAF_FLOOR = 1.0;
 
+    /** The run's provenance condition; see the note on {@code GreedyBaselineScheduler}. */
+    private final PrerequisiteProvenance provenance;
+
+    public PrerequisiteCentralityImportance(PrerequisiteProvenance provenance) {
+        this.provenance = provenance;
+    }
+
     @Override
     public String id() {
         return ID;
@@ -99,8 +110,8 @@ public class PrerequisiteCentralityImportance implements ImportanceStrategy {
 
     @Override
     public Map<PlanningItem, Double> importanceOf(PlanRequest request) {
-        HardPrerequisiteGraph graph =
-                HardPrerequisiteGraph.of(request.topics(), request.prerequisites());
+        HardPrerequisiteGraph graph = HardPrerequisiteGraph.of(
+                request.topics(), request.prerequisites(), provenance.resolve(request));
         TreeSet<UUID> inScope = new TreeSet<>(HardPrerequisiteGraph.BY_TEXT);
         request.topics().forEach(topic -> inScope.add(topic.id()));
 

@@ -1,6 +1,8 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
 import com.ia.project.dynamicstudyplanner.plan.PlacedSession;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteReport;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.SessionKind;
 
 import java.util.Collections;
@@ -45,10 +47,13 @@ public final class BaselineFitness {
      * @param availableMinutes usable minutes after clipping to the horizon; positive, because a plan
      *                         with no minutes is refused before this is called
      * @param hardEdgesApplied how many {@code HARD} constraints the ordering had to satisfy
+     * @param prerequisites    what the prerequisite stage saw and did, reported in the same keys
+     *                         the genetic path uses so the two conditions compare without a
+     *                         translation step
      * @return the map to report, read-only
      */
     static Map<String, Object> of(int topicsTotal, List<PlacedSession> sessions,
-            long availableMinutes, int hardEdgesApplied) {
+            long availableMinutes, int hardEdgesApplied, PrerequisiteReport prerequisites) {
 
         long study = sessions.stream().filter(session -> session.kind() == SessionKind.STUDY).count();
         long revision = sessions.size() - study;
@@ -68,6 +73,17 @@ public final class BaselineFitness {
         fitness.put("available-minutes", availableMinutes);
         fitness.put("availability-utilisation", ratio(scheduledMinutes, availableMinutes));
         fitness.put("hard-edges-applied", hardEdgesApplied);
+        fitness.put(PrerequisiteProvenance.FITNESS_KEY, prerequisites.provenance().id());
+        fitness.put("prerequisite-edges-hard", prerequisites.hardEdges());
+        fitness.put("prerequisite-edges-soft", prerequisites.softEdges());
+        fitness.put("soft-prerequisite-inversions", prerequisites.inversionsAfter());
+        // No before-repair key: this engine runs no repair, and a key reporting "the repair removed
+        // none" would claim one ran. An absent key is the same statement the disabled fitness terms
+        // make on the other path.
+        // Named, not counted. A partial plan that says "three topics did not fit" leaves the
+        // platform unable to tell the student WHICH three; the scheduled set is a prefix of the
+        // study order, so these are exactly the tail nobody reaches.
+        fitness.put("topics-unscheduled-ids", prerequisites.unscheduled());
         return Collections.unmodifiableMap(fitness);
     }
 

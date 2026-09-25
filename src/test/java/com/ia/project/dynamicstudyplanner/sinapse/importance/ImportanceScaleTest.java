@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.sinapse.importance;
 
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
@@ -36,7 +37,8 @@ import static org.assertj.core.api.Assertions.within;
 class ImportanceScaleTest {
 
     private static Stream<ImportanceStrategy> strategies() {
-        return Stream.of(new GoalPriorityImportance(), new PrerequisiteCentralityImportance());
+        return Stream.of(new GoalPriorityImportance(),
+                new PrerequisiteCentralityImportance(new PrerequisiteProvenance("all")));
     }
 
     /** Um edital com arestas HARD, para a centralidade ter o que medir. */

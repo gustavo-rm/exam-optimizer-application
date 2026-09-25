@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
 import com.ia.project.dynamicstudyplanner.plan.PlanInvariantAssertions;
 import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.EdgeProvenance;
@@ -43,9 +44,12 @@ import static org.assertj.core.api.Assertions.tuple;
 @DisplayName("Greedy baseline scheduler")
 class GreedyBaselineSchedulerTest {
 
+    /** Sees every edge the request carries; these tests are not about the ablation. */
+    private static final PrerequisiteProvenance ALL_PROVENANCE = new PrerequisiteProvenance("all");
+
     private static final String CORE_VERSION = "2.0.1";
 
-    private final GreedyBaselineScheduler scheduler = new GreedyBaselineScheduler(CORE_VERSION);
+    private final GreedyBaselineScheduler scheduler = new GreedyBaselineScheduler(CORE_VERSION, ALL_PROVENANCE);
 
     private static List<UUID> topicsInOrder(PlanResponse response) {
         return PlanInvariantAssertions.inSequenceOrder(response).stream()
@@ -591,11 +595,26 @@ class GreedyBaselineSchedulerTest {
             PlanResponse response = scheduler.schedule(PlanRequests.builder().build());
 
             assertThat(response.fitness())
+                    .as("""
+                            The baseline's reported keys changed.
+
+                            containsOnlyKeys, not contains: a key appearing here is a change to
+                            what the platform is told, and it has to be a decision somebody wrote
+                            down rather than a field that leaked out of an internal record.
+
+                            soft-prerequisite-inversions-before-repair is DELIBERATELY absent: this
+                            engine runs no repair pass, and reporting "the repair removed none"
+                            would claim one ran. The genetic path reports both figures.""")
                     .containsOnlyKeys("strategy", "topics-total", "topics-scheduled",
                             "topics-unscheduled", "partial", "study-sessions", "revision-sessions",
                             "scheduled-minutes", "available-minutes", "availability-utilisation",
-                            "hard-edges-applied")
+                            "hard-edges-applied", "prerequisite-provenance",
+                            "prerequisite-edges-hard", "prerequisite-edges-soft",
+                            "soft-prerequisite-inversions", "topics-unscheduled-ids")
                     .containsEntry("strategy", "greedy-baseline")
+                    .containsEntry("prerequisite-provenance", "all")
+                    .containsEntry("prerequisite-edges-soft", 2)
+                    .containsEntry("topics-unscheduled-ids", List.of())
                     .containsEntry("study-sessions", 4L)
                     .containsEntry("revision-sessions", 0L)
                     .containsEntry("scheduled-minutes", 378L)

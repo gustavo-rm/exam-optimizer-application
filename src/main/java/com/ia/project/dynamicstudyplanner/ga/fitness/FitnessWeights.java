@@ -61,6 +61,32 @@ public final class FitnessWeights {
      */
     public static final double CONSTRAINT_VIOLATION = 0.50;
 
+    /**
+     * Fitness subtracted per unit of severity for a violated <b>preference</b>, as opposed to a
+     * violated requirement.
+     *
+     * <h2>Why it is an order of magnitude below {@link #CONSTRAINT_VIOLATION}</h2>
+     *
+     * The contract separates {@code HARD} from {@code SOFT} and says what the difference means: a
+     * hard edge is a rule, a soft edge is a preference. That distinction has to survive into the
+     * arithmetic, or the two strengths would differ in name only.
+     *
+     * <p>The value is fixed by an <b>ordering argument</b>, not by a measurement, and the ordering
+     * is: a violated preference must cost less than the smallest objective can pay back
+     * ({@link #COGNITIVE_LOAD}, 0.20), so honouring a preference can never be worth sacrificing a
+     * whole objective; and far less than a violated requirement (0.50), so a plan that respects
+     * every preference and misses a day floor can never outrank one that does the reverse. 0.10
+     * sits below both with room to spare, and is large enough that a fully inverted plan is visible
+     * in an aggregate reported to three decimals.
+     *
+     * <p>It is an argument and not evidence, which is why the term reports its own bite —
+     * {@code soft-prerequisite-inversions} and the repaired count — in {@code fitness}. If
+     * inversions turn out to be rare after repair, the honest move is to drop the term rather than
+     * to keep a decorative one; if they are common and the plans are worse for it, the weight is
+     * the thing to raise, from data.
+     */
+    public static final double SOFT_PREREQUISITE_ORDER = 0.10;
+
     private FitnessWeights() {
     }
 }

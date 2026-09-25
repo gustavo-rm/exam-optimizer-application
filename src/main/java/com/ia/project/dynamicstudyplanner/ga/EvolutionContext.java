@@ -32,6 +32,9 @@ import java.util.Set;
  *                                renormalised. Flatter than {@link #normalizedImportance}; see
  *                                {@link #temper} for why retention is not weighted by exam value.
  * @param minimumDaysPerItem   Coverage floor per item, from {@code SinapseMinimumDays}.
+ * @param softPrerequisitesPerItem Order preferences per item, from {@code SoftPrerequisiteEdges};
+ *                             {@code null} when the caller has none. Read only by
+ *                             {@code SoftPrerequisiteOrderConstraint}.
  * @param studentState            Self-reported stress, fatigue and motivation. Enters the fitness
  *                                indirectly, through the daily cognitive-load budget.
  * @param fitnessEvaluator        The configured fitness pipeline.
@@ -55,6 +58,7 @@ public record EvolutionContext(
         Map<PlanningItem, Double> retentionWeights,
         Map<PlanningItem, Double> requiredSessionsPerItem,
         Map<PlanningItem, Integer> minimumDaysPerItem,
+        Map<PlanningItem, Set<PlanningItem>> softPrerequisitesPerItem,
         FitnessEvaluator fitnessEvaluator,
         RetentionProfile retentionProfile,
         LocalDate planStartDate,
@@ -113,6 +117,7 @@ public record EvolutionContext(
         private Map<PlanningItem, Double> importanceScores;
         private List<PlanningItem> items;
         private Map<PlanningItem, Integer> minimumDaysPerItem;
+        private Map<PlanningItem, Set<PlanningItem>> softPrerequisitesPerItem;
         private FitnessEvaluator fitnessEvaluator;
         private RetentionProfile retentionProfile;
         private LocalDate planStartDate;
@@ -167,6 +172,25 @@ public record EvolutionContext(
         /** Obrigatório. Orçamento diário sustentável de carga cognitiva. */
         public Builder maxDailyCognitiveLoad(int maxDailyCognitiveLoad) {
             this.maxDailyCognitiveLoad = maxDailyCognitiveLoad;
+            return this;
+        }
+
+        /**
+         * Opcional. Preferências de ordem: para cada item, os itens que idealmente o precedem.
+         *
+         * <p>Omitir deixa o mapa nulo, e {@code SoftPrerequisiteOrderConstraint} devolve zero — que
+         * é o que um chamador sem arestas SOFT quer dizer. Preencher com um mapa vazio significa a
+         * mesma coisa e é igualmente aceito: "não há preferência" e "não sei" não se distinguem
+         * aqui, porque nenhuma das duas permite violar uma.
+         *
+         * <p>É um mapa por item e, portanto, sujeito à regra de ordenação deste repositório: quem o
+         * informa usa {@code LinkedHashMap}/{@code TreeMap}, nunca {@code Map.copyOf}. A soma de
+         * gravidades do termo é de ponto flutuante e a ordem entra na conta.
+         */
+        public Builder softPrerequisitesPerItem(
+                Map<PlanningItem, Set<PlanningItem>> softPrerequisitesPerItem) {
+
+            this.softPrerequisitesPerItem = softPrerequisitesPerItem;
             return this;
         }
 
@@ -228,6 +252,7 @@ public record EvolutionContext(
                     tempered,
                     requiredSessions(importanceScores.keySet(), planningHorizonDays),
                     minimumDaysPerItem,
+                    softPrerequisitesPerItem,
                     fitnessEvaluator,
                     retentionProfile,
                     planStartDate,
