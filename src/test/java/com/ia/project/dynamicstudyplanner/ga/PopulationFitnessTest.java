@@ -5,13 +5,9 @@ import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
-import com.ia.project.dynamicstudyplanner.ga.fitness.objective.CognitiveLoadObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective;
-import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.DropoutRiskPenalty;
-import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty;
-import com.ia.project.dynamicstudyplanner.service.calculation.engagement.DropoutRiskPredictor;
-import com.ia.project.dynamicstudyplanner.service.calculation.fatigue.FatigueAndEnergyModel;
+import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -225,9 +221,9 @@ class PopulationFitnessTest {
     /** O mesmo conjunto de componentes que o Spring monta em produção. */
     private static FitnessEvaluator pipelineDeProducao() {
         return new FitnessEvaluator(
-                List.of(new ScoreGainObjective(), new RetentionObjective(), new CognitiveLoadObjective()),
-                List.of(new DropoutRiskPenalty(new DropoutRiskPredictor()),
-                        new FatigueAndSustainabilityPenalty(new FatigueAndEnergyModel())),
+                List.of(new ScoreGainObjective(), new RetentionObjective(),
+                        new DailyLoadBudgetObjective()),
+                List.of(),
                 List.of(new MinimumDaysConstraint(),
                         new MandatoryReviewConstraint(new HybridRetentionEngine())));
     }

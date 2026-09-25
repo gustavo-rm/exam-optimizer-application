@@ -14,12 +14,14 @@
  * is expected to stay in the codebase after the genetic algorithm is wired to this contract — it is
  * not scaffolding to delete.
  *
- * <h2>What it does not touch</h2>
+ * <h2>What it reads from elsewhere</h2>
  *
- * Nothing. Every class of the existing exam-optimiser path — {@code ga}, {@code service},
- * {@code domain}, {@code api} — is untouched, and {@code /api/v1/optimizer/*} behaves exactly as it
- * did. The only types this module reads from elsewhere are the contract records in
- * {@code coreapi/contract} and the error-body builder in {@code api/exception}, both read-only.
+ * Two things, both read-only: the contract records in {@code coreapi/contract} and the error-body
+ * builder in {@code api/exception}.
+ *
+ * <p>This section used to say "nothing, and the exam-optimiser path behaves exactly as it did",
+ * because this module was added alongside that path. EOA-4b removed the path, and {@code /plans} is
+ * now the only endpoint the service serves.
  *
  * <h2>Determinism is a requirement here, not an aspiration</h2>
  *

@@ -1,97 +1,64 @@
 package com.ia.project.dynamicstudyplanner.support;
 
-import java.time.LocalDate;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.core.io.ClassPathResource;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Cargas JSON válidas para o endpoint {@code POST /api/v1/optimizer/generate}.
+ * Cargas JSON para o endpoint {@code POST /plans}.
  *
- * <h2>Por que a data da prova é relativa a hoje aqui</h2>
+ * <h2>O corpo vem do documento de referência, e não de um literal escrito aqui</h2>
  *
- * Em testes de unidade a etapa 01b substituiu {@code LocalDate.now()} por âncoras fixas, porque a
- * data era só um dado de entrada. Aqui é diferente: {@code DynamicStudyPlannerService} chama
- * {@code LocalDate.now()} <b>dentro do código de produção</b> para marcar o início do cronograma, e
- * {@code StudyScheduleGenerator} itera de lá até a data da prova. Uma âncora fixa no passado
- * produziria cronograma vazio e o teste deixaria de exercitar o caminho que pretende cobrir.
+ * {@code src/test/resources/contract/plan-request-v1.0.json} é mantido byte a byte igual à cópia do
+ * {@code sinapse-platform}. Uma requisição escrita à mão neste arquivo poderia descrever um
+ * <i>payload</i> que a plataforma nunca envia, e os testes de contorno passariam a proteger uma
+ * forma inventada.
  *
- * <p>Enquanto a produção depender do relógio, o teste do fluxo completo precisa depender dele
- * também. Tornar isso injetável (um {@code Clock} do Spring) é mudança em código de produção e está
- * registrada como pendência P3 em {@code docs/qualidade/01b-correcao-testes.md}.
+ * <p>Até EOA-4b esta classe montava um edital de concurso para
+ * o endpoint síncrono do caminho de concurso. Ele saiu; o que os testes de erro, de privacidade
+ * e de observabilidade precisam é um corpo válido para o endpoint que ficou.
  */
 public final class RequestPayloads {
+
+    private static final String GOLDEN = "contract/plan-request-v1.0.json";
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private RequestPayloads() {
     }
 
-    /** Horizonte confortável: 240 dias cobrem o orçamento de 120 dias de estudo com folga. */
-    public static final int DIAS_ATE_A_PROVA = 240;
-
-    public static final int TOTAL_STUDY_DAYS = 120;
-
-    /** As três disciplinas do edital sintético usado nos testes de API. */
-    public static final String DISCIPLINA_GK = "Portugues";
-    public static final String DISCIPLINA_ESP_1 = "Direito Constitucional";
-    public static final String DISCIPLINA_ESP_2 = "Informatica";
-
-    /**
-     * Uma requisição completa e válida: um edital com três disciplinas em dois grupos, um perfil de
-     * aluno com lacunas declaradas, disponibilidade em cinco dias da semana e estado psicológico
-     * preenchido.
-     */
+    /** O documento de referência, exatamente como está em disco. */
     public static String requisicaoValida() {
-        return requisicaoValida(TOTAL_STUDY_DAYS);
+        try (InputStream stream = new ClassPathResource(GOLDEN).getInputStream()) {
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException("nao foi possivel ler " + GOLDEN, e);
+        }
     }
 
-    public static String requisicaoValida(int totalStudyDays) {
-        LocalDate dataProva = LocalDate.now().plusDays(DIAS_ATE_A_PROVA);
-        return """
-                {
-                  "exam": {
-                    "name": "Concurso Sintetico 2026",
-                    "examDate": "%s",
-                    "generalKnowledgeTotalScore": 40.0,
-                    "generalKnowledgeSubjects": [
-                      { "name": "%s", "questionCount": 20, "cognitiveLoad": 2 }
-                    ],
-                    "specificKnowledgeAxes": [
-                      {
-                        "id": 1,
-                        "name": "Eixo Juridico",
-                        "weight": 2.5,
-                        "subjects": [
-                          { "name": "%s", "questionCount": 30, "cognitiveLoad": 5 }
-                        ]
-                      },
-                      {
-                        "id": 2,
-                        "name": "Eixo Tecnologia",
-                        "weight": 1.5,
-                        "subjects": [
-                          { "name": "%s", "questionCount": 25, "cognitiveLoad": 4 }
-                        ]
-                      }
-                    ]
-                  },
-                  "studentProfile": {
-                    "name": "Aluno de Teste",
-                    "knowledgeGaps": { "%s": 2.0, "%s": 4.5, "%s": 3.0 },
-                    "weeklyAvailability": {
-                      "MONDAY": 3, "TUESDAY": 3, "WEDNESDAY": 3, "THURSDAY": 3, "FRIDAY": 2,
-                      "SATURDAY": 6, "SUNDAY": 4
-                    },
-                    "state": {
-                      "stressLevel": 3.0,
-                      "fatigueLevel": 2.0,
-                      "motivationLevel": 4.0,
-                      "chronotype": "INTERMEDIATE"
-                    }
-                  },
-                  "gaConfig": {
-                    "totalStudyDays": %d,
-                    "numGenerations": 30,
-                    "populationSize": 20
-                  }
-                }
-                """.formatted(dataProva, DISCIPLINA_GK, DISCIPLINA_ESP_1, DISCIPLINA_ESP_2,
-                DISCIPLINA_GK, DISCIPLINA_ESP_1, DISCIPLINA_ESP_2, totalStudyDays);
+    /**
+     * O mesmo documento, pedindo um motor por {@code algorithmParams.engine}.
+     *
+     * @param engine o identificador do motor, como {@code PlanEngineSelector} o lê
+     * @return o corpo, com o parâmetro acrescentado
+     */
+    public static String requisicaoValida(String engine) {
+        try {
+            ObjectNode raiz = (ObjectNode) JSON.readTree(requisicaoValida());
+            JsonNode parametros = raiz.path("algorithmParams");
+            ObjectNode destino = parametros.isObject()
+                    ? (ObjectNode) parametros
+                    : raiz.putObject("algorithmParams");
+            destino.put("engine", engine);
+            return JSON.writeValueAsString(raiz);
+        } catch (IOException e) {
+            throw new UncheckedIOException("nao foi possivel montar o corpo", e);
+        }
     }
 }

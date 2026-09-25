@@ -73,13 +73,4 @@ class BaselinePlanAbsentTest {
                 .contains("baselinePlanSecurityFilterChain");
     }
 
-    @Test
-    @DisplayName("the optimizer endpoint behaves exactly as it did")
-    void theOptimizerEndpointIsUnaffected() throws Exception {
-        assertThat(mockMvc.perform(post("/api/v1/optimizer/generate")
-                                .contentType(MediaType.APPLICATION_JSON).content("{}"))
-                        .andReturn().getResponse().getStatus())
-                .as("an empty body still falls into validation, with no chain intercepting it")
-                .isEqualTo(400);
-    }
 }

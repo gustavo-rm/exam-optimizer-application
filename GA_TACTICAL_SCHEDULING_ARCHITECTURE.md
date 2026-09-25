@@ -23,17 +23,17 @@ Use **Repair-Based Operators** as the primary mechanism. The chromosome should b
 
 ## 2. Chromosome Representation
 
-To reduce invalid population generation, the representation must change from a simple `Map<Subject, Integer>` (days) to a structured chronological timeline.
+To reduce invalid population generation, the representation must change from a simple `Map<PlanningItem, Integer>` (days) to a structured chronological timeline.
 
 A good approach is an **Availability-Bounded Timeline**. The chromosome isn't a free-floating array of blocks; it is a fixed grid of the student's *actual availability windows*, where genes represent the *content* of those windows.
 
-*   `Gene`: A `StudyBlock` (Subject, Methodology, Duration).
+*   `Gene`: A `TacticalStudyBlock` (PlanningItem, Methodology, Duration).
 *   `Chromosome`: A mapping of `TimeSlot` -> `StudyBlock`. By fixing the `TimeSlot` grid to the student's availability, we eliminate the constraint of "allocating time when the student isn't available" by design. Overlaps are impossible because a `TimeSlot` can only hold one `StudyBlock`.
 
 ## 3. Recommended Mutation Strategies
 
 1.  **Methodology Mutation:** Randomly changes the `StudyMethod` of a block (e.g., Reading -> Flashcards) while keeping the subject and time.
-2.  **Subject Swap Mutation:** Swaps the subjects of two blocks of equal duration to explore different chronological orderings.
+2.  **Item Swap Mutation:** Swaps the planning items of two blocks of equal duration to explore different chronological orderings.
 3.  **Intensity Mutation (Energy Management):** In response to fatigue accumulation, lowers the duration or intensity of late-day blocks.
 
 ## 4. Recommended Crossover Strategies
@@ -45,4 +45,4 @@ A good approach is an **Availability-Bounded Timeline**. The chromosome isn't a 
 
 The `ChromosomeRepairer` must enforce:
 *   **Spaced Repetition:** If the chromosome lacks a mandatory review block dictated by the `RetentionEngine`, the repairer forcibly inserts it, overwriting a low-priority block.
-*   **Fatigue Caps:** If the cumulative cognitive load of a day exceeds the student's daily maximum, the repairer truncates the last block.
+*   **Load Caps:** If the cumulative cognitive load of a day exceeds the daily budget `SinapseLoadBudget` derives, the repairer truncates the last block.

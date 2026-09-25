@@ -51,8 +51,8 @@ import org.springframework.stereotype.Component;
  * This is a <b>mean-field approximation, not spaced repetition</b>. The macro chromosome is
  * {@code Map<PlanningItem, Integer>} — a count of days with no position in the calendar and no order
  * (docs/revisao-ag/01-auditoria-fitness.md §3.3) — so the objective can only reason about how many
- * sessions a subject gets, assuming the scheduler spreads them roughly evenly across the horizon,
- * which is what {@code StudyScheduleGenerator} does. It cannot express <em>when</em> a review
+ * sessions an item gets, assuming the scheduler spreads them roughly evenly across the horizon,
+ * which is what {@code sinapse.SessionPlacement} does. It cannot express <em>when</em> a review
  * happens, cannot model expanding intervals, and must not be described as implementing SM-2 or
  * spaced repetition proper. Doing that faithfully requires a time-indexed encoding, which is a
  * separate decision recorded in {@code docs/revisao-ag/02-formulacao.md}.

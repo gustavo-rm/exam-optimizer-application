@@ -17,7 +17,7 @@ Moving from an aggregate "hours per day" model to a granular "time slot" model r
 ### C. Hybrid GA + Heuristic Scheduling (Recommended)
 *   **Concept:** Use the Genetic Algorithm (GA) to dictate the *Strategic Macro-Plan* (Which subjects? How many total hours? Which days?). Use a deterministic *Heuristic Scheduler* to perform the *Tactical Micro-Plan* (Placing those hours into specific time slots using intelligent greedy heuristics).
 *   **Pros:**
-    *   **Scalable:** The GA searches a smaller, manageable space (Days/Subjects). The Heuristic runs in O(N log N) time to pack the slots.
+    *   **Scalable:** The GA searches a smaller, manageable space (sessions per planning item). The placement pass runs in O(N log N) time to pack the windows.
     *   **Context-Aware:** The heuristic can easily match a high-intensity block (e.g., Practice Exam) to a high-energy window (e.g., Saturday Morning).
     *   **Resilient:** If a student is interrupted, we do not need to re-run the expensive GA. We simply re-run the fast Heuristic Scheduler on the remaining macro-plan.
 

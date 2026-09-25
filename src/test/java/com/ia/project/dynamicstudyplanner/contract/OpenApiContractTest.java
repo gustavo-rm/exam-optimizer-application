@@ -116,7 +116,7 @@ class OpenApiContractTest {
     }
 
     @Test
-    @DisplayName("o retrato cobre o endpoint e os esquemas que o cliente precisa conhecer")
+    @DisplayName("o retrato publica zero caminho — e isso e o contrato, nao um descuido")
     void oRetratoCobreOQueImporta() throws Exception {
         JsonNode spec = JSON.readTree(mockMvc.perform(get("/v3/api-docs"))
                 .andReturn().getResponse().getContentAsString());
@@ -125,64 +125,41 @@ class OpenApiContractTest {
                 .as("versao da especificacao OpenAPI")
                 .startsWith("3.");
 
-        // Tres caminhos desde a etapa 06b: o sincrono original, que continua sendo o contrato
-        // publicado, mais o par do fluxo assincrono (achado E6). O sincrono NAO foi substituido —
-        // troca-lo quebraria todo cliente existente de uma vez.
-        assertThat(spec.path("paths").fieldNames())
-                .toIterable()
-                .as("os endpoints de negocio precisam estar documentados")
-                .containsExactlyInAnyOrder(
-                        "/api/v1/optimizer/generate",
-                        "/api/v1/optimizer/jobs",
-                        "/api/v1/optimizer/jobs/{id}");
+        // Ate EOA-4b havia tres caminhos aqui: o endpoint sincrono do caminho de concurso e o par
+        // do fluxo assincrono. Os tres sairam com ele, e o unico endpoint que restou
+        // — POST /plans — e deliberadamente @Hidden: ele nao e a API publica deste servico, e sim o
+        // protocolo que o sinapse-platform fala com ele, versionado por PlanRequest.VERSION e
+        // travado pelos documentos de referencia em src/test/resources/contract/. Publica-lo poria
+        // em circulacao uma segunda descricao, mais fraca, do mesmo contrato — ver PlanController.
+        //
+        // Um documento sem caminho nenhum continua sendo contrato util: se alguem publicar um
+        // endpoint por acidente, ou tirar o @Hidden de /plans, aparece aqui e no retrato.
+        JsonNode paths = spec.path("paths");
+        assertThat(paths.isMissingNode() || paths.isEmpty())
+                .as("""
+                        A API publica deste servico e vazia desde EOA-4b.
 
-        assertThat(spec.path("paths").path("/api/v1/optimizer/generate").fieldNames())
-                .toIterable()
-                .as("o endpoint sincrono aceita apenas POST")
-                .containsExactly("post");
-
-        assertThat(spec.path("paths").path("/api/v1/optimizer/jobs").fieldNames())
-                .toIterable()
-                .as("enviar um trabalho e POST")
-                .containsExactly("post");
-
-        assertThat(spec.path("paths").path("/api/v1/optimizer/jobs/{id}").fieldNames())
-                .toIterable()
-                .as("consultar um trabalho e GET — e por ser GET nao consome o limite de taxa")
-                .containsExactly("get");
-
-        JsonNode esquemas = spec.path("components").path("schemas");
-        assertThat(esquemas.fieldNames()).toIterable()
-                .as("todo DTO do contrato de entrada e de saida precisa aparecer no documento")
-                .contains("OptimizationRequest", "ExamDto", "SubjectDto", "ThematicAxisDto",
-                        "StudentProfileDto", "StudentStateDto", "GaConfigDto",
-                        "PlannerResponseDto", "OptimizationResultDto", "StudyPlanDto",
-                        "ScheduleResultDto", "StudyBlockDto", "ProblemDetail");
-
-        JsonNode respostas = spec.path("paths").path("/api/v1/optimizer/generate")
-                .path("post").path("responses");
-        assertThat(respostas.fieldNames()).toIterable()
-                .as("os codigos de resposta anunciados ao cliente")
-                .contains("200", "400", "408", "422", "500");
+                        Se um caminho apareceu aqui, ou ele e um endpoint novo — e entao precisa ser
+                        uma decisao escrita, com retrato atualizado no mesmo commit — ou alguem tirou
+                        o @Hidden de PlanController, que publicaria uma segunda descricao do
+                        protocolo do Core.""")
+                .isTrue();
     }
-
     @Test
-    @DisplayName("os limites de validacao fazem parte do contrato e estao publicados")
-    void osLimitesDeValidacaoEstaoNoContrato() throws Exception {
+    @DisplayName("nenhum esquema de DTO sobrou publicado")
+    void nenhumEsquemaSobrouPublicado() throws Exception {
         JsonNode esquemas = JSON.readTree(mockMvc.perform(get("/v3/api-docs"))
                         .andReturn().getResponse().getContentAsString())
                 .path("components").path("schemas");
 
-        // Estes tetos existem para proteger CPU e memoria (README, secao Security). Se alguem
-        // afrouxa um deles, a mudanca precisa ser visivel: e uma alteracao de contrato E de
-        // superficie de ataque ao mesmo tempo.
-        JsonNode gaConfig = esquemas.path("GaConfigDto").path("properties");
-        assertThat(gaConfig.path("totalStudyDays").path("maximum").asInt()).isEqualTo(365);
-        assertThat(gaConfig.path("numGenerations").path("maximum").asInt()).isEqualTo(1000);
-        assertThat(gaConfig.path("populationSize").path("maximum").asInt()).isEqualTo(500);
-
-        JsonNode subject = esquemas.path("SubjectDto").path("properties");
-        assertThat(subject.path("questionCount").path("maximum").asInt()).isEqualTo(500);
-        assertThat(subject.path("cognitiveLoad").path("maximum").asInt()).isEqualTo(5);
+        // Este teste conferia os tetos de validacao de GaConfigDto e SubjectDto — 365 dias, 1000
+        // geracoes, populacao 500, 500 questoes, carga 5 — porque afrouxar um deles era mudanca de
+        // contrato E de superficie de ataque ao mesmo tempo. Os DTOs sairam com o endpoint, e os
+        // limites equivalentes do caminho que ficou nao passam pelo OpenAPI: PlanRequestGuard e
+        // HorizonBounds os impoem em codigo, e plan/PlanOutputInvariantsTest os trava.
+        assertThat(esquemas.isMissingNode() || esquemas.isEmpty())
+                .as("sem caminho publicado nao ha esquema a publicar; um esquema aqui significa "
+                        + "que algum endpoint voltou a ser documentado")
+                .isTrue();
     }
 }

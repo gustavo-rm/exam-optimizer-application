@@ -17,14 +17,20 @@ public final class LearningModel {
     /**
      * Study days for an average-difficulty subject to reach ~63% mastery, i.e. one time constant.
      * Twice that, about 20 days, reaches ~86%. Chosen to sit on the same scale as the 15-day
-     * ceiling {@code BaselineCalculator} uses for its hardest-subject floor, so the coverage
-     * constraint and the objectives describe study effort in comparable units.
+     * ceiling the concurso path's {@code BaselineCalculator} used for its hardest-subject floor, so
+     * that the coverage constraint and the objectives describe study effort in comparable units.
+     * That calculator was removed in EOA-4b; the constant is kept at the value it was calibrated to,
+     * because changing it would move every fitness number without a measurement behind it.
      */
     private static final double TAU_AT_AVERAGE_LOAD = 10.0;
 
     /**
-     * The difficulty band treated as average. Matches {@code CognitiveLoadCalculator}'s
-     * {@code AVERAGE_LOAD_FACTOR} so "average difficulty" means the same thing across the system.
+     * The difficulty band treated as average, on the 1..5 scale this model documents.
+     *
+     * <p>It matched the concurso path's {@code CognitiveLoadCalculator.AVERAGE_LOAD_FACTOR}, which
+     * EOA-4b removed. The SINAPSE path reads a 1..4 effort tier instead, and its own midpoint — 2.5
+     * — lives on {@code DailyLoadBudgetObjective}: the two scales are different and are deliberately
+     * not shared, which is why that term is a separate class rather than this one reused.
      */
     private static final double AVERAGE_COGNITIVE_LOAD = 3.0;
 

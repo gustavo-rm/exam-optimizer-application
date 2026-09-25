@@ -55,7 +55,7 @@ import java.util.Optional;
  * {@code SPACED_REPETITION_REVIEW} marks a revision, purely so the distinction survives to
  * {@link TacticalSessions}. Nothing on this path reads the methodology's load, retention or energy
  * multipliers: the terms that would have — the two multiplicative penalties — are not in this path's
- * composition, for the reason {@code FitnessCompositionConfig} gives. No claim is being made that
+ * composition, for the reason {@code SinapseFitnessConfig} gives. No claim is being made that
  * active recall is the right method for a first pass.
  */
 public final class SessionPlacement {

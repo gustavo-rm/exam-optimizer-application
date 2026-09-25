@@ -1,7 +1,5 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
-import com.ia.project.dynamicstudyplanner.domain.StudentState;
-import com.ia.project.dynamicstudyplanner.domain.Chronotype;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.HybridCrossover;
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.RepairingCrossover;
@@ -66,7 +64,6 @@ class ChildGeneRepairTest {
         return EvolutionContext.builder()
                 .importanceScores(importancias)
                 .minimumDaysPerItem(minimos)
-                .studentState(new StudentState(3.0, 3.0, 3.0, Chronotype.INTERMEDIATE))
                 .fitnessEvaluator(new FitnessEvaluator(List.of(), List.of(), List.of()))
                 .planStartDate(HOJE)
                 .planningHorizonDays(300)

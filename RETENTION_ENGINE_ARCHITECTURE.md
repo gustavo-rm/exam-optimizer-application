@@ -16,7 +16,7 @@ A schedule that merely allocates study hours but fails to review material guaran
 *   **Cons:** Designed for atomic flashcards, not aggregate "Subject" level knowledge.
 
 ### C. Custom Hybrid Heuristic (Recommended)
-*   **Concept:** We adapt the core SM-2 math (Easiness Factor and Interval scaling) but apply it at the **Subject/Topic Level**. The "Quality Grade" is derived implicitly from the student's *Knowledge Gap* updates and explicitly from *Practice Exam* scores.
+*   **Concept:** We adapt the core SM-2 math (Easiness Factor and Interval scaling) but apply it at the **topic level**. Since EOA-4b the "Quality Grade" comes from one source only: the `RecallRating` values the platform sends in `history[].recallRatings`.
 *   **Pros:** Fits our existing macro-planning model. Allows us to calculate a continuous "Retention Probability" curve for any subject at any time.
 
 ## 3. The Forgetting Curve Model
@@ -37,7 +37,7 @@ If the calculated $R$ for a subject drops below a critical threshold (e.g., 80%)
 ### B. The Chromosome Repairer
 The `ChromosomeRepairer` (in the tactical layer) will actively query the `RetentionEngine`. If mandatory reviews are missing, it will forcibly overwrite low-priority passive reading blocks with mandatory review blocks.
 
-## 5. Subject-Specific Retention Behavior
+## 5. Topic-Specific Retention Behavior
 Not all subjects decay equally. A subject heavily reliant on memorization (e.g., Constitutional Law, Anatomy) decays faster than a subject reliant on conceptual frameworks (e.g., Math, Physics). The `Stability` multiplier must be modified by the subject's intrinsic `CognitiveLoad` and the student's historical affinity for it.
 
 ## 6. Path to Machine Learning Calibration

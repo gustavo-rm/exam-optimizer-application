@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.security;
 
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.ia.project.dynamicstudyplanner.support.RequestPayloads;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -8,7 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -33,13 +34,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>Cada 500 indevido tinha três custos: informava o cliente errado, despejava pilha completa no
  * log de ERRO — que é o veículo dos vazamentos S2 e S3 — e inutilizava qualquer alerta baseado em
  * taxa de 5xx, porque um varredor automático batendo com {@code GET} gerava 5xx em volume.
+ *
+ * <h2>O endpoint mudou em EOA-4b, a garantia não</h2>
+ *
+ * Os cinco cenários eram medidos contra o endpoint síncrono de concurso, que saiu com o
+ * caminho de concurso. Eles passaram para {@code POST /plans} porque a garantia é do
+ * <b>tratamento de erro</b>, não do endpoint: os mesmos tratadores de
+ * {@code api.exception.RequestErrorAdvice} atendem os dois, e um 500 indevido aqui teria
+ * exatamente os mesmos três custos.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = {
-        "api.rate-limit.capacity=100",
-        "api.rate-limit.refill-tokens=100"
-})
+@ActiveProfiles(PlanProtocol.PROFILE)
 @DisplayName("S8: erro de cliente devolve 4xx, nunca 500")
 class ClientErrorStatusTest {
 
@@ -50,14 +56,17 @@ class ClientErrorStatusTest {
     @DisplayName("cenario 1: valor de tipo incompativel devolve 400")
     void tipoIncompativelDevolve400() throws Exception {
         String payload = """
-                { "exam": {"name":"C","examDate":"2030-01-01","generalKnowledgeTotalScore":10,
-                  "generalKnowledgeSubjects":[],"specificKnowledgeAxes":[]},
-                  "studentProfile": {"name":"Aluno","knowledgeGaps":{"X":"NAO_E_NUMERO"},
-                  "weeklyAvailability":{"MONDAY":3}},
-                  "gaConfig": {"totalStudyDays":100,"numGenerations":30,"populationSize":20} }
+                {"contractVersion":"1.0",
+                 "horizon":{"start":"2026-09-01","end":"2026-09-28"},
+                 "availability":[],"goals":[],
+                 "topics":[{"id":"a0000001-0000-4000-8000-000000000001",
+                            "subjectId":"11111111-1111-4111-8111-111111111111",
+                            "position":1,"effortTier":"STANDARD",
+                            "estimatedMinutes":"NAO_E_NUMERO"}],
+                 "prerequisites":[],"history":[],"algorithmParams":{},"randomSeed":1}
                 """;
 
-        mockMvc.perform(post("/api/v1/optimizer/generate")
+        mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
@@ -68,7 +77,7 @@ class ClientErrorStatusTest {
                 // O campo problematico e nomeado por caminho completo, para o cliente conseguir
                 // corrigir sem adivinhar onde esta.
                 .andExpect(jsonPath("$.invalid_params[0].name")
-                        .value("studentProfile.knowledgeGaps.X"))
+                        .value(org.hamcrest.Matchers.containsString("estimatedMinutes")))
                 // ...e o valor que ele enviou NAO aparece em lugar nenhum da resposta.
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("NAO_E_NUMERO"))));
@@ -77,9 +86,9 @@ class ClientErrorStatusTest {
     @Test
     @DisplayName("cenario 2: JSON sintaticamente malformado devolve 400")
     void jsonMalformadoDevolve400() throws Exception {
-        mockMvc.perform(post("/api/v1/optimizer/generate")
+        mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{ \"exam\": { isto nao e json valido "))
+                        .content("{ \"horizon\": { isto nao e json valido "))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith("application/problem+json"))
                 .andExpect(jsonPath("$.status").value(400));
@@ -89,7 +98,7 @@ class ClientErrorStatusTest {
     @DisplayName("cenarios 3, 4 e 5: GET, PUT e DELETE devolvem 405 com cabecalho Allow")
     void verbosNaoSuportadosDevolvem405() throws Exception {
         for (HttpMethod metodo : new HttpMethod[]{HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE}) {
-            MvcResult resultado = mockMvc.perform(request(metodo, "/api/v1/optimizer/generate"))
+            MvcResult resultado = mockMvc.perform(request(metodo, PlanProtocol.PLANS_PATH))
                     .andExpect(status().isMethodNotAllowed())
                     .andExpect(jsonPath("$.status").value(405))
                     .andExpect(jsonPath("$.title").value("Method Not Allowed"))
@@ -105,7 +114,7 @@ class ClientErrorStatusTest {
     @Test
     @DisplayName("tipo de midia nao suportado devolve 415")
     void tipoDeMidiaNaoSuportadoDevolve415() throws Exception {
-        mockMvc.perform(post("/api/v1/optimizer/generate")
+        mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                         .contentType(MediaType.TEXT_PLAIN).content("texto puro"))
                 .andExpect(status().isUnsupportedMediaType())
                 .andExpect(jsonPath("$.status").value(415));
@@ -122,13 +131,11 @@ class ClientErrorStatusTest {
     @Test
     @DisplayName("o caminho de sucesso continua intacto depois das mudancas")
     void oCaminhoDeSucessoContinuaIntacto() throws Exception {
-        MvcResult inicial = mockMvc.perform(post("/api/v1/optimizer/generate")
+        // A contraprova dos cinco cenarios: um corpo bem formado tem que atravessar a mesma cadeia
+        // de tratadores e chegar ao manipulador. Sem ela, devolver 400 para tudo passaria.
+        mockMvc.perform(post(PlanProtocol.PLANS_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(RequestPayloads.requisicaoValida()))
-                .andReturn();
-
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .asyncDispatch(inicial))
                 .andExpect(status().isOk());
     }
 }

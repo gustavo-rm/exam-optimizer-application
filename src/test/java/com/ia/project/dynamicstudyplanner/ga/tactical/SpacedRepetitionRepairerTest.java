@@ -3,7 +3,7 @@ package com.ia.project.dynamicstudyplanner.ga.tactical;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
-import com.ia.project.dynamicstudyplanner.domain.retention.SubjectRetentionState;
+import com.ia.project.dynamicstudyplanner.domain.retention.ItemRetentionState;
 import com.ia.project.dynamicstudyplanner.domain.tactical.StudyMethodology;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
@@ -49,17 +49,17 @@ class SpacedRepetitionRepairerTest {
     private static RetentionAlgorithm exigeRevisaoPara(Set<PlanningItem> disciplinas) {
         return new RetentionAlgorithm() {
             @Override
-            public double calculateRetentionProbability(SubjectRetentionState state, LocalDate targetDate) {
+            public double calculateRetentionProbability(ItemRetentionState state, LocalDate targetDate) {
                 return 1.0;
             }
 
             @Override
-            public boolean isReviewMandatory(PlanningItem item, SubjectRetentionState state, LocalDate targetDate) {
+            public boolean isReviewMandatory(PlanningItem item, ItemRetentionState state, LocalDate targetDate) {
                 return disciplinas.contains(item);
             }
 
             @Override
-            public SubjectRetentionState processReview(SubjectRetentionState currentState,
+            public ItemRetentionState processReview(ItemRetentionState currentState,
                                                        LocalDate reviewDate, int performanceGrade) {
                 return currentState;
             }

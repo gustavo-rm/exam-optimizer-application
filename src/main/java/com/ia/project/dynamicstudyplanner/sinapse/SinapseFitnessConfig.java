@@ -36,8 +36,6 @@ import java.util.List;
  * {@code DynamicStudyPlannerApplicationTests.aComposicaoDeFitnessFiadaPeloSpringEhACanonica} pins.
  * An ungated {@link DailyLoadBudgetObjective} would have appeared as a fourth {@code FitnessObjective}
  * bean in every context and pushed that composition's weight sum to 1.2.
- *
- * @see com.ia.project.dynamicstudyplanner.ga.config.FitnessCompositionConfig the concurso path's
  */
 @Configuration
 @Profile(PlanProtocol.PROFILE)
@@ -52,8 +50,11 @@ public class SinapseFitnessConfig {
      *
      * <h2>What comes out unconditionally, and why</h2>
      *
-     * {@code FatigueAndSustainabilityPenalty} and {@code DropoutRiskPenalty} are removed because the
-     * platform collects no psychological state and no engagement history. Collecting self-declared
+     * {@code FatigueAndSustainabilityPenalty} and {@code DropoutRiskPenalty} were removed from this
+     * composition because the platform collects no psychological state and no engagement history.
+     * EOA-4b then removed the two classes outright, along with the concurso path that was their only
+     * caller; what follows is the reasoning that decided it, kept because it is the reasoning that
+     * would have to be reversed to bring them back. Collecting self-declared
      * psychological state bound to an identity is a decision under the LGPD — with minors in the
      * secondary-school pilot — and not one engineering gets to make by filling in a field.
      *

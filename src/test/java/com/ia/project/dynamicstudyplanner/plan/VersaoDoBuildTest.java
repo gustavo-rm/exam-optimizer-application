@@ -1,20 +1,17 @@
-package com.ia.project.dynamicstudyplanner.api;
+package com.ia.project.dynamicstudyplanner.plan;
 
-import com.ia.project.dynamicstudyplanner.api.dto.OptimizationResultDto;
-import com.ia.project.dynamicstudyplanner.api.mapper.OptimizationResultMapper;
-import com.ia.project.dynamicstudyplanner.domain.OptimizationResult;
-import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <h2>O que pode dar errado aqui, e por que só um teste pega</h2>
  *
- * {@code app.core.version=@project.version@} só vira um número porque o
+ * {@code baseline.core.version=@project.version@} só vira um número porque o
  * {@code spring-boot-starter-parent} configura <i>resource filtering</i> para
  * {@code application*.properties} com {@code @} como delimitador. Nada no código diz isso: se
  * alguém declarar um bloco {@code <resources>} próprio no {@code pom.xml} sem repetir a
@@ -36,8 +33,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>Por isso as três asserções são separadas: não vazio, não o literal, e igual à versão que o
  * {@code pom.xml} declara. A terceira é a que amarra o valor à fonte da verdade em vez de a um
  * formato plausível.
+ *
+ * <h2>Por que a chave mudou em EOA-4b</h2>
+ *
+ * A propriedade conferida era {@code app.core.version}, lida por {@code OptimizationResultDto}. Ela
+ * saiu com o caminho de concurso, e a versão que hoje chega a um cliente é
+ * {@code baseline.core.version}, em {@code metadata.coreVersion}. O mecanismo — e o modo de quebrar
+ * — é exatamente o mesmo; o que mudou foi onde o número sai.
  */
 @SpringBootTest
+@ActiveProfiles(PlanProtocol.PROFILE)
 @DisplayName("Versao do build: coreVersion vem do pom, filtrada pelo Maven")
 class VersaoDoBuildTest {
 
@@ -45,11 +50,11 @@ class VersaoDoBuildTest {
     private static final Pattern VERSAO_DO_PROJETO = Pattern.compile(
             "<artifactId>DynamicStudyPlanner</artifactId>\\s*<version>([^<]+)</version>");
 
-    @Value("${app.core.version}")
+    @Value("${baseline.core.version}")
     private String versaoInjetada;
 
     @Autowired
-    private OptimizationResultMapper mapper;
+    private PlanEngineSelector motores;
 
     private static String versaoDeclaradaNoPom() throws IOException {
         String pom = Files.readString(Path.of("pom.xml"), StandardCharsets.UTF_8);
@@ -77,12 +82,11 @@ class VersaoDoBuildTest {
     }
 
     @Test
-    @DisplayName("e e isso que chega ao cliente, como coreVersion")
+    @DisplayName("e e isso que chega ao cliente, como metadata.coreVersion")
     void aVersaoChegaNaResposta() throws IOException {
-        OptimizationResultDto dto = mapper.toDto(
-                new OptimizationResult(new StudyPlan(Map.of()), 0.5, 10, 42L));
+        PlanResponse resposta = motores.plan(PlanRequests.builder().build());
 
-        assertThat(dto.coreVersion())
+        assertThat(resposta.metadata().coreVersion())
                 .as("a atribuicao so serve se sair na resposta, nao apenas na configuracao")
                 .isEqualTo(versaoDeclaradaNoPom());
     }

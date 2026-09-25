@@ -16,9 +16,14 @@ import org.springframework.security.web.SecurityFilterChain;
  *
  * Todo {@code /api/v1/**} e a documentação OpenAPI são {@code permitAll()}: <b>não há autenticação
  * de nenhum tipo</b>, nem neste repositório nem delegada a um componente externo. A verificação está
- * documentada em {@code docs/qualidade/02b-correcao-seguranca.md}, item 0(a). Qualquer chamador
- * direto alcança o endpoint que recebe nome, autoavaliação de desempenho e estado psicológico do
- * estudante.
+ * documentada em {@code docs/qualidade/02b-correcao-seguranca.md}, item 0(a).
+ *
+ * <p>Desde EOA-4b <b>nenhum manipulador atende {@code /api/v1/**}</b>: o caminho de concurso saiu, e
+ * o único endpoint do serviço é {@code POST /plans}, cuja cadeia é
+ * {@code baseline.BaselinePlanSecurityConfig}. A regra continua aqui de propósito — removê-la faria
+ * um endpoint futuro sob esse prefixo nascer autenticado em vez de público, o que é uma mudança de
+ * postura e não uma limpeza. Ela é o que {@code BaselinePlanSecurityPostureTest} compara contra
+ * {@code /plans}.
  *
  * <h2>Exigência de TLS (achado S11)</h2>
  *
@@ -31,8 +36,11 @@ import org.springframework.security.web.SecurityFilterChain;
  * desligado é deliberado e não é o padrão inseguro: ligar sem proxy real quebraria todo acesso local
  * e — pior — a decisão passaria a depender do cabeçalho {@code X-Forwarded-Proto}, que só tem valor
  * quando vem de um proxy confiável. Por isso a chave <b>só deve ser ligada junto com</b>
- * {@code api.trusted-proxies}; as duas descrevem a mesma premissa de implantação. Ver
- * {@code ClientIpResolver}.
+ * {@code server.forward-headers-strategy}; as duas descrevem a mesma premissa de implantação.
+ *
+ * <p>Havia aqui uma terceira chave, {@code api.trusted-proxies}, lida pelo resolvedor de endereço do
+ * cliente que alimentava o balde do limite de taxa. As duas saíram em EOA-4b com o caminho que
+ * protegiam.
  */
 @Configuration
 @EnableWebSecurity

@@ -205,25 +205,6 @@ public class StudyPlan {
     }
 
     /**
-     * O mesmo mapa, sob o nome antigo. <b>Removido em EOA-4b.</b>
-     *
-     * <p>Existe por uma razão só: {@code GaResultadoInalteradoTest} é a rede de segurança desta
-     * etapa e <b>não pode mudar</b>, e ele chama este método. Renomeá-lo obrigaria a editar o teste
-     * que existe justamente para provar que a refatoração não alterou comportamento — o que
-     * destruiria a prova no momento em que ela mais vale.
-     *
-     * <p>Quando o caminho de concurso sair, em EOA-4b, o teste passa a ler
-     * {@link #getDaysPerItem()} e este apelido vai junto.
-     *
-     * @return o mesmo que {@link #getDaysPerItem()}
-     * @deprecated use {@link #getDaysPerItem()}; sai em EOA-4b junto com o mapeador de fronteira
-     */
-    @Deprecated(since = "EOA-4a", forRemoval = true)
-    public Map<PlanningItem, Integer> getDaysPerSubject() {
-        return getDaysPerItem();
-    }
-
-    /**
      * Verifica se o plano respeita todos os pisos de dias mínimos informados.
      * <p>
      * Traz a validação para dentro do objeto de domínio, em vez de deixá-la no arcabouço do AG.

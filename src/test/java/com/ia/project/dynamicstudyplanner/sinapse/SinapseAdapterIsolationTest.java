@@ -59,13 +59,6 @@ class SinapseAdapterIsolationTest {
             Path.of("src/main/java/com/ia/project/dynamicstudyplanner/sinapse");
 
     /**
-     * Os tipos que o caminho SINAPSE não pode alcançar, com o motivo no nome do teste que falha.
-     *
-     * <p>{@code StudentState} e as três calculadoras por exigirem dado ausente; {@code Exam} e
-     * {@code Subject} porque são a modelagem de concurso e alcançá-los significaria que o núcleo
-     * voltou a falar de disciplina em vez de item de planejamento.
-     */
-    /**
      * Arquivos cujo {@code Map.copyOf} e consultado por {@code get} e nunca iterado.
      *
      * <p>Um mapa assim nao tem como levar a ordem embaralhada por execucao da JVM ate uma soma de
@@ -75,46 +68,75 @@ class SinapseAdapterIsolationTest {
     private static final List<String> LOOKUP_ONLY_MAPS = List.of(
             "EffortTierBands.java", "ImportanceStrategies.java");
 
-    private static final List<String> FORBIDDEN = List.of(
+    /**
+     * Os tipos que exigiam dado que a plataforma não envia, e que <b>não existem mais</b>.
+     *
+     * <h2>A proibição virou ausência em EOA-4b, e isso é mais forte</h2>
+     *
+     * Até EOA-4b esta lista alimentava uma varredura de {@code import} sobre {@code sinapse/}: o
+     * adaptador não podia alcançar {@code StudentProfile}, {@code StudentState}, {@code Exam},
+     * {@code Subject}, {@code EngagementProfile} nem as três calculadoras de concurso. A remoção do
+     * caminho de concurso levou todos eles, e um tipo que não existe não pode ser importado por
+     * ninguém — não só pelo adaptador.
+     *
+     * <p>O teste mudou de forma junto: em vez de varrer <i>imports</i>, ele confere que cada um
+     * destes nomes continua ausente do classpath. Reintroduzir qualquer um é uma decisão, não um
+     * detalhe de implementação — coletar estado psicológico autodeclarado vinculado a identidade,
+     * com menores no piloto de ensino médio, é decisão sob a LGPD, e voltar a planejar em disciplina
+     * de concurso desfaz EOA-4. Nos dois casos este teste é onde a conversa recomeça.
+     */
+    private static final List<String> REMOVED = List.of(
             "domain.StudentProfile",
             "domain.StudentState",
+            "domain.Chronotype",
             "domain.exam.Exam",
             "domain.exam.Subject",
+            "domain.exam.SubjectPlanningItemMapper",
             "domain.engagement.EngagementProfile",
+            "domain.engagement.DropoutRiskAlgorithm",
+            "domain.fatigue.FatigueAlgorithm",
             "service.calculation.CognitiveLoadCalculator",
             "service.calculation.ImportanceCalculator",
-            "service.calculation.BaselineCalculator");
+            "service.calculation.BaselineCalculator",
+            "service.calculation.engagement.DropoutRiskPredictor",
+            "service.calculation.fatigue.FatigueAndEnergyModel",
+            "ga.fitness.objective.CognitiveLoadObjective",
+            "ga.fitness.penalty.DropoutRiskPenalty",
+            "ga.fitness.penalty.FatigueAndSustainabilityPenalty");
 
     @Test
-    @DisplayName("nenhuma classe do adaptador importa tipo que exija dado que a plataforma nao envia")
-    void nenhumaClasseAlcancaOQueExigeDadoAusente() throws IOException {
-        List<String> violations = new ArrayList<>();
-        try (Stream<Path> files = Files.walk(ADAPTER)) {
-            for (Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
-                String source = Files.readString(file, StandardCharsets.UTF_8);
-                for (String forbidden : FORBIDDEN) {
-                    if (source.contains("import com.ia.project.dynamicstudyplanner." + forbidden + ";")) {
-                        violations.add(ADAPTER.relativize(file) + " -> " + forbidden);
-                    }
-                }
+    @DisplayName("os tipos que exigiam dado ausente continuam sem existir, no disco e no classpath")
+    void osTiposQueExigiamDadoAusenteContinuamAusentes() {
+        List<String> ressuscitados = new ArrayList<>();
+        for (String name : REMOVED) {
+            String fqn = "com.ia.project.dynamicstudyplanner." + name;
+            if (Files.exists(Path.of("src/main/java/com/ia/project/dynamicstudyplanner",
+                    name.replace('.', '/') + ".java"))) {
+                ressuscitados.add(name + " (em disco)");
+                continue;
+            }
+            try {
+                Class.forName(fqn);
+                ressuscitados.add(name + " (no classpath)");
+            } catch (ClassNotFoundException esperado) {
+                // Ausente, que e o estado correto.
             }
         }
 
-        assertThat(violations)
+        assertThat(ressuscitados)
                 .as("""
-                        O adaptador SINAPSE passou a alcancar um tipo que exige dado que a
-                        plataforma nao envia.
+                        Um tipo do caminho de concurso voltou a existir.
 
-                        Se a intencao foi reaproveitar um calculo do caminho de concurso: ele vai
-                        pedir um StudentProfile, e montar um obriga a inventar as lacunas de
-                        conhecimento e o estado psicologico. Nenhuma das duas coisas e enviada, e
-                        nenhuma cai apenas no orcamento de carga: a lacuna reponderaria a maestria,
-                        a retencao E o piso de dias minimos. Uma constante ali nao suaviza um termo,
-                        reponderaria a funcao inteira sem que nada parecesse errado.
+                        Se a intencao foi reaproveitar um termo que le estado do estudante: ele
+                        pede StudentState ou EngagementProfile, e monta-los obriga a inventar o
+                        estado psicologico. A plataforma nao o envia, e um valor neutro ali nao
+                        suavizaria um termo — faria um termo inerte aparentar estar ativo, que e
+                        pior que a ausencia dele. Coletar estado psicologico autodeclarado
+                        vinculado a identidade e decisao sob a LGPD, com menores no piloto de
+                        ensino medio, e nao e decisao de engenharia.
 
-                        Coletar estado psicologico autodeclarado vinculado a identidade e decisao
-                        sob a LGPD, com menores no piloto de ensino medio, e nao e decisao de
-                        engenharia.
+                        Se a intencao foi voltar a planejar em disciplina de concurso: isso desfaz
+                        EOA-4, em que a unidade de planejamento passou a ser o PlanningItem.
 
                         Ver docs/SINAPSE_ADAPTER.md secao 2.""")
                 .isEmpty();
@@ -160,20 +182,4 @@ class SinapseAdapterIsolationTest {
                 .isEmpty();
     }
 
-    @Test
-    @DisplayName("a lista de tipos proibidos nao ficou obsoleta: todos ainda existem")
-    void aListaNaoFicouObsoleta() {
-        // Um tipo renomeado sairia da lista sem que ninguem notasse, e o teste passaria a nao
-        // proteger nada. Cada entrada e conferida contra o disco.
-        List<String> missing = FORBIDDEN.stream()
-                .filter(name -> !Files.exists(Path.of(
-                        "src/main/java/com/ia/project/dynamicstudyplanner",
-                        name.replace('.', '/') + ".java")))
-                .toList();
-
-        assertThat(missing)
-                .as("estes tipos proibidos nao existem mais: renomeie-os na lista ou remova-os, "
-                        + "senao a proibicao deixou de valer em silencio")
-                .isEmpty();
-    }
 }

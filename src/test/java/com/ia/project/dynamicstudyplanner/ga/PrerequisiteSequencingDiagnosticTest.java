@@ -9,14 +9,10 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.TimeSlot;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
-import com.ia.project.dynamicstudyplanner.ga.fitness.objective.CognitiveLoadObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.FitnessObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective;
-import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.DropoutRiskPenalty;
-import com.ia.project.dynamicstudyplanner.ga.fitness.penalty.FatigueAndSustainabilityPenalty;
-import com.ia.project.dynamicstudyplanner.service.calculation.engagement.DropoutRiskPredictor;
-import com.ia.project.dynamicstudyplanner.service.calculation.fatigue.FatigueAndEnergyModel;
+import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -176,7 +172,8 @@ class PrerequisiteSequencingDiagnosticTest {
                     .as("os tres objetivos de producao somam 1.0 e o construtor deve aceita-los")
                     .doesNotThrowAnyException();
 
-            assertThat(List.of(new ScoreGainObjective(), new RetentionObjective(), new CognitiveLoadObjective()))
+            assertThat(List.of(new ScoreGainObjective(), new RetentionObjective(),
+                    new DailyLoadBudgetObjective()))
                     .as("a composicao verificada acima e exatamente esta")
                     .extracting(FitnessObjective::getWeight)
                     .containsExactly(0.50, 0.30, 0.20);
@@ -208,9 +205,9 @@ class PrerequisiteSequencingDiagnosticTest {
     /** The same component set Spring wires in production. */
     private static FitnessEvaluator productionPipeline() {
         return new FitnessEvaluator(
-                List.of(new ScoreGainObjective(), new RetentionObjective(), new CognitiveLoadObjective()),
-                List.of(new DropoutRiskPenalty(new DropoutRiskPredictor()),
-                        new FatigueAndSustainabilityPenalty(new FatigueAndEnergyModel())),
+                List.of(new ScoreGainObjective(), new RetentionObjective(),
+                        new DailyLoadBudgetObjective()),
+                List.of(),
                 List.of(new MinimumDaysConstraint(),
                         new MandatoryReviewConstraint(new HybridRetentionEngine())));
     }

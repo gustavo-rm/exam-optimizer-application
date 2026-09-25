@@ -1,9 +1,7 @@
 package com.ia.project.dynamicstudyplanner.ga;
 
-import com.ia.project.dynamicstudyplanner.domain.StudentState;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItemIndex;
-import com.ia.project.dynamicstudyplanner.domain.engagement.EngagementProfile;
 import com.ia.project.dynamicstudyplanner.domain.retention.RetentionProfile;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.LearningModel;
@@ -33,7 +31,7 @@ import java.util.Set;
  * @param retentionWeights        Importance tempered by {@link #RETENTION_TEMPERING} and
  *                                renormalised. Flatter than {@link #normalizedImportance}; see
  *                                {@link #temper} for why retention is not weighted by exam value.
- * @param minimumDaysPerItem   Coverage floor per item, from {@code BaselineCalculator}.
+ * @param minimumDaysPerItem   Coverage floor per item, from {@code SinapseMinimumDays}.
  * @param studentState            Self-reported stress, fatigue and motivation. Enters the fitness
  *                                indirectly, through the daily cognitive-load budget.
  * @param fitnessEvaluator        The configured fitness pipeline.
@@ -44,7 +42,7 @@ import java.util.Set;
  *                                spacing estimate in the retention objective.
  * @param hoursPerStudyDay        Study hours a single plan day represents, derived from the
  *                                student's weekly availability.
- * @param maxDailyCognitiveLoad   Sustainable daily load budget from {@code CognitiveLoadCalculator}.
+ * @param maxDailyCognitiveLoad   Sustainable daily load budget, from {@code SinapseLoadBudget}.
  *                                Already reflects the student's psychological state.
  * @param geneVectors             Os mesmos dados por disciplina acima, projetados na ordem canônica
  *                                do cromossomo (pendência P18). É o que a evolução lê no caminho
@@ -57,11 +55,9 @@ public record EvolutionContext(
         Map<PlanningItem, Double> retentionWeights,
         Map<PlanningItem, Double> requiredSessionsPerItem,
         Map<PlanningItem, Integer> minimumDaysPerItem,
-        StudentState studentState,
         FitnessEvaluator fitnessEvaluator,
         RetentionProfile retentionProfile,
         LocalDate planStartDate,
-        EngagementProfile engagementProfile,
         int planningHorizonDays,
         int hoursPerStudyDay,
         int maxDailyCognitiveLoad,
@@ -103,20 +99,23 @@ public record EvolutionContext(
      *
      * <p>Os cinco restantes são <b>opcionais</b> e valem {@code null} quando omitidos, que é
      * exatamente o que os chamadores do caminho macro passavam antes. Não há mudança de
-     * comportamento: {@code studentState}, {@code fitnessEvaluator}, {@code retentionProfile},
-     * {@code planStartDate} e {@code engagementProfile} continuam podendo ser nulos, e os
-     * consumidores continuam guardando contra isso.
+     * comportamento: {@code fitnessEvaluator}, {@code retentionProfile} e {@code planStartDate}
+     * continuam podendo ser nulos, e os consumidores continuam guardando contra isso.
+     *
+     * <p>{@code studentState} e {@code engagementProfile} saíram em EOA-4b, com os dois termos de
+     * fitness que os liam. Os dois vinham de {@code StudentProfileDto.state} e eram preenchidos só
+     * pelo caminho de concurso; a plataforma não coleta estado psicológico nem histórico de
+     * engajamento, e a decisão de coletá-los é jurídica antes de ser de engenharia. Ver
+     * {@code sinapse/SinapseFitnessConfig}.
      */
     public static final class Builder {
 
         private Map<PlanningItem, Double> importanceScores;
         private List<PlanningItem> items;
         private Map<PlanningItem, Integer> minimumDaysPerItem;
-        private StudentState studentState;
         private FitnessEvaluator fitnessEvaluator;
         private RetentionProfile retentionProfile;
         private LocalDate planStartDate;
-        private EngagementProfile engagementProfile;
         private Integer planningHorizonDays;
         private Integer hoursPerStudyDay;
         private Integer maxDailyCognitiveLoad;
@@ -124,7 +123,7 @@ public record EvolutionContext(
         private Builder() {
         }
 
-        /** Obrigatório. Importância personalizada bruta por disciplina, nas unidades do edital. */
+        /** Obrigatório. Importância bruta por item, na escala da estratégia que a produziu. */
         public Builder importanceScores(Map<PlanningItem, Double> importanceScores) {
             this.importanceScores = importanceScores;
             return this;
@@ -133,10 +132,11 @@ public record EvolutionContext(
         /**
          * Opcional. A ordem dos itens, que passa a ser <b>a ordem dos genes do cromossomo</b> (pendência P18).
          *
-         * <p>Omitir cai na ordem de iteração de {@link #importanceScores}, que é o que os testes
-         * fazem. A produção informa explicitamente, com {@code exam.getAllSubjects()}: é a diferença
-         * entre uma ordem declarada pelo edital e uma ordem que vem de um detalhe interno de
-         * {@code HashMap}, livre para mudar numa atualização de JDK. Ver {@link PlanningItemIndex}.
+         * <p>Omitir cai na ordem de iteração de {@link #importanceScores}, que é o que alguns
+         * testes fazem. A produção informa explicitamente, com a lista de tópicos do pedido: é a
+         * diferença entre uma ordem declarada pelo chamador e uma ordem que vem de um detalhe
+         * interno de {@code HashMap}, livre para mudar numa atualização de JDK. Ver
+         * {@link PlanningItemIndex}.
          *
          * @param items os itens na ordem em que serão planejados
          * @return este construtor
@@ -146,13 +146,13 @@ public record EvolutionContext(
             return this;
         }
 
-        /** Obrigatório. Piso de cobertura por disciplina, vindo do {@code BaselineCalculator}. */
+        /** Obrigatório. Piso de cobertura por item, vindo de {@code SinapseMinimumDays}. */
         public Builder minimumDaysPerItem(Map<PlanningItem, Integer> minimumDaysPerItem) {
             this.minimumDaysPerItem = minimumDaysPerItem;
             return this;
         }
 
-        /** Obrigatório. Dias de calendário entre o início do plano e a prova. */
+        /** Obrigatório. Dias de calendário do horizonte, contando o primeiro e o último. */
         public Builder planningHorizonDays(int planningHorizonDays) {
             this.planningHorizonDays = planningHorizonDays;
             return this;
@@ -167,12 +167,6 @@ public record EvolutionContext(
         /** Obrigatório. Orçamento diário sustentável de carga cognitiva. */
         public Builder maxDailyCognitiveLoad(int maxDailyCognitiveLoad) {
             this.maxDailyCognitiveLoad = maxDailyCognitiveLoad;
-            return this;
-        }
-
-        /** Opcional. Estresse, fadiga e motivação autodeclarados. */
-        public Builder studentState(StudentState studentState) {
-            this.studentState = studentState;
             return this;
         }
 
@@ -191,12 +185,6 @@ public record EvolutionContext(
         /** Opcional. Primeiro dia do plano. */
         public Builder planStartDate(LocalDate planStartDate) {
             this.planStartDate = planStartDate;
-            return this;
-        }
-
-        /** Opcional. Histórico comportamental; linha de base no caminho macro. */
-        public Builder engagementProfile(EngagementProfile engagementProfile) {
-            this.engagementProfile = engagementProfile;
             return this;
         }
 
@@ -240,11 +228,9 @@ public record EvolutionContext(
                     tempered,
                     requiredSessions(importanceScores.keySet(), planningHorizonDays),
                     minimumDaysPerItem,
-                    studentState,
                     fitnessEvaluator,
                     retentionProfile,
                     planStartDate,
-                    engagementProfile,
                     planningHorizonDays,
                     hoursPerStudyDay,
                     maxDailyCognitiveLoad,
