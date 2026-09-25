@@ -10,11 +10,11 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Baseline 1 — random allocation respecting only the hard constraints.
+ * Random allocation respecting only the hard constraints.
  * <p>
- * Every subject receives its minimum required days, and the remaining budget is scattered uniformly
- * at random. The result always satisfies the two invariants the production operators preserve:
- * the day total equals the budget, and no subject falls below its floor.
+ * Every item receives its minimum required sessions, and the remaining budget is scattered
+ * uniformly at random. The result always satisfies the two invariants the production operators
+ * preserve: the session total equals the budget, and no item falls below its floor.
  * <p>
  * This is the reference point that answers "how much does the search actually buy?". A GA that does
  * not clearly beat random allocation is not searching; it is sampling. Note that this is an
