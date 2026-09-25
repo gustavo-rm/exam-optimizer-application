@@ -6,11 +6,19 @@ import com.ia.project.dynamicstudyplanner.domain.retention.RetentionAlgorithm;
 import com.ia.project.dynamicstudyplanner.domain.tactical.AvailabilityWindow;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
+import com.ia.project.dynamicstudyplanner.plan.SoftPrerequisiteEdges;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.UUID;
 
 /**
  * Everything the genetic algorithm is told, assembled from a {@code PlanRequest}.
@@ -72,11 +80,14 @@ public final class SinapseEvolutionContexts {
      * @param retention the recurrence used to rebuild the history
      * @param importance where the weight of the heaviest fitness term comes from; chosen per
      *                   request and echoed in the answer
+     * @param softOrder  order preferences per item, already reduced to this run's provenance
+     *                   condition; empty when the request carries no applicable soft edge
      * @return the context, with no field derived from data the platform did not send
      */
     public static EvolutionContext of(PlanRequest request, List<PlanningItem> items,
             List<AvailabilityWindow> windows, FitnessEvaluator evaluator,
-            RetentionAlgorithm retention, ImportanceStrategy importance) {
+            RetentionAlgorithm retention, ImportanceStrategy importance,
+            Map<PlanningItem, Set<PlanningItem>> softOrder) {
 
         LocalDate planStart = request.horizon().start();
         int horizonDays = horizonDays(request);
@@ -92,8 +103,42 @@ public final class SinapseEvolutionContexts {
                 .planningHorizonDays(horizonDays)
                 .hoursPerStudyDay(hoursPerStudyDay)
                 .maxDailyCognitiveLoad(SinapseLoadBudget.of(hoursPerStudyDay, items))
+                .softPrerequisitesPerItem(softOrder)
                 .fitnessEvaluator(evaluator)
                 .build();
+    }
+
+    /**
+     * Translates the contract's soft edges into the planning items the fitness speaks.
+     *
+     * <p>The term that reads this sums a gravity per preference, so the map is insertion-ordered
+     * over an already-ordered source: {@link SoftPrerequisiteEdges} emits its pairs sorted by
+     * identifier text, and this preserves that. A {@code HashMap} here would put a per-item map in
+     * a floating-point sum, which is the defect {@code SinapseAdapterIsolationTest} exists to
+     * prevent.
+     *
+     * <p>An edge whose endpoint is not among the topics cannot appear: the source already dropped
+     * it, for the reason given there.
+     *
+     * @param soft   the applicable preferences, as topic identifiers
+     * @param topics the topics in scope, to resolve each identifier to its planning item
+     * @return dependent item to the items that would ideally precede it
+     */
+    public static Map<PlanningItem, Set<PlanningItem>> softPrerequisites(
+            SoftPrerequisiteEdges soft, List<PlanRequest.Topic> topics) {
+
+        Map<UUID, PlanningItem> byId = new TreeMap<>(Comparator.comparing(UUID::toString));
+        topics.forEach(topic -> byId.put(topic.id(), TopicPlanningItems.toItem(topic)));
+
+        Map<PlanningItem, Set<PlanningItem>> byItem = new LinkedHashMap<>();
+        for (SoftPrerequisiteEdges.Edge edge : soft.all()) {
+            PlanningItem dependent = byId.get(edge.dependent());
+            PlanningItem prerequisite = byId.get(edge.prerequisite());
+            if (dependent != null && prerequisite != null) {
+                byItem.computeIfAbsent(dependent, key -> new LinkedHashSet<>()).add(prerequisite);
+            }
+        }
+        return byItem;
     }
 
     /**

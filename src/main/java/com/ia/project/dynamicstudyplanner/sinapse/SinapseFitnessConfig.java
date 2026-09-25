@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessComposition;
 import com.ia.project.dynamicstudyplanner.ga.fitness.WeightedObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
+import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.SoftPrerequisiteOrderConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.FitnessObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjective;
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective;
@@ -100,14 +101,18 @@ public class SinapseFitnessConfig {
             DailyLoadBudgetObjective dailyLoadBudget,
             MinimumDaysConstraint minimumDays,
             MandatoryReviewConstraint mandatoryReview,
+            SoftPrerequisiteOrderConstraint softPrerequisiteOrder,
             @Value("${plan.fitness.sinapse.daily-load-budget:true}") boolean enableDailyLoadBudget) {
 
         List<FitnessObjective> objectives = enableDailyLoadBudget
                 ? List.of(scoreGain, retention, dailyLoadBudget)
                 : renormalisedWithoutLoadBudget(scoreGain, retention);
 
+        // Third constraint, and the only one subtracted at a weight of its own: SOFT is a
+        // preference and HARD is a rule, and the arithmetic has to keep them apart. See
+        // FitnessWeights.SOFT_PREREQUISITE_ORDER for the ordering argument behind 0.10.
         return new FitnessComposition(PATH, objectives,
-                List.of(minimumDays, mandatoryReview), List.of());
+                List.of(minimumDays, mandatoryReview, softPrerequisiteOrder), List.of());
     }
 
     /**

@@ -4,6 +4,8 @@ import com.ia.project.dynamicstudyplanner.domain.FitnessBreakdown;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessComposition;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteReport;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
 
 import java.util.Collections;
@@ -55,11 +57,13 @@ public final class SinapseFitness {
      * @param breakdown   the decomposition of the winning plan's fitness
      * @param placed      what the calendar could hold
      * @param importance  which meaning of importance ran, echoed so the run is reconstructable
+     * @param prerequisites what the prerequisite stage saw and did, echoed for the same reason
      * @return the map to report, read-only
      */
     public static Map<String, Object> of(FitnessComposition composition,
             FitnessBreakdown breakdown, SessionPlacement.Result placed,
-            StudyPlan plan, EvolutionContext context, ImportanceStrategy importance) {
+            StudyPlan plan, EvolutionContext context, ImportanceStrategy importance,
+            PrerequisiteReport prerequisites) {
 
         Map<String, Object> fitness = new LinkedHashMap<>();
         fitness.put("path", composition.path());
@@ -89,7 +93,43 @@ public final class SinapseFitness {
         fitness.put("topics-unscheduled", placed.topicsTotal() - placed.topicsScheduled());
         fitness.put("partial", placed.partial());
         fitness.put("scheduled-minutes", placed.scheduledMinutes());
+        reportPrerequisites(fitness, prerequisites);
         return Collections.unmodifiableMap(fitness);
+    }
+
+    /**
+     * What the prerequisite stage saw, did, and could not do.
+     *
+     * <h2>Why the condition is echoed and not assumed</h2>
+     *
+     * The provenance condition is chosen per request and defaults from configuration, so nothing in
+     * a stored plan would otherwise say which edges it was built from. Two runs of the same request
+     * under {@code curated} and under {@code all} can produce different plans for no reason visible
+     * in either of them — the same failure {@code importance-strategy} is echoed to prevent.
+     *
+     * <h2>Why the repair reports both counts</h2>
+     *
+     * {@code inversions-before-repair} and {@code inversions} together say whether the repair pass
+     * is earning its place. If the two are always equal, the pass never removes anything and should
+     * go; if the second is always zero, the fitness term never bites and <b>it</b> should go. Either
+     * way the decision is a measurement rather than an opinion, which is the same standard
+     * {@code dailyLoadBudget} is held to above.
+     *
+     * <h2>Why unscheduled topics are named</h2>
+     *
+     * A count says a partial plan happened; the names say to whom. The scheduled set is a prefix of
+     * the study order, so the names are exactly the tail the student never reaches, and the platform
+     * can tell a student that those topics were left out instead of silently showing a shorter plan.
+     */
+    private static void reportPrerequisites(Map<String, Object> fitness,
+            PrerequisiteReport prerequisites) {
+
+        fitness.put(PrerequisiteProvenance.FITNESS_KEY, prerequisites.provenance().id());
+        fitness.put("prerequisite-edges-hard", prerequisites.hardEdges());
+        fitness.put("prerequisite-edges-soft", prerequisites.softEdges());
+        fitness.put("soft-prerequisite-inversions", prerequisites.inversionsAfter());
+        fitness.put("soft-prerequisite-inversions-before-repair", prerequisites.inversionsBefore());
+        fitness.put("topics-unscheduled-ids", prerequisites.unscheduled());
     }
 
     /**

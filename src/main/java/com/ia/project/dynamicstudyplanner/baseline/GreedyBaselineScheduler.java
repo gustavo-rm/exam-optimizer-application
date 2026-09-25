@@ -5,12 +5,16 @@ import com.ia.project.dynamicstudyplanner.plan.PlanRejectedException;
 import com.ia.project.dynamicstudyplanner.plan.AvailabilityAllocator;
 import com.ia.project.dynamicstudyplanner.plan.PlanOutputInvariants;
 import com.ia.project.dynamicstudyplanner.plan.PlanRequestGuard;
+import com.ia.project.dynamicstudyplanner.coreapi.contract.SessionKind;
+import com.ia.project.dynamicstudyplanner.plan.EdgeProvenanceFilter;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteReport;
+import com.ia.project.dynamicstudyplanner.plan.SoftPrerequisiteEdges;
 import com.ia.project.dynamicstudyplanner.plan.PlacedSession;
 import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanResponse;
-import com.ia.project.dynamicstudyplanner.coreapi.contract.SessionKind;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -103,8 +107,21 @@ public class GreedyBaselineScheduler {
      */
     private final String coreVersion;
 
-    public GreedyBaselineScheduler(@Value("${baseline.core.version}") String coreVersion) {
+    /**
+     * Which edges this run may see.
+     *
+     * <p>The baseline honours the ablation for the same reason the genetic engine does: the three
+     * provenance conditions only isolate a cause if both arms of the engine comparison see the same
+     * graph. A baseline that always read every edge would make "curated only" a comparison between
+     * a narrowed genetic run and an unnarrowed control.
+     */
+    private final PrerequisiteProvenance provenance;
+
+    public GreedyBaselineScheduler(@Value("${baseline.core.version}") String coreVersion,
+            PrerequisiteProvenance provenance) {
+
         this.coreVersion = coreVersion;
+        this.provenance = provenance;
     }
 
     /**
@@ -118,8 +135,18 @@ public class GreedyBaselineScheduler {
     public PlanResponse schedule(PlanRequest request) {
         PlanRequestGuard.check(request);
 
+        EdgeProvenanceFilter filter = provenance.resolve(request);
         HardPrerequisiteGraph graph =
-                HardPrerequisiteGraph.of(request.topics(), request.prerequisites());
+                HardPrerequisiteGraph.of(request.topics(), request.prerequisites(), filter);
+        SoftPrerequisiteEdges soft =
+                SoftPrerequisiteEdges.of(request.topics(), request.prerequisites(), filter);
+
+        // This engine does NOT repair soft inversions, and that is the control it exists to be.
+        // It orders by goal pressure and curricular position and states no opinion about
+        // preferences (softEdgesDoNotConstrainTheOrder pins it). Teaching it the genetic path's
+        // repair would leave the two engines differing by one thing less, and the comparison
+        // between them measuring two changes at once. The inversions it produces are reported
+        // instead, which is the number the other arm has to be read against.
         List<PlanRequest.Topic> order = StudyOrder.of(request, graph);
         RevisionPolicy revision = RevisionPolicy.of(request);
         AvailabilityAllocator allocator = AvailabilityAllocator.over(request);
@@ -137,12 +164,26 @@ public class GreedyBaselineScheduler {
                 PlanRequest.VERSION,
                 sequence(placed),
                 BaselineFitness.of(order.size(), placed, allocator.availableMinutes(),
-                        graph.appliedEdgeCount()),
+                        graph.appliedEdgeCount(),
+                        PrerequisiteReport.measured(filter, graph, soft, order,
+                                topicsScheduled(placed))),
                 new PlanResponse.ExecutionMetadata(coreVersion, request.randomSeed(),
                         GENERATIONS, ELAPSED_MILLIS));
 
         PlanOutputInvariants.check(request, response, graph);
         return response;
+    }
+
+    /**
+     * How many topics of the order actually received their first session.
+     *
+     * <p>One {@code STUDY} session per topic, by construction: {@code placeTopic} emits exactly one
+     * and then revisions. Counting them is how the prefix of the order that fitted is measured.
+     */
+    private static int topicsScheduled(List<PlacedSession> placed) {
+        return (int) placed.stream()
+                .filter(session -> session.kind() == SessionKind.STUDY)
+                .count();
     }
 
     /**

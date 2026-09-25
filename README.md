@@ -65,10 +65,17 @@ number.
 | | | sum **1.00** |
 | `minimum-days` | graded severity, subtracted | λ 0.50 |
 | `mandatory-review` | graded severity, subtracted | λ 0.50 |
+| `SoftPrerequisiteOrderConstraint` | graded severity, subtracted | λ **0.10** |
 
 With `plan.fitness.sinapse.daily-load-budget=false` the load term leaves and the remaining two
 **renormalise automatically** to 0.625 / 0.375, so "no load ceiling" is an executable, comparable
 condition rather than a code change.
+
+The soft-prerequisite term is subtracted at **a tenth** of the other two, and the difference is the
+point: the contract separates `HARD` from `SOFT` and says a hard edge is a rule while a soft edge is
+a preference. A violated preference must cost less than the smallest objective can pay back (0.20)
+and far less than a violated requirement (0.50), or the two strengths would differ in name only. See
+[Prerequisites](#-prerequisites-hard-orders-soft-is-priced) below.
 
 There are **no multiplicative penalties**. `dropout-risk` and `fatigue-sustainability` existed while
 the older path did, read a self-declared psychological state that this contract does not carry, and
@@ -173,13 +180,74 @@ dias mínimos passou a vir de outra fonte, em outra escala.
 
 **Ausubel's meaningful learning is not implemented in the fitness.** The macro chromosome is an
 `int[]` of days aligned to a canonical order — a count with no calendar — so precedence between topics
-is not expressible *inside the objective function*. On the SINAPSE path the platform does send
-`prerequisites[]`, and hard edges are enforced **structurally**, by placement: the scheduled set is a
-prefix of a topological order, and `PlanOutputInvariants` refuses any plan that breaks it. That is a
-constraint honoured by construction, not a term the search optimises. Earlier versions of
-this README attributed Ausubel to the knowledge-gap multiplier; that attribution was incorrect and
-has been removed. The reasoning, the two options considered and the decision are recorded in
+is **still not expressible inside the objective function**, and the genetic search still cannot see
+order. What changed is what happens after it: precedence is imposed by the tactical stage and priced
+afterwards, which is the v1 design described in the next section. Earlier versions of this README
+attributed Ausubel to the knowledge-gap multiplier; that attribution was incorrect and has been
+removed. The reasoning, the two options considered and the decision are recorded in
 [`docs/revisao-ag/06-decisao-ausubel.md`](docs/revisao-ag/06-decisao-ausubel.md).
+
+## 🔗 Prerequisites: `HARD` orders, `SOFT` is priced
+
+The platform sends `prerequisites[]` with a strength and a provenance, and the two fields are used
+for two different things.
+
+**`HARD` is a rule.** It decides which orders exist: `SinapseStudyOrder` sorts topologically over the
+hard graph, placement walks that order forward and truncates at the first topic that does not fit —
+so the scheduled set is always a *prefix* of a topological order and therefore closed under
+prerequisites. A cycle among hard edges is refused with `422`, naming the cycle.
+`PlanOutputInvariants` refuses any plan that breaks the property, and
+`PrerequisiteOrderingTest` asserts the stronger form over **generated** chains, diamonds and layered
+graphs: no session of a dependent begins before *every* session of its hard prerequisites has ended.
+
+**`SOFT` is a preference.** It decides what an order costs, never which orders exist. Every order
+stays available, an inversion is repaired when it can be and priced when it cannot:
+
+* `PrerequisiteOrderRepairer` moves a prerequisite earlier, one improving move at a time, keeping
+  only moves that stay topological over the hard graph and strictly reduce the inversion count. It
+  terminates because that count is a non-negative integer that strictly drops.
+* `SoftPrerequisiteOrderConstraint` prices whatever remains, as
+  `Σ gravity / |preferences|`, where gravity is the inversion's distance as a fraction of the plan's
+  span — 1 when the dependent is scheduled and its prerequisite is nowhere in the plan, 0 when the
+  dependent is not scheduled at all. The formula is on the class; each of its cases is a test.
+
+> **The soft term does not steer the search, and that is the design rather than a gap.** During
+> evolution the fitness sees the macro chromosome, which has no calendar and therefore cannot
+> violate an ordering preference. The term only bites on the *placed* plan. A v1 whose search
+> already saw order would not be a control group for the timeline-chromosome v2 — it would be a
+> worse v2.
+
+**The greedy baseline does not repair.** It orders by goal pressure and curricular position and
+states no opinion about preferences, which is exactly the control it exists to be; teaching it the
+genetic path's repair would leave the two engines differing by one thing less and the comparison
+between them measuring two changes at once. It reports the inversions it produced instead, and
+omits the `-before-repair` key because no repair ran.
+
+### Provenance: three conditions, one key
+
+`EdgeProvenance` is on the wire so that the ablation is possible without adding instrumentation
+later (ADR 0006). `plan.prerequisites.provenance`, overridable per request with
+`algorithmParams.provenance`, selects which edges a run may see:
+
+| id | Edges admitted |
+|---|---|
+| `curated` | `CURATED` |
+| `curated-textbook` | `CURATED` + `TEXTBOOK_ORDER` |
+| `all` *(default)* | every edge, `DERIVED` included |
+
+The conditions are **cumulative on purpose**, so a difference between two of them is attributable to
+the edges the wider one added. The filter applies to *every* consumer of the graph — both engines
+and the `prerequisite-centrality` importance strategy — because a condition in which the scheduler
+ignores a derived edge while the importance term still counts it is not one condition, it is two. An
+unknown id is refused with `422` rather than falling back, and the condition that ran is echoed in
+`fitness["prerequisite-provenance"]`: a stored plan that cannot name its arm is unattributable.
+
+### What a partial plan now says
+
+Not enough availability still produces a *declared* partial plan, and it now names the casualties:
+`topics-unscheduled-ids` lists the topics the calendar could not hold. They are exactly the tail of
+the study order, because the scheduled set is a prefix of it. A count says a partial plan happened;
+the names say to whom.
 
 ## 🚀 Features
 
@@ -246,6 +314,7 @@ The application can be configured via `application.properties` or environment va
 | `plan.engine.ga.population-size` | `40` | Population size of the genetic engine. |
 | `plan.fitness.sinapse.daily-load-budget` | `true` | Whether the load ceiling is part of the fitness. |
 | `plan.fitness.sinapse.importance-strategy` | `goal-priority` | Default source of `importance`. |
+| `plan.prerequisites.provenance` | `all` | Which prerequisite edges a run may see: `curated`, `curated-textbook` or `all`. |
 
 The rate-limit and thread-pool keys are gone: the Bucket4j filter priced a request by its exam
 syllabus and its `gaConfig`, and the executor served the asynchronous job flow. Both belonged to the

@@ -16,7 +16,12 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.generator.PopulationGenerator;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
+import com.ia.project.dynamicstudyplanner.plan.EdgeProvenanceFilter;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteOrderRepairer;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteReport;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
+import com.ia.project.dynamicstudyplanner.plan.SoftPrerequisiteEdges;
 import com.ia.project.dynamicstudyplanner.plan.PlanEngine;
 import com.ia.project.dynamicstudyplanner.plan.PlanOutputInvariants;
 import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
@@ -84,16 +89,16 @@ public class GeneticPlanEngine implements PlanEngine {
     private final FitnessComposition composition;
     private final RetentionAlgorithm retention;
     private final ImportanceStrategies importanceStrategies;
+    private final PrerequisiteProvenance provenance;
     private final String coreVersion;
-    private final int generations;
-    private final int populationSize;
+    private final GeneticSearchBudget budget;
 
     /**
-     * @param composition    this path's fitness, by bean name, so the concurso aggregate cannot be
-     *                       injected here by accident
-     * @param coreVersion    the build, reported as {@code metadata.coreVersion}; no code default
-     * @param generations    how many generations to run; from {@code plan.engine.ga.generations}
-     * @param populationSize the population size; from {@code plan.engine.ga.population-size}
+     * @param composition this path's fitness, by bean name, so no other aggregate can be injected
+     *                    here by accident
+     * @param provenance  which edges this run may see; the ablation condition
+     * @param coreVersion the build, reported as {@code metadata.coreVersion}; no code default
+     * @param budget      how much search to spend, from {@code plan.engine.ga.*}
      */
     public GeneticPlanEngine(
             GeneticAlgorithmFactory algorithms,
@@ -101,18 +106,18 @@ public class GeneticPlanEngine implements PlanEngine {
             @Qualifier("sinapseFitnessComposition") FitnessComposition composition,
             RetentionAlgorithm retention,
             ImportanceStrategies importanceStrategies,
+            PrerequisiteProvenance provenance,
             @Value("${baseline.core.version}") String coreVersion,
-            @Value("${plan.engine.ga.generations}") int generations,
-            @Value("${plan.engine.ga.population-size}") int populationSize) {
+            GeneticSearchBudget budget) {
 
         this.algorithms = algorithms;
         this.populations = populations;
         this.composition = composition;
         this.retention = retention;
         this.importanceStrategies = importanceStrategies;
+        this.provenance = provenance;
         this.coreVersion = coreVersion;
-        this.generations = generations;
-        this.populationSize = populationSize;
+        this.budget = budget;
     }
 
     @Override
@@ -135,20 +140,24 @@ public class GeneticPlanEngine implements PlanEngine {
     }
 
     private PlanResponse run(PlanRequest request) {
-        List<PlanningItem> items = TopicPlanningItems.of(request.topics());
-        List<AvailabilityWindow> windows = AvailabilityWindows.of(request.availability());
-        FitnessEvaluator evaluator = composition.evaluator();
-        ImportanceStrategy importance = importanceStrategies.resolve(request);
-        EvolutionContext context = SinapseEvolutionContexts.of(
-                request, items, windows, evaluator, retention, importance);
+        EdgeProvenanceFilter filter = provenance.resolve(request);
+        HardPrerequisiteGraph graph = HardPrerequisiteGraph.of(
+                request.topics(), request.prerequisites(), filter);
+        SoftPrerequisiteEdges soft = SoftPrerequisiteEdges.of(
+                request.topics(), request.prerequisites(), filter);
 
+        ImportanceStrategy importance = importanceStrategies.resolve(request);
+        EvolutionContext context = contextFor(request, importance, soft);
         StudyPlan chromosome = evolve(context, sessionBudget(request, context));
 
         Map<PlanningItem, UUID> topicsByItem = TopicPlanningItems.topicIdsByItem(request.topics());
-        HardPrerequisiteGraph graph =
-                HardPrerequisiteGraph.of(request.topics(), request.prerequisites());
-        List<PlanRequest.Topic> order =
+        List<PlanRequest.Topic> ordered =
                 SinapseStudyOrder.of(request.topics(), graph, chromosome, topicsByItem);
+        // Topological first, then the preferences: the repair may only reorder within what the
+        // hard constraints already allow, so it can never turn a valid order into an invalid one.
+        PrerequisiteOrderRepairer.Result repair =
+                PrerequisiteOrderRepairer.repair(ordered, graph, soft);
+        List<PlanRequest.Topic> order = repair.order();
 
         SessionPlacement.Result placed =
                 SessionPlacement.place(request, order, chromosome, itemsByTopic(request));
@@ -160,24 +169,41 @@ public class GeneticPlanEngine implements PlanEngine {
                     List.of(order.get(0).id().toString()));
         }
 
-        FitnessBreakdown breakdown = evaluator.explain(placed.plan(), context);
+        FitnessBreakdown breakdown = evaluator().explain(placed.plan(), context);
+        PrerequisiteReport prerequisites = PrerequisiteReport.repaired(
+                filter, graph, soft, repair, order, placed.topicsScheduled());
         PlanResponse response = new PlanResponse(
                 PlanRequest.VERSION,
                 TacticalSessions.of(placed.plan(), topicsByItem),
                 SinapseFitness.of(composition, breakdown, placed, placed.plan(), context,
-                        importance),
+                        importance, prerequisites),
                 new PlanResponse.ExecutionMetadata(coreVersion, request.randomSeed(),
-                        generations, ELAPSED_MILLIS));
+                        budget.generations(), ELAPSED_MILLIS));
 
         PlanOutputInvariants.check(request, response, graph);
         return response;
     }
 
+    /** The context, with this run's order preferences already reduced to its provenance condition. */
+    private EvolutionContext contextFor(PlanRequest request, ImportanceStrategy importance,
+            SoftPrerequisiteEdges soft) {
+
+        List<PlanningItem> items = TopicPlanningItems.of(request.topics());
+        List<AvailabilityWindow> windows = AvailabilityWindows.of(request.availability());
+        return SinapseEvolutionContexts.of(request, items, windows, evaluator(), retention,
+                importance, SinapseEvolutionContexts.softPrerequisites(soft, request.topics()));
+    }
+
+    /** This path's evaluator, from its own composition. */
+    private FitnessEvaluator evaluator() {
+        return composition.evaluator();
+    }
+
     /** Runs the evolution and returns the fittest allocation. */
-    private StudyPlan evolve(EvolutionContext context, int budget) {
+    private StudyPlan evolve(EvolutionContext context, int sessions) {
         GeneticAlgorithm algorithm = algorithms.create();
-        Population population = populations.generate(budget, populationSize, context);
-        for (int generation = 0; generation < generations; generation++) {
+        Population population = populations.generate(sessions, budget.populationSize(), context);
+        for (int generation = 0; generation < budget.generations(); generation++) {
             population = algorithm.evolvePopulation(population, context);
         }
         return population.getFittest().getPlan();

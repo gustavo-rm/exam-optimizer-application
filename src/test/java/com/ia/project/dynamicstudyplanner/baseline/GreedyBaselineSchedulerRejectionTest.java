@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
 import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
 import com.ia.project.dynamicstudyplanner.plan.PlanRejectedException;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
@@ -35,7 +36,10 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 @DisplayName("Greedy baseline scheduler: refusals")
 class GreedyBaselineSchedulerRejectionTest {
 
-    private final GreedyBaselineScheduler scheduler = new GreedyBaselineScheduler("2.0.1");
+    /** Sees every edge the request carries; these tests are not about the ablation. */
+    private static final PrerequisiteProvenance ALL_PROVENANCE = new PrerequisiteProvenance("all");
+
+    private final GreedyBaselineScheduler scheduler = new GreedyBaselineScheduler("2.0.1", ALL_PROVENANCE);
 
     private PlanRejectedException refusalOf(PlanRequest request) {
         Throwable thrown = catchThrowable(() -> scheduler.schedule(request));

@@ -38,7 +38,8 @@ class PlanOutputInvariantsTest {
     private static final PlanRequest REQUEST = PlanRequests.builder().build();
 
     private static final HardPrerequisiteGraph GRAPH =
-            HardPrerequisiteGraph.of(REQUEST.topics(), REQUEST.prerequisites());
+            HardPrerequisiteGraph.of(REQUEST.topics(), REQUEST.prerequisites(),
+                    EdgeProvenanceFilter.ALL);
 
     private static final PlanResponse.ExecutionMetadata METADATA =
             new PlanResponse.ExecutionMetadata("2.0.1", PlanRequests.SEED, 0, 0L);

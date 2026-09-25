@@ -1,9 +1,11 @@
 package com.ia.project.dynamicstudyplanner.sinapse.importance;
 
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
+import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
 import com.ia.project.dynamicstudyplanner.sinapse.TopicPlanningItems;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -59,6 +61,7 @@ import java.util.UUID;
  * {@code SinapseAssumptionsTest}.
  */
 @Component
+@Profile(PlanProtocol.PROFILE)
 public class GoalPriorityImportance implements ImportanceStrategy {
 
     /** The id this strategy answers to in {@code algorithmParams.importance}. */

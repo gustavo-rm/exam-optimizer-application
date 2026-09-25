@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.baseline;
 
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
 import com.ia.project.dynamicstudyplanner.plan.PlanRequests;
 import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,6 +43,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles(PlanProtocol.PROFILE)
 @DisplayName("Determinism of the greedy baseline")
 class BaselineDeterminismTest {
+
+    /** Sees every edge the request carries; these tests are not about the ablation. */
+    private static final PrerequisiteProvenance ALL_PROVENANCE = new PrerequisiteProvenance("all");
 
     /** Threads run at once. More than two, because two can agree by luck on a race. */
     private static final int THREADS = 4;
@@ -95,7 +99,7 @@ class BaselineDeterminismTest {
 
         String fromContext = objectMapper.writeValueAsString(scheduler.schedule(request));
         String fromFresh = objectMapper.writeValueAsString(
-                new GreedyBaselineScheduler("2.0.1").schedule(request));
+                new GreedyBaselineScheduler("2.0.1", ALL_PROVENANCE).schedule(request));
 
         assertThat(fromFresh).isEqualTo(fromContext);
     }

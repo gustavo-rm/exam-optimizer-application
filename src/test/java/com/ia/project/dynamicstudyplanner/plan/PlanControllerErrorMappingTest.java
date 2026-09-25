@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PlanControllerErrorMappingTest {
 
     private final PlanController controller = new PlanController(new PlanEngineSelector(
-            List.of(new GreedyBaselineEngine(new GreedyBaselineScheduler("2.0.1"))),
+            List.of(new GreedyBaselineEngine(new GreedyBaselineScheduler("2.0.1", PlanEngines.ALL_PROVENANCE))),
             GreedyBaselineEngine.ID));
 
     private static MockHttpServletRequest postToPlans() {

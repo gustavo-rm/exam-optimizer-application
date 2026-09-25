@@ -58,6 +58,23 @@ Three consequences worth knowing before touching anything:
 * **There is no rate limiting**, and `/plans` never had any. The private-network requirement in the
   README is what stands in its place.
 
+### Prerequisites (EOA-6)
+
+`HARD` edges order the plan, `SOFT` edges are repaired where possible and priced where not, and the
+`provenance` of an edge selects one of three ablation conditions. Three rules follow:
+
+* **The soft term returns 0 on a macro plan, on purpose.** The chromosome has no calendar, so it
+  cannot violate an ordering preference; the term only bites on the placed plan. Making it steer the
+  search would turn v1 into a worse v2 — v1 is the *control group* for the timeline chromosome, not
+  a draft of it.
+* **The greedy baseline does not repair soft inversions**, and
+  `GreedyBaselineSchedulerTest.softEdgesDoNotConstrainTheOrder` pins that. It is the control for the
+  engine comparison; teaching it the genetic path's repair would make the two differ by one thing
+  less. It reports the inversions it produced and omits the `-before-repair` key.
+* **The provenance filter reaches every consumer of the graph** — both engines and
+  `prerequisite-centrality`. A condition that narrows the scheduler's graph but not the importance
+  term's is two conditions, not one.
+
 ## 2. The Core contract package (`coreapi/contract`)
 
 Mirrors `br.com.sinapse.platform.coreclient.contract` from `sinapse-platform`. Records and enums
