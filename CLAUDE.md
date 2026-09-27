@@ -10,7 +10,11 @@ number here disagrees with the file, the file wins and this document is the bug.
 (`verify`). CI runs the same command, so a green local `verify` is a green CI.
 
 **Checkstyle** — `config/checkstyle/checkstyle.xml`, at `violationSeverity=error` and
-`includeTestSourceDirectory=true`: test code is checked like production code.
+`includeTestSourceDirectory=true`: test code is checked like production code. `testSourceDirectories`
+is listed by hand in `pom.xml` — `src/test/java` **and** `benchmarks/java` — because Checkstyle runs
+at `validate` and `build-helper` attaches the benchmark root at `generate-test-sources`, which is
+later. With the default, the measurement harness would compile in CI and be exempt from the style
+rules by an accident of phase ordering.
 
 | Rule | Max |
 |---|---|
@@ -33,6 +37,11 @@ not count toward `ParameterNumber` — a 9-component record passes.
 A ratchet, not a target: flush against a past measurement, so any regression fails the build.
 JaCoCo **truncates** the ratio before comparing — read the real figure from
 `target/site/jacoco/jacoco.csv`, not a rounded print-out.
+
+The bundle is `target/classes`. **`benchmarks/java` is a test source root and contributes nothing to
+it** — neither covered nor missed — which is why reattaching it in EOA-9 did not move either floor.
+Measured at that commit: `INSTRUCTION` 9208/9823 = 0.9374, `BRANCH` 692/796 = 0.8693, both above the
+floors, which were left where they were.
 
 ### The prohibition
 
@@ -151,6 +160,36 @@ that no one can make it pass by rewriting a recorded number. The rule that follo
 either way: **a divergence here is a finding, not noise.** Do not change the seed, loosen an
 assertion, or weaken the comparison to get green. Diagnose it, and if the behaviour change is
 intended, say so explicitly in the change that causes it.
+
+## 5b. The measurement harness (`benchmarks/`)
+
+`benchmarks/java` compiles in CI, as a test source root attached by `build-helper-maven-plugin`. It
+is the instrument, not the system: it runs the condition matrix (engine × provenance × instance ×
+seed) through `PlanEngineSelector` and writes `benchmarks/results/measurement.csv`. Schema, build
+policy and run instructions are in `benchmarks/README.md`; the first measurement is
+`docs/revisao-ag/09-medicao-baseline-vs-v1.md`.
+
+Four rules it is built on, each of which someone will be tempted to undo:
+
+* **Aggregate fitness is not a comparison between engines.** The genetic engine maximises `F`; the
+  greedy scheduler optimises no objective at all. Every plan is re-scored after the fact by the
+  **same** evaluator — the production composition, injected, never rebuilt — and the number is still
+  published as `ga_objective_*`, the GA's objective reported for completeness. Conclusions rest on
+  the outcome metrics, which are properties of the schedule.
+* **The replication unit is a distinct seed, and comparisons are paired by instance.** A seeded run
+  has no measurement noise, so repeating one seed measures nothing and averaging over such repeats
+  reports a spread of zero as if it were a spread.
+* **An invariant violation aborts; it does not become a row.** A `HARD` inversion or a
+  reproducibility failure is a defect report, and `MeasurementAbortedException` carries the instance
+  and seed that reproduce it.
+* **Adding an engine is one line in `Condition.ENGINES`.** The harness never names an engine class.
+
+`benchmarks/java/.../benchmark/strategy/**` is **not** in the engine matrix, and its `package-info`
+says why: those planners allocate a macro budget and produce no calendar.
+
+`benchmarks/archive/` holds the CSVs of the concurso-path review with their provenance declared.
+**No number from them is comparable with anything measured today**, and the old 2% regression
+threshold is not inheritable.
 
 ## 6. Language
 

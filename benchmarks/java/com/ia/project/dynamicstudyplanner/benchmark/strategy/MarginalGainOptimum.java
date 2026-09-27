@@ -23,7 +23,7 @@ import java.util.PriorityQueue;
  * </pre>
  *
  * a separable concave maximisation under a budget constraint with box lower bounds. For that shape,
- * handing each remaining day to the subject with the largest marginal gain is provably optimal — the
+ * handing each remaining session to the item with the largest marginal gain is provably optimal — the
  * gains decrease in {@code d_s}, so the standard exchange argument applies. Cost is O(D log n),
  * microseconds against the GA's tens of milliseconds.
  * <p>
@@ -82,7 +82,7 @@ public final class MarginalGainOptimum implements PlanningStrategy {
     }
 
     /**
-     * Gain from moving item {@code s} from {@code d} days to {@code d + 1}, under the syllabus
+     * Gain from moving item {@code s} from {@code d} sessions to {@code d + 1}, under the syllabus
      * mastery objective {@code O1}.
      * <p>
      * Mirrors {@code ScoreGainObjective}: {@code importance * (1 - exp(-d/tau))}, so the marginal

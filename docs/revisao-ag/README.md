@@ -1,8 +1,18 @@
 # Revisão do Algoritmo Genético — Índice
 
-Revisão de engenharia do motor de planejamento macro do SINAPSE, conduzida em oito etapas entre
-2026-08-30 e 2026-08-31. Esta página é a **porta de entrada** e a **fonte única de status** das
-pendências G1–G13.
+Revisão de engenharia do motor de planejamento do SINAPSE. As etapas 00 a 08 foram conduzidas entre
+2026-08-30 e 2026-08-31 sobre o caminho de concurso; a etapa 09 é a primeira medição do sistema que
+restou depois da EOA-4b. Esta página é a **porta de entrada** e a **fonte única de status** das
+pendências G1–G14.
+
+> ### ⚠ Os relatórios 00 a 08 mediram um sistema que não existe mais
+>
+> A unidade de planejamento era a **disciplina**, a função objetivo tinha termos que foram removidos,
+> e as instâncias eram editais sintéticos. A EOA-4b removeu o caminho de concurso inteiro. **Nenhum
+> número dos relatórios 00 a 08 é comparável com o sistema de hoje**, e nenhum deles aparece em
+> [`09`](./09-medicao-baseline-vs-v1.md). Eles continuam aqui porque registram o raciocínio que levou
+> ao desenho atual, e porque os CSVs que os sustentam estão arquivados com proveniência declarada em
+> `benchmarks/archive/2026-09-01-concurso-path/`.
 
 ---
 
@@ -21,13 +31,18 @@ pendências G1–G13.
 | 06c | [`06-limite-troca-pesos.md`](./06-limite-troca-pesos.md) | Troca pontuação × retenção. **Pendência de negócio aberta** | Não |
 | 06d | [`06-verificacao-pos-rodada.md`](./06-verificacao-pos-rodada.md) | Verificação independente em código. Origem de G1–G11 | Só um teste |
 | 07 | [`07-correcao-metrica-e-ausubel.md`](./07-correcao-metrica-e-ausubel.md) | Métrica corrigida, baseline remedida, narrativa de Ausubel | Sim — método de agregação |
-| 08 | [`08-saturacao-e-amostragem.md`](./08-saturacao-e-amostragem.md) | **Estado atual.** Por que 4 de 8 instâncias saturam, heterogeneidade, e a decisão de não expandir a amostra | Sim — empates do Spearman |
+| 08 | [`08-saturacao-e-amostragem.md`](./08-saturacao-e-amostragem.md) | Por que 4 de 8 instâncias saturam, heterogeneidade, e a decisão de não expandir a amostra | Sim — empates do Spearman |
+| 09 | [`09-medicao-baseline-vs-v1.md`](./09-medicao-baseline-vs-v1.md) | **Estado atual.** Primeira medição do sistema que existe hoje: guloso × AG com pré-requisitos táticos (v1), no domínio de tópicos. Linha de base da v2 | Não |
 
 ---
 
-## Números canônicos
+## Números canônicos do caminho de concurso (etapas 03–08) — histórico
 
-Qualquer relatório futuro cita **estes** valores. Correlação de Spearman entre fitness e % de
+> **Estes valores descrevem o sistema que a EOA-4b removeu.** Eles continuam canônicos *para aqueles
+> relatórios* e não devem ser citados como descrição do sistema atual. Os números de hoje estão em
+> [`09`](./09-medicao-baseline-vs-v1.md).
+
+Dentro daquela linha de trabalho, qualquer relatório cita **estes** valores. Correlação de Spearman entre fitness e % de
 disciplinas na janela de retenção, agregada entre instâncias por **transformada z de Fisher**
 (`benchmarks/…/metric/CorrelationAggregate.java`) — nunca por empilhamento de observações.
 
@@ -105,9 +120,19 @@ severidade original. **Atualizado em 2026-08-31 (etapa 07).**
 | **G12** | **L4 — `I8-escala` mantém ρ = −0,880 e a temperagem não a moveu.** 40 disciplinas, dispersão de 32:1 (abaixo da fronteira de ~200:1), amplitude de retenção de apenas 2,5 pp. É a instância que mais puxa o agregado e a principal fonte da heterogeneidade de I² = 58%. Hipótese **não medida**: `InterleavedCriticalStrategy` estuda só as 3 disciplinas mais críticas por dia. **Atenção:** a explicação original — "regime linear por orçamento apertado" — **não se confirmou** quando foi testada em [`06b`](./06-regime-alta-carga.md) §3; o driver medido é a dispersão dos pesos, não o orçamento | ⬜ **PENDENTE** — caracterizado, não corrigido. Teste seria variar `INTERLEAVING_FOCUS_SIZE` | [`08`](./08-saturacao-e-amostragem.md) §1.2 · [`06b`](./06-regime-alta-carga.md) §10 · [`05`](./05-fitness-function.md) §8 (L4) |
 | **G13** | **A divisão uniforme vence o AG na janela de retenção em `I3` (96,0% × 76,6%) e `I4` (100,0% × 81,4%).** Medido, não é defeito: o AG perde em O₁ **e** em O₃ nessas instâncias e vence pelo termo de carga cognitiva — a troca real é memória × sustentabilidade da agenda. A alavanca que fecharia a lacuna é o piso de dias mínimos (+23,4 pp por 0,52% de O₁), não os pesos | ⬜ **PENDENTE — decisão de negócio.** Exige responder antes qual promessa de cobertura o produto faz ao aluno | [`06c`](./06-limite-troca-pesos.md) §6 |
 
-**Resumo: 8 de 13 resolvidos.** Os cinco abertos: G5, G6 e G11 são sobre código fora do caminho de
-execução de produção; **G12 e G13 estão no caminho de produção** e são os que importam — G12 é
-técnico e não explicado, G13 aguarda decisão humana.
+### Acrescentado na etapa 09
+
+| # | Gap | Status | Onde |
+|---|---|---|---|
+| **G14** | **`MandatoryReviewConstraint` é binária e satura.** Severidade 1,0 em 720 de 720 execuções medidas, o que leva a fitness agregada a zero em 94,6% delas: `F` não distingue planos nesta biblioteca de instâncias. Não afeta as conclusões de [`09`](./09-medicao-baseline-vs-v1.md), que não se apoiam em `F` — afeta qualquer uso futuro de `F` como critério, incluindo um limiar de CI sobre ela | ⬜ **ABERTO** — caracterizado, não corrigido. Graduar ou repesar a restrição é mudança na função objetivo e não se faz como efeito colateral de uma medição | [`09`](./09-medicao-baseline-vs-v1.md) §9 · `ga/fitness/constraint/MandatoryReviewConstraint` |
+
+**Resumo: 8 de 14 resolvidos.** Dos seis abertos, G5, G6 e G11 são sobre código fora do caminho de
+execução de produção; **G12, G13 e G14 estão no caminho de produção** — G12 é técnico e não
+explicado, G13 aguarda decisão humana, G14 foi medido na etapa 09.
+
+> **Cuidado ao ler G12 e G13.** Os dois foram levantados sobre o caminho de concurso, que a EOA-4b
+> removeu. As instâncias, a métrica e os pesos que eles citam não existem mais na forma descrita. A
+> **pergunta** de cada um sobrevive; os **números** não.
 
 ---
 
@@ -147,17 +172,16 @@ etapa 09.
 ## Como rodar as medições
 
 ```bash
-./mvnw -o clean test                       # suíte completa
-./mvnw -o dependency:build-classpath -Dmdep.outputFile=cp.txt
-CP="target/classes:target/test-classes:$(cat cp.txt)"
-
-java -cp "$CP" com.ia...benchmark.harness.BenchmarkMain              # baselines (05 §6.1, §6.3)
-java -cp "$CP" com.ia...benchmark.robustness.RegimeCorrelationMain   # correlação + agregado canônico
-java -cp "$CP" com.ia...benchmark.robustness.WeightSensitivityMain   # estabilidade dos pesos (05 §5.2)
-java -cp "$CP" com.ia...benchmark.robustness.WeightTradeoffMain      # troca de pesos (06c)
-java -cp "$CP" com.ia...benchmark.robustness.RobustnessMain          # determinismo e hiperparâmetros
-java -cp "$CP" com.ia...benchmark.robustness.BaselineReplayMain <dir> # agrega N execuções salvas
-java -cp "$CP" com.ia...benchmark.robustness.SaturationDiagnosticMain # por que uma instância satura (08 §3)
+./mvnw -o clean verify                     # suíte completa; compila o harness junto
+./mvnw -q dependency:build-classpath -Dmdep.outputFile=target/cp.txt -Dmdep.includeScope=test
+java --enable-preview -cp "target/classes:target/test-classes:$(cat target/cp.txt)" \
+     com.ia.project.dynamicstudyplanner.benchmark.harness.MeasurementMain
 ```
 
-Prefixo completo: `com.ia.project.dynamicstudyplanner`.
+Escreve `benchmarks/results/measurement.csv` (720 linhas, ~4 s). Esquema das colunas e política de
+build em [`benchmarks/README.md`](../../benchmarks/README.md).
+
+**Os `Main` das etapas 03 a 08 não existem mais.** `BenchmarkMain`, `RobustnessMain`,
+`RegimeCorrelationMain`, `WeightSensitivityMain`, `WeightTradeoffMain`, `BaselineReplayMain` e
+`SaturationDiagnosticMain` mediam o caminho de concurso e foram removidos com ele. Os CSVs que eles
+produziram estão em `benchmarks/archive/2026-09-01-concurso-path/`, com a proveniência declarada.

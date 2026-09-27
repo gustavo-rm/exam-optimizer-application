@@ -10,17 +10,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Baseline 2 — greedy by priority: allocate strictly in proportion to the subject's weight in the
- * exam syllabus, with no spaced repetition and no cognitive-load balancing.
+ * Greedy by importance: allocate strictly in proportion to each item's importance, with no spaced
+ * repetition and no cognitive-load balancing.
  * <p>
- * This is the rule a competent human planner would apply with a spreadsheet: give each subject a
- * share of the time proportional to how much it is worth on the exam. It is the <b>contract
- * baseline</b> — the automated regression test in
- * {@code GeneticAlgorithmVsBaselinesTest} fails if the production GA cannot stay within a defined
- * margin of it, because a GA that loses to a spreadsheet has no defensible reason to exist.
+ * This is the rule a competent human planner would apply with a spreadsheet: give each item a share
+ * of the time proportional to how much it is worth. It reads
+ * {@code EvolutionContext.importanceScores()}, so it follows whichever meaning of importance the
+ * context was built with and names none of its own — it said "exam syllabus weight" while that was
+ * the only meaning there was, which was a description of the domain and not of this class.
+ * <p>
+ * It used to be a contract baseline: a regression test failed if the production GA could not stay
+ * within a defined margin of it. That test measured the removed concurso path and went with it, so
+ * nothing enforces the margin today. See this package's {@code package-info} for why none of these
+ * planners is in the engine matrix.
  * <p>
  * Integer rounding uses the largest-remainder (Hare) method so the allocation sums exactly to the
- * budget without the drift that naive per-subject rounding would introduce.
+ * budget without the drift that naive per-item rounding would introduce.
  */
 public final class GreedyPriorityBaseline implements PlanningStrategy {
 
@@ -31,7 +36,7 @@ public final class GreedyPriorityBaseline implements PlanningStrategy {
 
     @Override
     public String displayName() {
-        return "Guloso por prioridade (peso de edital)";
+        return "Guloso por importancia";
     }
 
     @Override

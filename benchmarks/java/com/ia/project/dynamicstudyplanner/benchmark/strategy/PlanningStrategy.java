@@ -7,10 +7,13 @@ import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 /**
  * A method for turning a {@link BenchmarkInstance} into a macro study plan.
  * <p>
- * The production genetic algorithm and every baseline implement this interface, so the harness can
- * evaluate all of them with the identical production {@code FitnessEvaluator} and the identical
- * downstream scheduler. Any difference in the reported metrics is therefore attributable to the
- * planning method alone.
+ * Every implementation distributes {@code instance.totalStudyDays()} sessions across the planning
+ * items and differs from the others only in its distribution policy, so a difference between two of
+ * them is attributable to that policy alone.
+ * <p>
+ * <b>This is not the interface the measured engines implement.</b> Those implement
+ * {@code plan.PlanEngine} and produce a whole placed {@code PlanResponse}; these produce a macro
+ * allocation. See this package's {@code package-info} for why the two are not compared.
  */
 public interface PlanningStrategy {
 
@@ -23,11 +26,10 @@ public interface PlanningStrategy {
     /**
      * Whether repeated invocations with the same seed produce the same plan.
      * <p>
-     * The production GA reports {@code false} even though etapa 04 made it reproducible under a
-     * fixed seed (docs/revisao-ag/04-robustez.md §1, 8 of 8 instances). Answering {@code false} is
-     * what makes the harness run it over several seeds, which is how the run-to-run spread that
-     * calibrates the regression threshold gets measured at all — and how a reintroduced unseeded
-     * draw would show up instead of hiding inside a single run.
+     * A strategy that draws no random number answers {@code true}; one that does answers
+     * {@code false} even when it is reproducible under a fixed seed, because the useful question is
+     * whether <b>different</b> seeds can move it. That is the replication unit the measurement uses:
+     * repeating one seed on a reproducible planner measures nothing.
      */
     boolean deterministic();
 
@@ -35,7 +37,7 @@ public interface PlanningStrategy {
      * Produces a macro plan for the given instance.
      *
      * @param instance the problem to solve
-     * @param context  the evolution context, built exactly as {@code StudyOptimizerService} builds it
+     * @param context  the evolution context, assembled by {@code SinapseEvolutionContexts}
      * @param seed     seed for whatever randomness the strategy controls; ignored when deterministic
      * @return a study plan allocating {@code instance.totalStudyDays()} days across the subjects
      */

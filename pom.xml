@@ -110,6 +110,47 @@
 
     <build>
         <plugins>
+            <!--
+                Attaches benchmarks/java as an extra TEST source root.
+
+                The measurement harness (docs/revisao-ag/) must never ship inside the application
+                artifact, so it is compiled at test scope: spring-boot-maven-plugin repackages only
+                main classes, and test classes are excluded from the jar by construction. Keeping the
+                sources in their own top-level directory rather than under src/test/java also makes
+                the separation visible on disk.
+
+                THE HARNESS HAS TO COMPILE IN CI, AND THIS IS WHAT MAKES IT.
+
+                This execution was removed in EOA-4b along with the concurso path, when the harness
+                it compiled measured a system that no longer existed. Detached, the sources rotted
+                silently: ten files went on importing removed types and nothing said so, because
+                nothing built them. They were removed in EOA-9 and the root is reattached here, so a
+                change to production that breaks the instrument fails the build instead of being
+                discovered the next time somebody tries to measure something.
+
+                It does NOT move the JaCoCo floors. The coverage bundle is target/classes; a test
+                source root compiles to target/test-classes and contributes neither covered nor
+                missed instructions. Verified rather than assumed — see benchmarks/README.md.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <id>add-benchmark-test-source</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>benchmarks/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -152,6 +193,20 @@
                     <failOnViolation>true</failOnViolation>
                     <violationSeverity>error</violationSeverity>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    <!--
+                        Listadas a mao, e a razao e de ORDEM DE FASE.
+
+                        O padrao deste parametro e ${project.testCompileSourceRoots}, que e onde o
+                        build-helper acrescenta benchmarks/java — mas ele o faz em
+                        generate-test-sources, e este plugin roda em validate, ANTES. Com o padrao,
+                        o harness compilaria no CI e nao seria verificado pelo Checkstyle: um
+                        conjunto de arquivos sob as mesmas regras de todos os outros, isento por
+                        acidente de ordenacao.
+                    -->
+                    <testSourceDirectories>
+                        <testSourceDirectory>src/test/java</testSourceDirectory>
+                        <testSourceDirectory>benchmarks/java</testSourceDirectory>
+                    </testSourceDirectories>
                 </configuration>
                 <executions>
                     <execution>

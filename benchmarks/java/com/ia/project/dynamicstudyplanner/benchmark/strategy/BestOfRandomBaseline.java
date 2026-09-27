@@ -6,14 +6,13 @@ import com.ia.project.dynamicstudyplanner.domain.PlanningItem;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 /**
- * Control baseline — draw {@code populationSize} random feasible plans and keep the best.
+ * Control — draw {@code populationSize} random feasible plans and keep the best.
  * <p>
- * This is not one of the three baselines the task asked for; it is a control that isolates a
- * question none of the others answer: <b>what does the evolution itself contribute?</b>
+ * It isolates a question none of the others answer: <b>what does the evolution itself
+ * contribute?</b>
  * <p>
  * Drawing {@code populationSize} random plans and scoring them is exactly what
  * {@code DefaultPopulationGenerator} does before generation zero. So the gap between this baseline

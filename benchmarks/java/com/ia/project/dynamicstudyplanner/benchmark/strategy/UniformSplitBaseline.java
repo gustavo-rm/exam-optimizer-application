@@ -9,13 +9,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Baseline 3 — uniform split: after the minimum floor, every subject receives the same number of
- * additional days, with any leftover distributed round-robin in the deterministic subject order.
+ * Uniform split: after the minimum floor, every item receives the same number of additional
+ * sessions, with any leftover distributed round-robin in the deterministic item order.
  * <p>
- * This baseline ignores the syllabus entirely. It is the naive default a student falls back on when
+ * This planner ignores importance entirely. It is the naive default a student falls back on when
  * they have no information about relative importance, and it serves as the lower bound on
- * syllabus-awareness: the gap between this and {@link GreedyPriorityBaseline} measures how much the
- * edital weighting is worth on its own, before any search is involved.
+ * importance-awareness: the gap between this and {@link GreedyPriorityBaseline} measures how much
+ * the weighting is worth on its own, before any search is involved.
  */
 public final class UniformSplitBaseline implements PlanningStrategy {
 

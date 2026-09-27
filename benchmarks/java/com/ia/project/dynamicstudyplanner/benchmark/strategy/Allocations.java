@@ -9,12 +9,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Shared allocation primitives for the baselines.
+ * Shared allocation primitives for the planners in this package.
  * <p>
- * Every baseline starts from the same feasible floor — the minimum days per subject computed by the
- * production {@code BaselineCalculator} — and then distributes the remaining budget according to its
- * own rule. Keeping the floor logic in one place guarantees that the baselines differ only in their
- * distribution policy, which is what the comparison is meant to isolate.
+ * Every one of them starts from the same feasible floor — {@code context.minimumDaysPerItem()},
+ * which the production assembler fills — and then distributes the remaining budget according to its
+ * own rule. Keeping the floor logic in one place guarantees that they differ only in their
+ * distribution policy, which is what a comparison between them is meant to isolate.
  */
 final class Allocations {
 
@@ -22,10 +22,11 @@ final class Allocations {
     }
 
     /**
-     * Subjects in a stable, deterministic order.
+     * Items in a stable, deterministic order.
      * <p>
-     * {@code EvolutionContext.importanceScores()} is a {@code HashMap}, whose iteration order depends
-     * on hash codes. Sorting by subject name makes every baseline reproducible run to run.
+     * Sorting by item name rather than trusting the map's iteration order makes every planner here
+     * reproducible run to run, whatever map {@code EvolutionContext.importanceScores()} happens to
+     * be. It is the same rule the production adapter follows, for the same reason.
      */
     static List<PlanningItem> orderedItems(EvolutionContext context) {
         List<PlanningItem> items = new ArrayList<>(context.importanceScores().keySet());
@@ -34,11 +35,11 @@ final class Allocations {
     }
 
     /**
-     * Allocates each subject its minimum required days — the hard constraint every planner must
+     * Allocates each item its minimum required sessions — the hard constraint every planner must
      * satisfy, mirroring {@code StudyPlanFactory.createRandomPlan} and
      * {@code StudyPlan.meetsMinimumConstraints}, which both default a missing entry to 1.
      *
-     * @return a mutable map seeded at the feasible floor, in the deterministic subject order
+     * @return a mutable map seeded at the feasible floor, in the deterministic item order
      */
     static Map<PlanningItem, Integer> atMinimums(List<PlanningItem> items, EvolutionContext context) {
         Map<PlanningItem, Integer> days = new LinkedHashMap<>();
