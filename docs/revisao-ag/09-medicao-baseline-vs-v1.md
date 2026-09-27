@@ -40,7 +40,7 @@ medida quando existir.
 pré-requisitos reduz as inversões de preferência que o guloso deixa, de forma consistente, sem nunca
 piorá-las, e sem violar nenhuma restrição rígida. Ela **não** sustenta que a v1 produz planos
 melhores em geral — §7 mostra um eixo em que ela é pior, e §8 mostra que a função objetivo agregada
-está saturada demais para arbitrar.
+está saturada demais para arbitrar (§9 — corrigida em parte desde a primeira publicação).
 
 ---
 
@@ -378,37 +378,95 @@ muda a conclusão de nenhuma seção.
 
 ---
 
-## 9. Achado: a fitness agregada está saturada e não arbitra nada
+## 9. Achado: a fitness agregada satura — G14, corrigida em parte
 
-Não era o objeto desta medição e apareceu nela.
+> **Nota de correção, 2026-09-27 (EOA-8).** Esta seção foi republicada. A medição original — com a
+> severidade **binária** — reportava agregado zero em **94,6%** das execuções. A severidade foi
+> graduada (G14), a matriz foi remedida, e os números abaixo são os da versão graduada. **As métricas
+> de resultado das §4 a §8 não mudaram em nenhuma coluna**, o que é verificado e não suposto: ver
+> "O que não mudou", abaixo. Nenhuma conclusão desta página se moveu.
+
+### 9.1 O que era, e por que era um defeito
+
+`MandatoryReviewConstraint` devolvia `false` no primeiro item que perdia uma revisão devida, e o
+padrão de `ConstraintValidator.violationSeverity` convertia isso numa severidade fixa de 1. Com peso
+`0,50`, **um plano que revisava 24 de 25 tópicos pagava exatamente o que um plano que não revisava
+nenhum pagava** — sem gradiente para seguir de volta à viabilidade.
+
+No caminho macro isso era invisível: o termo curto-circuita ali, e a busca da v1 nunca o viu. Torna-se
+decisivo no instante em que uma busca evolui planos **táticos**, que é o que a v2 faz.
+
+### 9.2 O que foi feito
+
+A severidade passou a ser a **fração de revisões devidas que ficaram de fora** — a mesma forma que
+`MinimumDaysConstraint` já usava. Um plano que perde 1 de 20 revisões marca 0,05; um que perde todas
+marca 1,0. **Nenhum peso mudou**, então não houve renormalização.
+
+`MandatoryReviewConstraintTest` trava a correção, e trava-a por sabotagem: com a severidade binária
+restaurada, `aSeveridadeEhAFracaoDeRevisoesPerdidas` reprova e os outros quatro testes passam — ou
+seja, é o único teste que distinguia as duas versões, e ele não existia.
+
+### 9.3 O que mudou, e o que não mudou
+
+| | binária (medição original) | graduada (esta medição) |
+|---|--:|--:|
+| Severidade média | 1,0000 | **0,9289** |
+| Severidade mínima | 1,0000 | **0,5000** |
+| Execuções com severidade exatamente 1,0 | 720 / 720 | **545 / 720** |
+| `ga_objective_aggregate = 0` | 681 / 720 (**94,6%**) | **608 / 720 (84,4%)** |
+| Agregado médio | 0,0014 | **0,0185** |
+| Agregado máximo | 0,0572 | **0,2705** |
+
+**O que não mudou: nenhuma coluna de resultado ou de custo.** Comparando as duas matrizes linha a
+linha, `soft_inversions`, `inversions_removed`, `topics_scheduled`, `topics_unscheduled`,
+`scheduled_minutes`, `utilisation`, `load_ceiling_bound`, `load_excess_ratio`,
+`first_quarter_share`, `peak_over_mean`, `generations` e `evaluations` são **idênticas**.
+
+Isso não é sorte, é a consequência do desenho: a fitness não entra em nenhuma dessas métricas, e a
+busca da v1 roda sobre planos macro, onde este termo curto-circuita. **É a validação mais forte que a
+separação em quatro grupos recebeu até agora** — uma mudança na função objetivo moveu o grupo (d) e
+deixou os grupos (a), (b) e (c) exatamente onde estavam. Se a comparação entre motores tivesse sido
+feita por `F`, ela teria mudado de valor sem que nada no cronograma mudasse.
+
+### 9.4 O que ainda satura, e onde está a causa
+
+**A correção era necessária e não foi suficiente.** 84,4% das execuções ainda têm agregado zero, e
+agora dá para dizer exatamente por quê:
 
 | | valor |
 |---|--:|
-| Linhas com `ga_objective_aggregate = 0` | **681 de 720 (94,6%)** |
-| `MandatoryReviewConstraint` com severidade 1,0 | **720 de 720 (100%)** |
-| Linhas com `aggregate > 0` | 39, **todas** em `tightness = 1,5` |
+| O que os três objetivos conseguem somar | média **0,4265**, máximo 0,5769 |
+| O que a restrição de revisão subtrai | média **0,4644**, máximo 0,5000 |
+| Fração do prêmio que a restrição de revisão consome | **109%** |
 
-`MandatoryReviewConstraint` é **binária**: um único tópico sem revisão obrigatória agendada e a
-severidade vai a 1,0. Com peso 0,50, ela subtrai meio ponto de **toda** soma. Os três objetivos somam
-no máximo 1,0; `MinimumDaysConstraint` subtrai mais um tanto; o resultado é uma soma bruta negativa
-que o `clamp` leva a zero.
+A restrição de revisão sozinha custa mais do que tudo o que os objetivos conseguem ganhar. E o
+agregado só é positivo em **um** nível de aperto:
 
-**Consequências, na ordem em que importam:**
+| aperto | severidade média | agregado > 0 |
+|---|--:|--:|
+| 0,7 | 1,000 | **0 / 240** |
+| 1,0 | 0,983 | **0 / 240** |
+| 1,5 | 0,803 | 112 / 240 |
 
-1. **`F` não distingue planos em 94,6% desta biblioteca.** Não é ruído — é um piso. Dois planos
-   materialmente diferentes recebem o mesmo zero.
-2. **Isso não invalida nada nesta página**, porque nenhuma conclusão aqui se apoia em `F`. É
-   precisamente o motivo metodológico pelo qual `F` foi posta no grupo (d) e rotulada como objetivo
-   do AG em vez de métrica de comparação. Se a comparação entre motores tivesse sido feita por
-   fitness agregada, ela teria dado empate em 94,6% dos casos e a medição não teria resultado nenhum.
-3. **Não é defeito desta biblioteca de instâncias.** É o comportamento de uma restrição binária num
-   domínio onde o calendário raramente cabe uma revisão de todo tópico. A biblioteca só o tornou
-   visível.
-4. **Nada foi alterado em produção por causa disto.** Corrigir a saturação — graduar a restrição em
-   vez de mantê-la binária, ou repesá-la — é mudança na função objetivo, que muda o que o AG procura,
-   e não se faz como efeito colateral de uma medição. Fica registrado aqui como **pendência G14**.
+A leitura correta disso **não** é que a severidade graduada falhou. É que em aperto ≤ 1,0 o calendário
+**não cabe** uma revisão para cada tópico devido, então severidade perto de 1 é a verdade: o plano de
+fato perde quase todas as revisões. A função objetivo está reportando um fato. O que ela faz de
+errado é cobrar por uma impossibilidade física o mesmo que cobraria por uma escolha ruim do
+planejador — e depois o `clamp(raw, 0, 1)` destrói a ordenação entre planos igualmente inviáveis.
 
----
+**O `clamp` é o segundo mecanismo, e ele é inerte na v1.** Medido com uma sonda sobre a busca macro
+real (25 tópicos, 60 gerações, população 40, semente 20260903): em **2 400 candidatos avaliados,
+`raw < 0` em 0**, e o menor `raw` visto foi **0,3600**. Ou seja, no caminho macro o agregado é o
+próprio `raw` e o limite nunca morde. Ele passa a morder **só** em planos táticos — exatamente onde a
+v2 viveria. Registrado como **G15**.
+
+### 9.5 O que isto significa para a v2
+
+Com a severidade graduada há gradiente onde o calendário permite revisões (aperto 1,5) e não há onde
+ele não permite (aperto 0,7 e 1,0). Uma v2 medida hoje buscaria num platô em 16 das 24 instâncias.
+**G15 tem de ser resolvida antes de a v2 sustentar afirmação comparativa em toda a matriz** — e a
+observação de §9.4 diz qual é o caminho barato: o limite existe para manter a fitness *publicada* em
+`[0,1]`, que é requisito de **relato**, não de **seleção**.
 
 ## 10. Variância entre sementes, e a proposta de limiar para o CI
 
@@ -477,9 +535,10 @@ busca mudar. **Proposta: travar `evaluations`, publicar `elapsed_micros`.**
    calibrar uma margem com confiança. 20 sementes custariam ~16 s de CPU nesta máquina.
 2. **Decidir se o CI roda a matriz inteira ou um recorte.** A matriz inteira leva ~4 s, o que é
    barato — mas 720 linhas por build é muito dado para um gate.
-3. **G14 (§9) antes da parte 3, se a parte 3 vier a citar `F`.** Enquanto a fitness agregada estiver
-   saturada, um limiar sobre ela não mediria nada. O teto proposto aqui é sobre inversões, que não
-   têm esse problema — mas isso é escolha e precisa ficar dita.
+3. **G14 e G15 (§9) antes da parte 3, se a parte 3 vier a citar `F`.** G14 foi corrigida e a
+   saturação caiu de 94,6% para 84,4%; ainda é saturação. Enquanto ela existir, um limiar sobre `F`
+   não mediria nada. O teto proposto aqui é sobre inversões, que não têm esse problema — mas isso é
+   escolha e precisa ficar dita.
 
 ---
 
@@ -495,9 +554,10 @@ busca mudar. **Proposta: travar `evaluations`, publicar `elapsed_micros`.**
    Ela é a que mais plausivelmente interage com a ordenação — é literalmente derivada do grafo — e
    fica como o eixo mais óbvio a acrescentar.
 4. **5 sementes.** Ver §10.3.
-5. **A fitness agregada não arbitra** (§9). Um leitor que queira "qual motor produz o plano melhor"
-   não vai encontrar essa resposta aqui, e não vai encontrar porque a pergunta não tem resposta
-   medível enquanto `F` estiver no piso.
+5. **A fitness agregada ainda não arbitra** (§9). Com a severidade graduada ela distingue planos em
+   15,6% das execuções, contra 5,4% antes; nas outras continua no piso. Um leitor que queira "qual
+   motor produz o plano melhor" não vai encontrar essa resposta aqui, e não vai encontrar porque a
+   pergunta não tem resposta medível enquanto G15 estiver aberta.
 6. **`tightness` é medida sobre primeiras passadas apenas.** O denominador é a soma dos
    `estimatedMinutes`; as revisões (metade da duração, arredondada para cima) não entram nele. Então
    `tightness = 1,0` não significa "cabe exatamente o plano", significa "cabe exatamente uma passada
@@ -530,8 +590,9 @@ invariante, nenhuma coluna do CSV muda.
 
 ---
 
-## 13. Pendência acrescentada nesta etapa
+## 13. Pendências desta linha de trabalho
 
 | # | Gap | Status | Onde |
 |---|---|---|---|
-| **G14** | **`MandatoryReviewConstraint` é binária e satura: severidade 1,0 em 720 de 720 execuções, levando `ga_objective_aggregate` a zero em 94,6% delas.** A fitness agregada não distingue planos nesta biblioteca. Não afeta as conclusões desta página, que não se apoiam nela; afeta qualquer uso futuro de `F` como critério, incluindo um limiar de CI sobre ela | ⬜ **ABERTO** — caracterizado, não corrigido. Graduar a restrição ou repesá-la é mudança na função objetivo e não se faz como efeito colateral de uma medição | `ga/fitness/constraint/MandatoryReviewConstraint` · §9 desta página |
+| **G14** | **`MandatoryReviewConstraint` era binária e saturava:** severidade 1,0 em 720 de 720 execuções, levando `ga_objective_aggregate` a zero em 94,6% delas | ✅ **RESOLVIDO** (EOA-8) — severidade graduada para a fração de revisões devidas perdidas, travada por `MandatoryReviewConstraintTest` com verificação por sabotagem. Saturação caiu para 84,4%. Nenhum peso mudou; nenhuma métrica de resultado ou custo mudou | §9 · `ga/fitness/constraint/MandatoryReviewConstraint` |
+| **G15** | **`clamp(raw, 0, 1)` destrói a ordenação entre planos táticos inviáveis.** A restrição de revisão subtrai em média 0,4644 contra 0,4265 que os objetivos conseguem somar — 109% —, então `raw` é negativo e o limite achata tudo em zero. Medido: o limite é **inerte no caminho macro** (0 de 2 400 candidatos com `raw < 0`, menor `raw` 0,3600), logo o efeito é exclusivo de planos táticos, que é onde a v2 vive. O limite existe para manter a fitness **publicada** em `[0,1]` — requisito de relato, não de seleção | ⬜ **ABERTO** — bloqueia a v2 em 16 das 24 instâncias (aperto 0,7 e 1,0) | §9.4 · `ga/fitness/FitnessEvaluator` |

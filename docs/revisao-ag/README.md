@@ -32,7 +32,7 @@ pendências G1–G14.
 | 06d | [`06-verificacao-pos-rodada.md`](./06-verificacao-pos-rodada.md) | Verificação independente em código. Origem de G1–G11 | Só um teste |
 | 07 | [`07-correcao-metrica-e-ausubel.md`](./07-correcao-metrica-e-ausubel.md) | Métrica corrigida, baseline remedida, narrativa de Ausubel | Sim — método de agregação |
 | 08 | [`08-saturacao-e-amostragem.md`](./08-saturacao-e-amostragem.md) | Por que 4 de 8 instâncias saturam, heterogeneidade, e a decisão de não expandir a amostra | Sim — empates do Spearman |
-| 09 | [`09-medicao-baseline-vs-v1.md`](./09-medicao-baseline-vs-v1.md) | **Estado atual.** Primeira medição do sistema que existe hoje: guloso × AG com pré-requisitos táticos (v1), no domínio de tópicos. Linha de base da v2 | Não |
+| 09 | [`09-medicao-baseline-vs-v1.md`](./09-medicao-baseline-vs-v1.md) | **Estado atual.** Primeira medição do sistema que existe hoje: guloso × AG com pré-requisitos táticos (v1), no domínio de tópicos. Linha de base da v2. §9 republicada em 27/09 com a severidade graduada | Sim, na etapa 8 — G14 |
 
 ---
 
@@ -120,15 +120,16 @@ severidade original. **Atualizado em 2026-08-31 (etapa 07).**
 | **G12** | **L4 — `I8-escala` mantém ρ = −0,880 e a temperagem não a moveu.** 40 disciplinas, dispersão de 32:1 (abaixo da fronteira de ~200:1), amplitude de retenção de apenas 2,5 pp. É a instância que mais puxa o agregado e a principal fonte da heterogeneidade de I² = 58%. Hipótese **não medida**: `InterleavedCriticalStrategy` estuda só as 3 disciplinas mais críticas por dia. **Atenção:** a explicação original — "regime linear por orçamento apertado" — **não se confirmou** quando foi testada em [`06b`](./06-regime-alta-carga.md) §3; o driver medido é a dispersão dos pesos, não o orçamento | ⬜ **PENDENTE** — caracterizado, não corrigido. Teste seria variar `INTERLEAVING_FOCUS_SIZE` | [`08`](./08-saturacao-e-amostragem.md) §1.2 · [`06b`](./06-regime-alta-carga.md) §10 · [`05`](./05-fitness-function.md) §8 (L4) |
 | **G13** | **A divisão uniforme vence o AG na janela de retenção em `I3` (96,0% × 76,6%) e `I4` (100,0% × 81,4%).** Medido, não é defeito: o AG perde em O₁ **e** em O₃ nessas instâncias e vence pelo termo de carga cognitiva — a troca real é memória × sustentabilidade da agenda. A alavanca que fecharia a lacuna é o piso de dias mínimos (+23,4 pp por 0,52% de O₁), não os pesos | ⬜ **PENDENTE — decisão de negócio.** Exige responder antes qual promessa de cobertura o produto faz ao aluno | [`06c`](./06-limite-troca-pesos.md) §6 |
 
-### Acrescentado na etapa 09
+### Acrescentado na etapa 09, e o estado depois da 8 (v2)
 
 | # | Gap | Status | Onde |
 |---|---|---|---|
-| **G14** | **`MandatoryReviewConstraint` é binária e satura.** Severidade 1,0 em 720 de 720 execuções medidas, o que leva a fitness agregada a zero em 94,6% delas: `F` não distingue planos nesta biblioteca de instâncias. Não afeta as conclusões de [`09`](./09-medicao-baseline-vs-v1.md), que não se apoiam em `F` — afeta qualquer uso futuro de `F` como critério, incluindo um limiar de CI sobre ela | ⬜ **ABERTO** — caracterizado, não corrigido. Graduar ou repesar a restrição é mudança na função objetivo e não se faz como efeito colateral de uma medição | [`09`](./09-medicao-baseline-vs-v1.md) §9 · `ga/fitness/constraint/MandatoryReviewConstraint` |
+| **G14** | **`MandatoryReviewConstraint` era binária e saturava.** Severidade 1,0 em 720 de 720 execuções medidas, levando a fitness agregada a zero em 94,6% delas | ✅ **RESOLVIDO** (EOA-8) — severidade graduada para a fração de revisões devidas perdidas, travada por `MandatoryReviewConstraintTest` com verificação por sabotagem. A saturação caiu para 84,4%, **nenhum peso mudou**, e nenhuma métrica de resultado ou de custo de [`09`](./09-medicao-baseline-vs-v1.md) se moveu | [`09`](./09-medicao-baseline-vs-v1.md) §9 |
+| **G15** | **`clamp(raw, 0, 1)` achata a ordenação entre planos táticos inviáveis.** A restrição de revisão subtrai em média 0,4644 contra 0,4265 que os três objetivos conseguem somar — 109% — então `raw` fica negativo e o limite iguala tudo a zero. Medido: o limite é **inerte no caminho macro** (0 de 2 400 candidatos com `raw < 0`; menor `raw` 0,3600), logo atinge só planos táticos. Ele existe para manter a fitness **publicada** em `[0,1]`, que é requisito de relato e não de seleção | ⬜ **ABERTO** — **bloqueia a v2** em 16 das 24 instâncias (aperto 0,7 e 1,0), onde toda a população marcaria zero e a seleção por torneio escolheria ao acaso | [`09`](./09-medicao-baseline-vs-v1.md) §9.4 · `ga/fitness/FitnessEvaluator` |
 
-**Resumo: 8 de 14 resolvidos.** Dos seis abertos, G5, G6 e G11 são sobre código fora do caminho de
-execução de produção; **G12, G13 e G14 estão no caminho de produção** — G12 é técnico e não
-explicado, G13 aguarda decisão humana, G14 foi medido na etapa 09.
+**Resumo: 9 de 15 resolvidos.** Dos seis abertos, G5, G6 e G11 são sobre código fora do caminho de
+execução de produção; **G12, G13 e G15 estão no caminho de produção** — G12 é técnico e não
+explicado, G13 aguarda decisão humana, e **G15 é o que bloqueia a v2**.
 
 > **Cuidado ao ler G12 e G13.** Os dois foram levantados sobre o caminho de concurso, que a EOA-4b
 > removeu. As instâncias, a métrica e os pesos que eles citam não existem mais na forma descrita. A
