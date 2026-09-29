@@ -2,6 +2,7 @@ package com.ia.project.dynamicstudyplanner.ga.fitness;
 
 import com.ia.project.dynamicstudyplanner.domain.FitnessBreakdown;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
+import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.ConstraintValidator;
@@ -98,6 +99,25 @@ public class FitnessEvaluator {
         }
     }
 
+    /**
+     * O valor por que a <b>seleção</b> ordena indivíduos.
+     *
+     * <h2>Este método é o caminho da seleção; {@link #explain} é o caminho da publicação</h2>
+     *
+     * A distinção não é decorativa: {@code Individual} é o único consumidor de produção deste
+     * método, e a resposta publicada é montada a partir de {@link #explain}, por
+     * {@code SinapseFitness}. Nada que sai pela API lê este número.
+     *
+     * <p>Por isso ele devolve {@link FitnessBreakdown#selectionScore()} e não o agregado limitado —
+     * ver o Javadoc daquele método para a medição por trás (pendência <b>G15</b>). Em resumo: o
+     * limite {@code [0,1]} existe para o número que sai, e aplicá-lo à seleção apaga a ordenação
+     * entre planos inviáveis, deixando o torneio comparar zeros. No caminho macro o limite é inerte,
+     * então <b>a busca da v1 não muda</b>; ele morde só em planos táticos.
+     *
+     * @param plan    o plano a avaliar
+     * @param context o contexto da evolução
+     * @return o valor de seleção; igual a {@code explain(...).selectionScore()}, bit a bit
+     */
     public double evaluate(StudyPlan plan, EvolutionContext context) {
         // 1. Weighted sum of the normalised objectives.
         double score = 0.0;
@@ -118,7 +138,18 @@ public class FitnessEvaluator {
             finalFitness *= penalty.calculatePenaltyFactor(plan, context);
         }
 
-        return finalFitness;
+        return selectionScoreOf(plan, score, finalFitness);
+    }
+
+    /**
+     * O bruto passa direto quando é negativo <b>e</b> o plano é tático; fora disso, o agregado.
+     *
+     * <p>Toda a justificativa está em {@link FitnessBreakdown} — inclusive por que o caminho macro
+     * fica de fora, que é o acoplamento de {@code WeightedAverageCrossover} com a aptidão como peso
+     * de mistura. Repetir aqui o argumento seria criar uma segunda cópia para divergir.
+     */
+    private static double selectionScoreOf(StudyPlan plan, double raw, double aggregate) {
+        return raw < 0.0 && plan instanceof TacticalStudyPlan ? raw : aggregate;
     }
 
     /**
@@ -142,7 +173,8 @@ public class FitnessEvaluator {
      *
      * @param plan    o plano a explicar
      * @param context o contexto da evolução
-     * @return a fitness decomposta; {@code aggregate()} é o valor que {@link #evaluate} devolve
+     * @return a fitness decomposta; {@code selectionScore()} é o valor que {@link #evaluate}
+     *         devolve, e {@code aggregate()} é o valor que a resposta publica
      */
     public FitnessBreakdown explain(StudyPlan plan, EvolutionContext context) {
         List<FitnessBreakdown.Term> termos = new ArrayList<>();
@@ -181,6 +213,7 @@ public class FitnessEvaluator {
             fatores.add(new FitnessBreakdown.Penalty(penalty.name(), fator));
         }
 
-        return new FitnessBreakdown(termos, fatores, score, bounded, produto, finalFitness);
+        return new FitnessBreakdown(termos, fatores, score, bounded, produto, finalFitness,
+                selectionScoreOf(plan, score, finalFitness));
     }
 }
