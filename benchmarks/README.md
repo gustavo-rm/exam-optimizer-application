@@ -3,13 +3,14 @@
 Módulo de medição isolado. **Nada aqui é servido em produção.**
 
 Ele responde a uma pergunta e só a ela: *dois motores que atendem o mesmo `POST /plans` produzem
-planos diferentes, e em quê?* Hoje os motores são o **guloso** (`greedy-baseline`, EOA-2) e o
-**genético com etapa tática de pré-requisitos** (`ga`, EOA-7, chamado **v1** nos relatórios). O
-cromossomo de linha do tempo (**v2**) entra como uma terceira condição sem reescrever nada — ver
-"Acrescentar um motor", abaixo.
+planos diferentes, e em quê?* Hoje são **três**: o **guloso** (`greedy-baseline`, EOA-2), o **genético com etapa tática de
+pré-requisitos** (`ga`, EOA-7, a **v1**) e o **cromossomo de linha do tempo** (`ga-timeline`, EOA-8, a
+**v2**). A v2 entrou como **uma linha** em `Condition.ENGINES`, sem que nenhuma métrica, invariante ou
+coluna do CSV mudasse — ver "Acrescentar um motor", abaixo.
 
-Relatório da primeira medição:
-[`docs/revisao-ag/09-medicao-baseline-vs-v1.md`](../docs/revisao-ag/09-medicao-baseline-vs-v1.md).
+Relatórios: [`09-medicao-baseline-vs-v1.md`](../docs/revisao-ag/09-medicao-baseline-vs-v1.md)
+(guloso × v1) e [`10-medicao-v2-linha-do-tempo.md`](../docs/revisao-ag/10-medicao-v2-linha-do-tempo.md)
+(as três condições).
 Dados brutos: [`results/measurement.csv`](./results/measurement.csv).
 
 ---
@@ -68,8 +69,9 @@ java --enable-preview -cp "target/classes:target/test-classes:$(cat target/cp.tx
      com.ia.project.dynamicstudyplanner.benchmark.harness.MeasurementMain
 ```
 
-24 instâncias × 6 condições × 5 sementes = **720 linhas**, cada uma com **duas** chamadas ao motor
-(a segunda é o auto-teste de reprodutibilidade). ~4 s. Escreve `benchmarks/results/measurement.csv`.
+24 instâncias × 9 condições × 5 sementes = **1 080 linhas**, cada uma com **duas** chamadas ao motor
+(a segunda é o auto-teste de reprodutibilidade). ~85 s — dominado pela v2, que repara o calendário por
+descendente (G17). Escreve `benchmarks/results/measurement.csv`.
 
 O perfil `baseline-core` é obrigatório e o `MeasurementMain` o ativa sozinho: sem ele a aplicação não
 registra motor nenhum, nem seletor, nem endpoint.
@@ -84,7 +86,7 @@ registra motor nenhum, nem seletor, nem endpoint.
 | `density` | 0,4 / 1,2 | arestas de pré-requisito por tópico |
 | `tightness` | 0,7 / 1,0 / 1,5 | minutos disponíveis ÷ minutos de primeira passada |
 | `spread` | compacto / esparso | os mesmos minutos em dias seguidos, ou dia sim dia não |
-| `engine` | `greedy-baseline`, `ga` | a condição sob teste |
+| `engine` | `greedy-baseline`, `ga`, `ga-timeline` | a condição sob teste |
 | `provenance` | `curated` ⊂ `curated-textbook` ⊂ `all` | a ablação de arestas |
 | `seed` | 5 valores distintos | a unidade de replicação |
 

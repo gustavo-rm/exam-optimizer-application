@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.plan.EdgeProvenanceFilter;
 import com.ia.project.dynamicstudyplanner.plan.PlanEngineSelector;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
+import com.ia.project.dynamicstudyplanner.sinapse.TimelinePlanEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.GoalPriorityImportance;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
 
@@ -53,12 +54,14 @@ public record Condition(String engine, EdgeProvenanceFilter provenance) {
      * The engines in the matrix.
      *
      * <p>v1 is the genetic engine with the tactical prerequisite stage; the greedy scheduler is the
-     * baseline. v2 — the timeline chromosome — becomes a third entry here once it exists, and
-     * nothing else in the harness changes.
+     * baseline; v2 is the timeline chromosome. <b>v2 was added as exactly one line here</b>, which is
+     * the claim this class was built to make good on — no metric, no invariant and no CSV column
+     * changed to accommodate it.
      */
     public static final List<String> ENGINES = List.of(
             GreedyBaselineEngine.ID,
-            GeneticPlanEngine.ID);
+            GeneticPlanEngine.ID,
+            TimelinePlanEngine.ID);
 
     /** The three cumulative ablation conditions, narrowest first. */
     public static final List<EdgeProvenanceFilter> PROVENANCES = List.of(

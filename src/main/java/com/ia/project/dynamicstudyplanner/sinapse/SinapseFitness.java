@@ -128,7 +128,18 @@ public final class SinapseFitness {
         fitness.put("prerequisite-edges-hard", prerequisites.hardEdges());
         fitness.put("prerequisite-edges-soft", prerequisites.softEdges());
         fitness.put("soft-prerequisite-inversions", prerequisites.inversionsAfter());
-        fitness.put("soft-prerequisite-inversions-before-repair", prerequisites.inversionsBefore());
+        // AUSENTE quando nenhum reparo rodou, e nao nula. Duas razoes, e a segunda e fatal:
+        // semanticamente, "o reparo removeu nenhuma" e "nenhum reparo foi tentado" sao fatos
+        // diferentes e a chave ausente e a forma de dizer o segundo — a mesma regra que os termos
+        // desligados seguem. Mecanicamente, PlanResponse copia o mapa com Map.copyOf, que RECUSA
+        // valor nulo com NullPointerException: com a chave presente e nula, todo motor que relate um
+        // PrerequisiteReport.measured falha ao montar a resposta. Ficou latente enquanto o unico
+        // caminho por aqui reparava; o motor de linha do tempo, que precifica em vez de reparar, foi
+        // o primeiro a exercitar isso.
+        if (prerequisites.wasRepaired()) {
+            fitness.put("soft-prerequisite-inversions-before-repair",
+                    prerequisites.inversionsBefore());
+        }
         fitness.put("topics-unscheduled-ids", prerequisites.unscheduled());
     }
 

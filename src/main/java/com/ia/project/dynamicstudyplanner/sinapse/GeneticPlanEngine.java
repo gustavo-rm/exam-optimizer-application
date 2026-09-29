@@ -148,7 +148,7 @@ public class GeneticPlanEngine implements PlanEngine {
 
         ImportanceStrategy importance = importanceStrategies.resolve(request);
         EvolutionContext context = contextFor(request, importance, soft);
-        StudyPlan chromosome = evolve(context, sessionBudget(request, context));
+        StudyPlan chromosome = evolve(context, SessionBudget.of(request, context));
 
         Map<PlanningItem, UUID> topicsByItem = TopicPlanningItems.topicIdsByItem(request.topics());
         List<PlanRequest.Topic> ordered =
@@ -207,34 +207,6 @@ public class GeneticPlanEngine implements PlanEngine {
             population = algorithm.evolvePopulation(population, context);
         }
         return population.getFittest().getPlan();
-    }
-
-    /**
-     * How many sessions the chromosome has to distribute.
-     *
-     * <h2>Why the budget is derived and not configured</h2>
-     *
-     * The chromosome allocates a fixed total, so something has to say what the total is. It is the
-     * number of average-length sessions the availability can hold: total usable minutes divided by
-     * the mean {@code estimatedMinutes}. Any larger and the search would optimise a plan the
-     * calendar cannot hold, and placement would truncate most of it — the algorithm would be
-     * scoring a fiction. Any smaller and it would leave the student's declared time unused.
-     *
-     * <p>Floored at the <b>sum of the per-topic floors</b>, which {@link SinapseMinimumDays} derives
-     * from {@code estimatedMinutes} over the measured study day. A budget below that sum makes the
-     * initial population unsatisfiable, and {@code StudyPlanFactory} would refuse it with a
-     * {@code 422} naming the wrong cause — the request would look infeasible when it is the budget
-     * that is too small.
-     */
-    private static int sessionBudget(PlanRequest request, EvolutionContext context) {
-        long minutes = com.ia.project.dynamicstudyplanner.plan.AvailabilityAllocator.over(request)
-                .availableMinutes();
-        double meanLength = request.topics().stream()
-                .mapToInt(PlanRequest.Topic::estimatedMinutes)
-                .average()
-                .orElse(1.0);
-        int affordable = (int) Math.floor(minutes / Math.max(1.0, meanLength));
-        return Math.max(SinapseMinimumDays.totalFloor(context.minimumDaysPerItem()), affordable);
     }
 
     /** Topic to planning item, for reading the chromosome during placement. */

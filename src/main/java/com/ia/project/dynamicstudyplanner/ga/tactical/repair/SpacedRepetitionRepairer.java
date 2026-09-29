@@ -9,7 +9,8 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.TimeSlot;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
+import com.ia.project.dynamicstudyplanner.ga.tactical.TacticalSlots;
+
 import java.util.Map;
 
 /**
@@ -40,7 +41,7 @@ public class SpacedRepetitionRepairer implements ChromosomeRepairer {
             return plan;
         }
 
-        Map<TimeSlot, TacticalStudyBlock> schedule = new HashMap<>(plan.getSchedule());
+        Map<TimeSlot, TacticalStudyBlock> schedule = TacticalSlots.byCalendar(plan);
 
         for (PlanningItem item : context.importanceScores().keySet()) {
             if (!needsReview(item, context) || alreadyHasReview(schedule, item)) {
@@ -70,6 +71,11 @@ public class SpacedRepetitionRepairer implements ChromosomeRepairer {
      * <p>Não faz nada quando a agenda está vazia: não há bloco a sacrificar, e a revisão obrigatória
      * fica sem ser agendada. É o comportamento anterior, travado por
      * {@code SpacedRepetitionRepairerTest.agendaVaziaContinuaVazia}.
+     *
+     * <p><b>O empate é desfeito pelo calendário</b>, porque a varredura é em ordem de calendário e
+     * mantém o primeiro mínimo encontrado. Antes ela iterava um {@code HashMap} e o empate saía de
+     * {@code TimeSlot.hashCode()} — ver {@link TacticalSlots}. Com blocos de valor igual, que é o caso
+     * comum num plano recém-gerado, era o hash escolhendo qual atividade o aluno perdia.
      */
     private void scheduleReview(Map<TimeSlot, TacticalStudyBlock> schedule, PlanningItem item) {
         TimeSlot weakestSlot = null;

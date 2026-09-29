@@ -100,11 +100,16 @@ class SinapsePlanEndpointTest {
     }
 
     @Test
-    @DisplayName("os dois motores estao registrados no contexto")
-    void osDoisMotoresEstaoRegistrados(@Autowired PlanEngineSelector selector) {
+    @DisplayName("as tres condicoes do experimento estao registradas no contexto")
+    void asTresCondicoesEstaoRegistradas(@Autowired PlanEngineSelector selector) {
         // Ordenados pelo id, para a mensagem de erro de um motor desconhecido ser estavel.
+        //
+        // A lista e EXATA de proposito: um motor registrado sem que ninguem perceba muda o padrao de
+        // /plans se alguem editar plan.engine.default, e muda a matriz de condicoes que o harness de
+        // medicao roda. Acrescentar um motor deve obrigar a atualizar esta linha.
         assertThat(selector.registeredIds())
                 .containsExactly(GeneticPlanEngine.ID,
+                        TimelinePlanEngine.ID,
                         com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineEngine.ID);
     }
 }

@@ -52,8 +52,9 @@ behaviour that matters. If you believe a floor must move, do not move it: stop a
 
 ## 1b. What this service is, after EOA-4b
 
-One endpoint: `POST /plans`, under the `baseline-core` profile, answered by one of two engines
-(`greedy-baseline`, `ga`). The older `/api/v1/optimizer/**` API — its DTOs, its mappers, its service
+One endpoint: `POST /plans`, under the `baseline-core` profile, answered by one of **three** engines
+(`greedy-baseline`, `ga`, `ga-timeline`). The default stays `greedy-baseline`; EOA-8 added the third
+and changed no default. The older `/api/v1/optimizer/**` API — its DTOs, its mappers, its service
 layer, `Exam`, `Subject`, `StudentProfile` and the asynchronous job flow — was removed in EOA-4b, and
 with it the fitness terms that read self-declared psychological state (`DropoutRiskPenalty`,
 `FatigueAndSustainabilityPenalty`) and the subject-scale load term (`CognitiveLoadObjective`).
@@ -75,7 +76,11 @@ Three consequences worth knowing before touching anything:
 * **The soft term returns 0 on a macro plan, on purpose.** The chromosome has no calendar, so it
   cannot violate an ordering preference; the term only bites on the placed plan. Making it steer the
   search would turn v1 into a worse v2 — v1 is the *control group* for the timeline chromosome, not
-  a draft of it.
+  a draft of it. EOA-8 built that v2 (`ga-timeline`) and measured it: it loses to v1 on soft
+  inversions (674 against 420) at 27x the cost, and the measured cause is the **weighting**, not the
+  representation — `SOFT_PREREQUISITE_ORDER` is 0.10, so v2's search trades order for coverage at a
+  profit. Filed as G16, open, a product decision. Read
+  `docs/revisao-ag/10-medicao-v2-linha-do-tempo.md` §5 before touching that weight.
 * **The greedy baseline does not repair soft inversions**, and
   `GreedyBaselineSchedulerTest.softEdgesDoNotConstrainTheOrder` pins that. It is the control for the
   engine comparison; teaching it the genetic path's repair would make the two differ by one thing
@@ -183,6 +188,15 @@ Four rules it is built on, each of which someone will be tempted to undo:
   reproducibility failure is a defect report, and `MeasurementAbortedException` carries the instance
   and seed that reproduce it.
 * **Adding an engine is one line in `Condition.ENGINES`.** The harness never names an engine class.
+  Verified rather than claimed: `ga-timeline` was added in EOA-8 as exactly that one line, and no
+  metric, invariant or CSV column changed.
+
+**Two fitness fixes came out of this and both are load-bearing.** `MandatoryReviewConstraint` grades
+its severity (G14) instead of returning a flat 1, and **selection ranks on `rawScore` where the clamp
+would erase the ordering** (G15) — but only for a `TacticalStudyPlan`, because
+`WeightedAverageCrossover` uses fitness as a blending weight and a negative weight there extrapolates.
+`FitnessBreakdown.selectionScore()` carries the rule; `evaluate()` is the selection path and
+`explain()` is the publication path, and they return different numbers on purpose.
 
 `benchmarks/java/.../benchmark/strategy/**` is **not** in the engine matrix, and its `package-info`
 says why: those planners allocate a macro budget and produce no calendar.
