@@ -79,8 +79,14 @@ Three consequences worth knowing before touching anything:
   a draft of it. EOA-8 built that v2 (`ga-timeline`) and measured it: it loses to v1 on soft
   inversions (674 against 420) at ~18x the cost, and the measured cause is the **weighting**, not the
   representation — `SOFT_PREREQUISITE_ORDER` is 0.10, so v2's search trades order for coverage at a
-  profit. Filed as G16, open, a product decision. Read
-  `docs/revisao-ag/10-medicao-v2-linha-do-tempo.md` §5 before touching that weight.
+  profit. **G16 then swept that weight and closed it**: the weight steers v2 monotonically (856 down
+  to 509 inversions from λ 0.00 to 0.80) and **never reaches v1's 420**, not even at λ 0.80 which is
+  already above `CONSTRAINT_VIOLATION`. λ 0.10 sits inside the flat optimum of the canonical
+  objective, so **the recommendation is to leave it alone** — and per instance there is no majority λ
+  at all (53% prefer ≤ 0.05, G18). `plan.fitness.sinapse.soft-prerequisite-order` opens the weight for
+  measurement; read `docs/revisao-ag/11-varredura-peso-ordem.md` §5 before changing it. Constraint
+  weights are subtracted and are not in the convex combination, so changing this one renormalises
+  nothing — unlike an objective weight.
 * **The greedy baseline does not repair soft inversions**, and
   `GreedyBaselineSchedulerTest.softEdgesDoNotConstrainTheOrder` pins that. It is the control for the
   engine comparison; teaching it the genetic path's repair would make the two differ by one thing

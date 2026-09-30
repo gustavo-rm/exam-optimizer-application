@@ -76,6 +76,23 @@ descendente (G17). Escreve `benchmarks/results/measurement.csv`.
 O perfil `baseline-core` é obrigatório e o `MeasurementMain` o ativa sozinho: sem ele a aplicação não
 registra motor nenhum, nem seletor, nem endpoint.
 
+### A varredura de peso (manual)
+
+```bash
+java --enable-preview -cp "target/classes:target/test-classes:$(cat target/cp.txt)" \
+     com.ia.project.dynamicstudyplanner.benchmark.harness.WeightSweepMain
+```
+
+Seis valores de `plan.fitness.sinapse.soft-prerequisite-order`, um contexto Spring por ponto, a v2
+medida em todos e a v1 nos dois extremos para conferir que o plano dela **não** depende do peso.
+**2 880 linhas, ~470 s.** Escreve `benchmarks/results/soft-weight-sweep.csv`, que tem o mesmo esquema
+de `measurement.csv` mais uma coluna `soft_weight` à frente.
+
+A coluna de objetivo **não é comparável entre pontos** como publicada — cada um a calcula com o seu λ.
+Ela se traz a um λ comum por aritmética exata sobre as colunas publicadas:
+`raw + λ × severidade − 0,10 × severidade`. Relatório:
+[`11-varredura-peso-ordem.md`](../docs/revisao-ag/11-varredura-peso-ordem.md).
+
 ---
 
 ## A matriz
