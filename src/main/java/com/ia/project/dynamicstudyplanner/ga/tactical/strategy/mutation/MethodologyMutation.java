@@ -44,6 +44,7 @@ public class MethodologyMutation implements TacticalMutationStrategy {
         Map<TimeSlot, TacticalStudyBlock> newSchedule = TacticalSlots.byCalendar(plan);
         List<TimeSlot> slots = List.copyOf(newSchedule.keySet());
         StudyMethodology[] methodologies = StudyMethodology.values();
+        boolean changed = false;
 
         for (TimeSlot slot : slots) {
             if (RandomProvider.getInstance().nextDouble() >= mutationRate) {
@@ -55,10 +56,17 @@ public class MethodologyMutation implements TacticalMutationStrategy {
                 continue;
             }
             TacticalStudyBlock block = newSchedule.get(slot);
-            newSchedule.put(slot,
-                    new TacticalStudyBlock(block.item(), drawn, block.durationMinutes()));
+            if (block.methodology() != drawn) {
+                newSchedule.put(slot,
+                        new TacticalStudyBlock(block.item(), drawn, block.durationMinutes()));
+                changed = true;
+            }
         }
 
-        return new TacticalStudyPlan(newSchedule);
+        // Devolve o proprio plano quando nada mudou. Com taxa de 0,05 isso e o caso comum, e
+        // construir um TacticalStudyPlan identico ao de entrada custa a reconstrucao do indice de
+        // genes e de um conjunto de dias por item — trabalho por descendente, milhares de vezes por
+        // requisicao (G17). NENHUM sorteio e poupado: a sequencia aleatoria e a mesma.
+        return changed ? new TacticalStudyPlan(newSchedule) : plan;
     }
 }

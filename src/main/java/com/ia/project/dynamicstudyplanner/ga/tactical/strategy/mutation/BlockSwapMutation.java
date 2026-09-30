@@ -57,6 +57,7 @@ public class BlockSwapMutation implements TacticalMutationStrategy {
 
         // Uma tentativa de troca por bloco: a taxa vale por posição, como nos outros operadores,
         // e não por plano — assim a intensidade da mutação escala com o tamanho do cromossomo.
+        boolean changed = false;
         for (int index = 0; index < slots.size(); index++) {
             if (RandomProvider.getInstance().nextDouble() >= mutationRate) {
                 continue;
@@ -70,8 +71,11 @@ public class BlockSwapMutation implements TacticalMutationStrategy {
             TacticalStudyBlock carried = schedule.get(here);
             schedule.put(here, schedule.get(there));
             schedule.put(there, carried);
+            changed = true;
         }
 
-        return new TacticalStudyPlan(schedule);
+        // Ver a nota equivalente em MethodologyMutation: plano de entrada quando nada trocou, e
+        // nenhum sorteio poupado. Com taxa de 0,05 a maioria dos descendentes nao troca nada.
+        return changed ? new TacticalStudyPlan(schedule) : plan;
     }
 }

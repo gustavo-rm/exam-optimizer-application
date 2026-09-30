@@ -77,7 +77,7 @@ Three consequences worth knowing before touching anything:
   cannot violate an ordering preference; the term only bites on the placed plan. Making it steer the
   search would turn v1 into a worse v2 — v1 is the *control group* for the timeline chromosome, not
   a draft of it. EOA-8 built that v2 (`ga-timeline`) and measured it: it loses to v1 on soft
-  inversions (674 against 420) at 27x the cost, and the measured cause is the **weighting**, not the
+  inversions (674 against 420) at ~18x the cost, and the measured cause is the **weighting**, not the
   representation — `SOFT_PREREQUISITE_ORDER` is 0.10, so v2's search trades order for coverage at a
   profit. Filed as G16, open, a product decision. Read
   `docs/revisao-ag/10-medicao-v2-linha-do-tempo.md` §5 before touching that weight.
@@ -190,6 +190,12 @@ Four rules it is built on, each of which someone will be tempted to undo:
 * **Adding an engine is one line in `Condition.ENGINES`.** The harness never names an engine class.
   Verified rather than claimed: `ga-timeline` was added in EOA-8 as exactly that one line, and no
   metric, invariant or CSV column changed.
+
+**`TacticalStudyPlan` is built thousands of times per request on the timeline path**, not once as on
+the other two, so its constructor is hot. `extractDaysPerItem` uses a `BitSet` per item rather than a
+`HashSet<Integer>` for that reason (G17: it was ~⅓ of v2's time, measured with JFR), and both of its
+maps stay `HashMap` on purpose — the returned map's iteration order decides the plan's canonical gene
+order, so changing the type changes results. Do not "tidy" them to `LinkedHashMap`.
 
 **Two fitness fixes came out of this and both are load-bearing.** `MandatoryReviewConstraint` grades
 its severity (G14) instead of returning a flat 1, and **selection ranks on `rawScore` where the clamp

@@ -16,12 +16,10 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -95,10 +93,19 @@ import java.util.UUID;
  */
 public final class TimelineRepairer implements ChromosomeRepairer {
 
-    private final PlanRequest request;
-    private final HardPrerequisiteGraph graph;
-    private final Map<PlanningItem, UUID> topicIdsByItem;
     private final Map<PlanningItem, List<TacticalStudyBlock>> canonical;
+
+    /** Alocador preparado uma vez; cada reparo tira dele um cursor novo. Ver G17. */
+    private final AvailabilityAllocator prepared;
+
+    /** Posição canônica de cada item, para indexar os vetores abaixo. */
+    private final Map<PlanningItem, Integer> positions;
+
+    /** Por posição: as posições dos itens que dependem dela. */
+    private final int[][] dependents;
+
+    /** Por posição: quantos pré-requisitos ela tem. Copiado por reparo e decrementado. */
+    private final int[] baseIndegree;
 
     /**
      * @param request        o pedido, para as janelas e o horizonte
@@ -111,14 +118,44 @@ public final class TimelineRepairer implements ChromosomeRepairer {
             Map<PlanningItem, List<TacticalStudyBlock>> canonical) {
 
         this.canonical = Collections.unmodifiableMap(new LinkedHashMap<>(canonical));
+        this.prepared = AvailabilityAllocator.over(request);
 
-        this.request = request;
-        this.graph = graph;
-        // LinkedHashMap e nao Map.copyOf: ver SinapseAdapterIsolationTest. Este mapa e so
-        // consultado por get, mas a regra do repositorio e sobre a forma e nao sobre o uso,
-        // porque o uso muda sem que ninguem releia o Javadoc.
-        this.topicIdsByItem =
-                Collections.unmodifiableMap(new LinkedHashMap<>(topicIdsByItem));
+        // O grafo chega por identificador de tópico; o reparo trabalha por item. A tradução é função
+        // pura do pedido, então acontece aqui uma vez em vez de por descendente. Era um
+        // TreeMap<UUID> sob HardPrerequisiteGraph.BY_TEXT reconstruído a cada reparo — e BY_TEXT
+        // compara UUID::toString, que aloca uma String de 36 caracteres por comparação. Ver G17.
+        Map<PlanningItem, Integer> byPosition = new LinkedHashMap<>();
+        canonical.keySet().forEach(item -> byPosition.put(item, byPosition.size()));
+        this.positions = Collections.unmodifiableMap(byPosition);
+
+        Map<UUID, PlanningItem> itemsById = new LinkedHashMap<>();
+        topicIdsByItem.forEach((item, id) -> itemsById.put(id, item));
+
+        int size = byPosition.size();
+        List<List<Integer>> dependentsOf = new ArrayList<>(size);
+        for (int index = 0; index < size; index++) {
+            dependentsOf.add(new ArrayList<>());
+        }
+        this.baseIndegree = new int[size];
+
+        byPosition.forEach((item, at) -> {
+            for (UUID prerequisiteId : graph.prerequisitesOf(topicIdsByItem.get(item))) {
+                PlanningItem prerequisite = itemsById.get(prerequisiteId);
+                // Aresta para fora do conjunto canônico não conta, espelhando a guarda
+                // `item != null` que a versão anterior aplicava a cada reparo.
+                Integer from = prerequisite == null ? null : byPosition.get(prerequisite);
+                if (from != null) {
+                    baseIndegree[at]++;
+                    dependentsOf.get(from).add(at);
+                }
+            }
+        });
+
+        this.dependents = new int[size][];
+        for (int index = 0; index < size; index++) {
+            this.dependents[index] =
+                    dependentsOf.get(index).stream().mapToInt(Integer::intValue).toArray();
+        }
     }
 
     @Override
@@ -197,22 +234,31 @@ public final class TimelineRepairer implements ChromosomeRepairer {
      * resíduo fica vazio para qualquer grafo acíclico. Ver a nota no resíduo.
      */
     private List<PlanningItem> topologicalOrder(List<PlanningItem> preference) {
-        Map<UUID, PlanningItem> byId = new TreeMap<>(HardPrerequisiteGraph.BY_TEXT);
-        preference.forEach(item -> byId.put(topicIdsByItem.get(item), item));
-
-        Set<PlanningItem> placed = new LinkedHashSet<>();
+        int[] pending = baseIndegree.clone();
+        boolean[] placed = new boolean[pending.length];
         List<PlanningItem> order = new ArrayList<>(preference.size());
 
+        // A ESTRUTURA DAS PASSADAS É PRESERVADA AO PÉ DA LETRA, e não por conservadorismo: ela
+        // decide a saída. Um Kahn de manual, que sempre toma o pronto de menor índice de
+        // preferência, dá ordem DIFERENTE — com preferência [B, A, C] e A pré-requisito de B, a
+        // varredura dá [A, C, B] e o Kahn dá [A, B, C], porque a varredura já passou de B nesta
+        // passada e o Kahn o toma na hora. Trocar uma pela outra mudaria o plano de toda execução da
+        // v2 e invalidaria a medição. O que ficou mais rápido é só o TESTE por candidato: um
+        // contador de pré-requisitos pendentes em vez de percorrer o grafo por identificador.
         boolean progressed = true;
         while (progressed) {
             progressed = false;
             for (PlanningItem candidate : preference) {
-                if (placed.contains(candidate) || !unblocked(candidate, byId, placed)) {
+                int at = positions.get(candidate);
+                if (placed[at] || pending[at] > 0) {
                     continue;
                 }
                 order.add(candidate);
-                placed.add(candidate);
+                placed[at] = true;
                 progressed = true;
+                for (int dependent : dependents[at]) {
+                    pending[dependent]--;
+                }
             }
         }
 
@@ -220,28 +266,15 @@ public final class TimelineRepairer implements ChromosomeRepairer {
         // produz e que SinapseStudyOrder recusaria antes daqui com 422. Mantido na ordem pedida em
         // vez de silenciosamente descartado: um item que desaparecesse do plano sem aparecer em
         // topics-unscheduled-ids seria pior que um plano recusado.
-        preference.stream().filter(item -> !placed.contains(item)).forEach(order::add);
+        preference.stream().filter(item -> !placed[positions.get(item)]).forEach(order::add);
         return order;
-    }
-
-    /** Todo pré-requisito rígido deste item que está no plano já foi colocado? */
-    private boolean unblocked(PlanningItem candidate, Map<UUID, PlanningItem> byId,
-            Set<PlanningItem> placed) {
-
-        for (UUID prerequisite : graph.prerequisitesOf(topicIdsByItem.get(candidate))) {
-            PlanningItem item = byId.get(prerequisite);
-            if (item != null && !placed.contains(item)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     /** Reempacota para frente, item por item, parando no primeiro bloco que não couber. */
     private TacticalStudyPlan place(List<PlanningItem> order,
             Map<PlanningItem, List<TacticalStudyBlock>> byItem) {
 
-        AvailabilityAllocator allocator = AvailabilityAllocator.over(request);
+        AvailabilityAllocator allocator = prepared.rewound();
         Map<TimeSlot, TacticalStudyBlock> schedule = new LinkedHashMap<>();
 
         for (PlanningItem item : order) {

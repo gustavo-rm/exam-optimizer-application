@@ -4,6 +4,8 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TimeSlot;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,7 +54,24 @@ public final class TacticalSlots {
      * @return os slots, ordenados; lista imutável
      */
     public static List<TimeSlot> ordered(TacticalStudyPlan plan) {
-        return plan.getSchedule().keySet().stream().sorted(BY_CALENDAR).toList();
+        List<TimeSlot> slots = new ArrayList<>(plan.getSchedule().keySet());
+        // Ordena so se precisar. O reparador emite o cronograma JA em ordem de calendario, e os
+        // operadores em geral a preservam, entao a varredura linear costuma responder "ja esta" e
+        // poupa o sort — que nesta rota roda milhares de vezes por requisicao (G17). O RESULTADO e o
+        // mesmo nos dois caminhos; o que muda e o trabalho.
+        if (!isSorted(slots)) {
+            slots.sort(BY_CALENDAR);
+        }
+        return Collections.unmodifiableList(slots);
+    }
+
+    private static boolean isSorted(List<TimeSlot> slots) {
+        for (int index = 1; index < slots.size(); index++) {
+            if (BY_CALENDAR.compare(slots.get(index - 1), slots.get(index)) > 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

@@ -17,7 +17,8 @@ em `SinapseFitness` que a v2 foi a primeira a exercitar.
 > ### A hipótese da v2 não se confirmou na métrica que ela existia para melhorar
 >
 > A v2 produz **674** inversões `SOFT` contra **420** da v1 — ela é **pior em 156 de 360** células
-> pareadas e melhor em apenas 33 — e custa **27×** o tempo da v1. Ela bate o guloso (674 contra 980),
+> pareadas e melhor em apenas 33 — e custa **~18×** o tempo da v1, depois da otimização de §6. Ela bate
+> o guloso (674 contra 980),
 > mas o guloso não era o alvo: a v1 era.
 >
 > **Isto é um resultado, não uma falha do experimento**, e a causa está medida em §5: a v2 faz
@@ -29,7 +30,7 @@ em `SinapseFitness` que a v2 foi a primeira a exercitar.
 |---|---|
 | A v2 remove mais inversões que a v1? | **Não. 674 contra 420.** Pior em 156/360 células, melhor em 33, empate em 171 |
 | A v2 bate o baseline guloso? | **Sim. 674 contra 980**, melhor em 218/360 |
-| A que custo? | **105 498 µs** de mediana, contra 3 897 da v1 (**27×**) e 138 do guloso (**764×**). Mesmas 2 440 avaliações — o custo é o **reparo**, não a busca |
+| A que custo? | **102 491 µs** de mediana, contra 5 693 da v1 (**18×**) e 167 do guloso. Mesmas 2 440 avaliações — o custo é o **reparo**, não a busca. G17 a deixou 1,37× mais rápida; o resto é estrutural (§6) |
 | Então a v2 é pior? | **Não em tudo.** Ela agenda **mais tópicos** (15,23 contra 13,52), usa **mais calendário** (0,844 contra 0,771) e **nivela melhor os dias** (1,56 contra 1,69) |
 | A busca da v2 funcionou? | **Sim, e é o achado que mais importa.** Agregado positivo em **328 de 360** contra 97 da v1; bruto médio **+0,303** contra −0,132. As correções G14 e G15 deram gradiente, e a v2 o usou |
 | Alguma inversão `HARD`? | **Nenhuma**, em 1 080 execuções e 9 condições |
@@ -205,22 +206,95 @@ perguntar o que a remoção custa em cobertura. É pós-processamento, não otim
 
 ## 6. Custo
 
+> **Nota de correção, 2026-09-30 (G17).** Esta seção afirmava que o custo da v2 estava em
+> "recomputar o calendário inteiro por descendente". **Isso estava errado**, e o erro era de
+> diagnóstico por leitura em vez de medição: perfilado com JFR,
+> `AvailabilityAllocator.over(request)` custa **1,4 µs de 53 µs por reparo — 2,6%**. O custo real
+> estava em outro lugar, descrito em §6.2. Os números da tabela abaixo são pós-otimização.
+
 | motor | mediana | p90 | gerações | avaliações |
 |---|--:|--:|--:|--:|
-| `greedy-baseline` | **138 µs** | 299 | 0 | 0 |
-| `ga` (v1) | **3 897 µs** | 5 079 | 60 | 2 440 |
-| `ga-timeline` (v2) | **105 498 µs** | 208 247 | 60 | 2 440 |
+| `greedy-baseline` | **167 µs** | 320 | 0 | 0 |
+| `ga` (v1) | **5 693 µs** | 7 400 | 60 | 2 440 |
+| `ga-timeline` (v2) | **102 491 µs** | 199 000 | 60 | 2 440 |
 
-**As avaliações são iguais entre v1 e v2 — 2 440 — e o tempo difere 27×.** Logo o custo da v2 não
-está na busca, está no **reparo**: `TimelineRepairer` roda uma ordenação topológica e um
-reempacotamento completo do calendário **por descendente**, 2 400 vezes por execução, enquanto a v1
-repara uma vez ao final.
+**As avaliações são iguais entre v1 e v2 — 2 440 — e o tempo difere quase vinte vezes.** Logo o custo
+da v2 não está na busca: está no que ela faz **por descendente** enquanto a v1 o faz uma vez no fim.
 
-Isso é otimizável — o reparo é determinístico e grande parte dele é recomputação — e não foi
-otimizado, porque otimizar o custo de um mecanismo antes de saber se ele compra qualidade é a ordem
-errada. Com o resultado de §4, a pergunta "vale acelerar?" fica subordinada à de §5.
+### 6.1 Por que as medianas do harness não servem para medir uma otimização
 
----
+A máquina de medição varia mais que o efeito que se quer ver. Entre duas execuções do harness sem
+nenhuma mudança de código, a mediana do guloso mudou de 138 para 167 µs e a da v1 de 3 897 para
+5 693 µs — <b>e o guloso não toca nenhuma linha que foi alterada</b>. Uma otimização de 30% fica
+dentro desse ruído.
+
+Então o efeito foi medido por **A/B controlado na mesma máquina**, alternando entre o `HEAD` commitado
+e a versão otimizada, com a medição "antes" repetida ao fim para limitar a deriva:
+
+| | execuções (ms por busca completa da v2) | mediana |
+|---|---|--:|
+| antes | 268,4 · 265,0 · 276,8 | 268,4 |
+| **depois** | **195,3 · 199,2 · 199,7** | **199,2** |
+| antes, de novo | 273,7 · 278,0 · 279,1 | 278,0 |
+
+**1,37× mais rápido.** A deriva entre os dois blocos "antes" é de ~4%, uma ordem de grandeza abaixo do
+efeito. A razão v2/v1 no harness passou de 27× para **18×**, mas essa leitura é confundida pela deriva
+— a mediana da própria v1 subiu 1,46× no mesmo intervalo —, então o número a citar é o A/B: **1,37×**.
+
+### 6.2 Onde o tempo estava de verdade
+
+Perfil JFR sobre a busca da v2 (25 tópicos, grafo denso, horizonte esparso), atribuindo cada amostra
+ao quadro mais alto do próprio código:
+
+| quadro | amostras | |
+|---|--:|---|
+| `TacticalStudyPlan.extractDaysPerItem` | **40 / 166** | **24%** |
+| `PlanningItemIndex.of` + `projectInts` + `positionOf` | 17 / 166 | 10% |
+| `DayBoundaryCrossover.copyDays` | 9 / 166 | 5% |
+| `BlockSwapMutation.mutate` | 7 / 166 | 4% |
+| `TimelineRepairer.place` | 6 / 166 | 4% |
+| `TimelineRepairer.topologicalOrder` | 4 / 166 | 2% |
+
+A alocação confirma: `HashMap$Node` e `HashMap$Node[]` lideram com folga. A causa é que
+`extractDaysPerItem` alocava **um `HashSet<Integer>` por item** — e um `HashSet` é um `HashMap` por
+dentro, com um nó por dia — mais um `Integer` por dia.
+
+**A construção de um `TacticalStudyPlan` respondia por cerca de um terço do tempo da v2.** Ela não
+custava nada enquanto um plano tático era construído uma vez por requisição, que é o caso de
+`SessionPlacement`; o motor de linha do tempo constrói vários por descendente.
+
+### 6.3 O que foi feito, e o que não foi
+
+| mudança | efeito |
+|---|---|
+| `extractDaysPerItem`: `BitSet` no lugar de `HashSet<Integer>` por item | o maior ganho isolado, ~8,5% |
+| `TimelineRepairer`: posições, dependentes e in-degrees pré-computados no construtor | tira do laço um `TreeMap<UUID>` sob `BY_TEXT`, cujo comparador aloca uma `String` de 36 caracteres por comparação |
+| `AvailabilityAllocator.rewound()`: reusa as janelas já preparadas | pequeno (2,6%), mas grátis |
+| `TacticalSlots.ordered`: ordena só se ainda não estiver ordenado | o reparador já emite em ordem de calendário |
+| `BlockSwapMutation` / `MethodologyMutation`: devolvem o plano de entrada quando nada mudou | com taxa 0,05 é o caso comum; **nenhum sorteio é poupado** |
+
+**A estrutura das passadas da ordenação topológica foi preservada ao pé da letra**, e isso não é
+conservadorismo: ela decide a saída. Um Kahn de manual, que sempre toma o pronto de menor índice de
+preferência, dá ordem **diferente** — com preferência `[B, A, C]` e `A` pré-requisito de `B`, a
+varredura dá `[A, C, B]` e o Kahn dá `[A, B, C]`, porque a varredura já passou de `B` nesta passada e
+o Kahn o toma na hora. Só o **teste por candidato** ficou mais barato.
+
+**Não foi feito: compartilhar o `PlanningItemIndex` entre os indivíduos da população.** Ele é função
+pura do conjunto de itens, que é o mesmo para toda a população, e eliminaria os 10% da segunda linha
+do perfil. Mas a ordem canônica dos genes de um plano tático sai hoje da ordem de iteração de um
+`HashMap` (fragilidade **G6**), então passar um índice compartilhado **mudaria** essa ordem — e com
+ela a ordem de somas de ponto flutuante rio abaixo. Exigiria passar o índice por todos os pontos de
+construção de `TacticalStudyPlan`, vários deles em classes com teste, por ~10% contra uma linha de
+base de 18×. Fica registrado como caminho conhecido, não tomado.
+
+### 6.4 O que sobra é estrutural
+
+Depois de 1,37×, a v2 segue ~18× mais lenta que a v1 com o **mesmo** número de avaliações. O que
+resta não é desperdício: é o reparo rodando por descendente, e o reparo é o que garante validade. Um
+reparo **incremental** — que aproveitasse o calendário do pai em vez de reconstruí-lo — é a única
+mudança que mudaria a ordem de grandeza, e é uma mudança grande, com risco real de correção, sobre um
+mecanismo cuja utilidade **G16 ainda não estabeleceu**. A ordem correta continua sendo G16 antes de
+G17.
 
 ## 7. O que a v2 ganha
 
@@ -309,8 +383,9 @@ urgente, não menos.
 4. **5 sementes**, e a v2 precisa de mais que a v1 (§9).
 5. **Instâncias sintéticas**, como na etapa 09. A **forma** dos resultados é robusta; os valores não
    transferem para um currículo real.
-6. **O custo da v2 não foi otimizado** (§6), então a razão de 27× mede a implementação atual do
-   reparo e não um limite da abordagem.
+6. **O custo da v2 foi otimizado em 1,37× e não mais que isso** (§6). A razão de ~18× mede a
+   implementação atual do reparo e não um limite da abordagem: um reparo incremental mudaria a ordem
+   de grandeza, e não foi tentado porque G16 ainda não estabeleceu que o mecanismo vale a pena.
 
 ---
 
@@ -318,7 +393,7 @@ urgente, não menos.
 
 A pergunta que o experimento existia para responder, respondida com os números acima.
 
-**Como está, ela não substitui a v1**: perde na métrica que motivou sua construção, por 27× o custo.
+**Como está, ela não substitui a v1**: perde na métrica que motivou sua construção, por ~18× o custo.
 **E não é código morto**: ela é a única das três condições cuja busca enxerga ordem, ela ganha em
 cobertura e nivelamento, e ela é a única que pode responder à pergunta de §5 se o peso das
 preferências vier a ser revisto.
@@ -336,4 +411,4 @@ pela mesma seleção de motor, e qualquer revisão de peso pode ser medida nas t
 | **G14** | Severidade binária de `MandatoryReviewConstraint` saturava a fitness | ✅ **RESOLVIDO** — severidade graduada; saturação de 94,6% para 84,4% | [`09`](./09-medicao-baseline-vs-v1.md) §9 |
 | **G15** | `clamp(raw,0,1)` apagava a ordenação entre planos táticos inviáveis | ✅ **RESOLVIDO** — a seleção ordena pelo bruto em plano tático; a publicação segue limitada. Agregado positivo da v2: 328/360 | §8 |
 | **G16** | **A ponderação decide o resultado de §5, e ninguém a mediu.** `SOFT_PREREQUISITE_ORDER = 0,10` faz a v2 trocar ordem por cobertura com lucro. A comparação v1 × v2 mede reparo lexicográfico contra preço, não representação contra representação | ⬜ **ABERTO — decisão de produto.** Uma varredura do peso com a v2 medida em cada ponto responderia; subir o peso muda o que o sistema promete ao aluno | §5 · `ga/fitness/FitnessWeights` |
-| **G17** | **O reparo da v2 custa 27× a v1 por recomputar o calendário inteiro por descendente.** Determinístico e em grande parte redundante | ⬜ **ABERTO** — subordinado a G16: otimizar o custo antes de saber se o mecanismo compra qualidade é a ordem errada | §6 · `sinapse/timeline/TimelineRepairer` |
+| **G17** | **A v2 custava 27× a v1 com as mesmas 2 440 avaliações.** O diagnóstico original — "recomputa o calendário por descendente" — **estava errado**: medido com JFR, o recomputo do calendário é **2,6%**, e ~⅓ do tempo estava em `TacticalStudyPlan.extractDaysPerItem`, que alocava um `HashSet<Integer>` por item | 🟡 **PARCIAL** — **1,37× mais rápido** (A/B controlado, deriva ≤4%), saída **bit a bit idêntica** nas 1 080 linhas. O resto é estrutural: o reparo por descendente é o que garante validade. Um reparo incremental mudaria a ordem de grandeza e é mudança grande sobre mecanismo que **G16 ainda não justificou** | §6 · `domain/tactical/TacticalStudyPlan` · `sinapse/timeline/TimelineRepairer` |

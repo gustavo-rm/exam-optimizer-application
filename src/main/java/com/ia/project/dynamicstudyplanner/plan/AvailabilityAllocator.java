@@ -75,6 +75,28 @@ public final class AvailabilityAllocator {
         return new AvailabilityAllocator(windows);
     }
 
+    /**
+     * Um alocador novo sobre as <b>mesmas</b> janelas já preparadas, com o cursor no início.
+     *
+     * <h2>Por que isto existe (pendência G17)</h2>
+     *
+     * A lista de janelas é função pura do pedido: recortar ao horizonte, descartar as vazias e
+     * ordenar dá o mesmo resultado toda vez. O que muda entre duas alocações é só o <b>cursor</b>.
+     *
+     * <p>{@link #over} paga o recorte e a ordenação de novo a cada chamada, o que não importa quando
+     * se aloca uma vez por requisição — é o caso dos dois primeiros motores. O motor de linha do
+     * tempo reempacota o calendário <b>por descendente</b>, milhares de vezes por requisição, e ali o
+     * trabalho repetido é puro desperdício.
+     *
+     * <p>É seguro porque {@code windows} já é imutável ({@code toList()}) e o construtor privado só
+     * posiciona o cursor: dois alocadores sobre a mesma lista não têm como interferir um no outro.
+     *
+     * @return um alocador na primeira janela, sem repetir o preparo
+     */
+    public AvailabilityAllocator rewound() {
+        return new AvailabilityAllocator(windows);
+    }
+
     private static Window clip(PlanRequest.AvailabilitySlot slot, HorizonBounds horizon) {
         Instant start = slot.start().isBefore(horizon.from()) ? horizon.from() : slot.start();
         Instant end = slot.end().isAfter(horizon.until()) ? horizon.until() : slot.end();
