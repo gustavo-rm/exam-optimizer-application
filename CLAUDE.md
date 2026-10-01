@@ -77,16 +77,35 @@ Three consequences worth knowing before touching anything:
   cannot violate an ordering preference; the term only bites on the placed plan. Making it steer the
   search would turn v1 into a worse v2 — v1 is the *control group* for the timeline chromosome, not
   a draft of it. EOA-8 built that v2 (`ga-timeline`) and measured it: it loses to v1 on soft
-  inversions (674 against 420) at ~18x the cost, and the measured cause is the **weighting**, not the
+  inversions (674 against 420) at ~16x the cost, and the measured cause is the **weighting**, not the
   representation — `SOFT_PREREQUISITE_ORDER` is 0.10, so v2's search trades order for coverage at a
   profit. **G16 then swept that weight and closed it**: the weight steers v2 monotonically (856 down
   to 509 inversions from λ 0.00 to 0.80) and **never reaches v1's 420**, not even at λ 0.80 which is
   already above `CONSTRAINT_VIOLATION`. λ 0.10 sits inside the flat optimum of the canonical
   objective, so **the recommendation is to leave it alone** — and per instance there is no majority λ
-  at all (53% prefer ≤ 0.05, G18). `plan.fitness.sinapse.soft-prerequisite-order` opens the weight for
-  measurement; read `docs/revisao-ag/11-varredura-peso-ordem.md` §5 before changing it. Constraint
-  weights are subtracted and are not in the convex combination, so changing this one renormalises
-  nothing — unlike an objective weight.
+  at all (53% prefer ≤ 0.05, G18, which EOA-9 then closed as variation rather than structure: the
+  per-cell optimum tracks no library factor, and 80% of its variance is *within* an instance).
+  `plan.fitness.sinapse.soft-prerequisite-order` opens the weight for measurement; read
+  `docs/revisao-ag/11-varredura-peso-ordem.md` §5 before changing it. Constraint weights are
+  subtracted and are not in the convex combination, so changing this one renormalises nothing —
+  unlike an objective weight. **Nothing above `CONSTRAINT_VIOLATION` (0.50) may enter a conclusion**:
+  there a preference costs more than a requirement, and λ 0.80 is published only as an *a fortiori*
+  bound.
+
+* **The precedence policy is an axis, and the default is per engine, not global** (EOA-9).
+  `PrecedencePolicy` has two values: `LEXICOGRAPHIC` repairs the order with
+  `PrerequisiteOrderRepairer`, `WEIGHTED` leaves it to the fitness term to price. The
+  `precedence` request parameter selects one; `ga` defaults to `LEXICOGRAPHIC` and `ga-timeline` to
+  `WEIGHTED`, because **both of those are published results** and one global default would silently
+  move a control condition. Greedy does not participate.
+
+  The 2×2 settled what the v1/v2 comparison had confounded: **representation explains coverage**
+  (+1.51 topics as a main effect; the macro row shows that *not* repairing buys −0.008 topic, so "not
+  repairing frees capacity" is refuted) and **policy explains order** (+1.05 inversions per cell).
+  v2′ = timeline + lexicographic repair wins both — 362 inversions against v1's 420, paired 92/220/48,
+  and 14.82 topics against 13.52 — at **19.4x** v1's cost. `plan.engine.default` is still
+  `greedy-baseline`; changing it is a product decision, and
+  `docs/revisao-ag/12-desconfundindo-precedencia.md` §13 says what was deliberately *not* done.
 * **The greedy baseline does not repair soft inversions**, and
   `GreedyBaselineSchedulerTest.softEdgesDoNotConstrainTheOrder` pins that. It is the control for the
   engine comparison; teaching it the genetic path's repair would make the two differ by one thing
@@ -196,6 +215,20 @@ Four rules it is built on, each of which someone will be tempted to undo:
 * **Adding an engine is one line in `Condition.ENGINES`.** The harness never names an engine class.
   Verified rather than claimed: `ga-timeline` was added in EOA-8 as exactly that one line, and no
   metric, invariant or CSV column changed.
+
+* **An invariant that refutes reality instead of describing it is the wrong invariant.** The
+  search-vitality invariant added in EOA-9 fired on **v1**, not v2: in 12 of the 24 instances
+  `SessionBudget` equals the sum of per-item floors, so generation zero is 40 copies of one plan and
+  v1's search space is a single point (G20). The invariant was therefore **split** — it *aborts* only
+  on broken elitism (final best worse than initial), and *records* a wholly-tied initial population in
+  `search_initial_distinct`. Refusing would have refused 12 legitimate library instances. The
+  consequence for any report: in half the factorial, "v1 wins" is not evidence about search.
+
+* **`Environment.requireExpectedJdk()` refuses a JDK other than 21, and that is not fussiness.** A
+  tactical plan's canonical gene order comes from `HashMap` iteration order (G6) — deterministic for
+  fixed hash codes, but an unspecified implementation detail a JDK update may move. Numbers measured
+  on another JDK are a new series, not a continuation. Each run also writes a
+  `<name>-environment.txt` beside its CSV.
 
 **`TacticalStudyPlan` is built thousands of times per request on the timeline path**, not once as on
 the other two, so its constructor is hot. `extractDaysPerItem` uses a `BitSet` per item rather than a

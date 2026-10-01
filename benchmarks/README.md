@@ -8,10 +8,14 @@ pré-requisitos** (`ga`, EOA-7, a **v1**) e o **cromossomo de linha do tempo** (
 **v2**). A v2 entrou como **uma linha** em `Condition.ENGINES`, sem que nenhuma métrica, invariante ou
 coluna do CSV mudasse — ver "Acrescentar um motor", abaixo.
 
-Relatórios: [`09-medicao-baseline-vs-v1.md`](../docs/revisao-ag/09-medicao-baseline-vs-v1.md)
-(guloso × v1) e [`10-medicao-v2-linha-do-tempo.md`](../docs/revisao-ag/10-medicao-v2-linha-do-tempo.md)
-(as três condições).
-Dados brutos: [`results/measurement.csv`](./results/measurement.csv).
+Relatórios: [`09`](../docs/revisao-ag/09-medicao-baseline-vs-v1.md) (guloso × v1),
+[`10`](../docs/revisao-ag/10-medicao-v2-linha-do-tempo.md) (as três condições),
+[`11`](../docs/revisao-ag/11-varredura-peso-ordem.md) (a varredura de peso) e
+[`12`](../docs/revisao-ag/12-desconfundindo-precedencia.md) (o 2×2 de precedência).
+Dados brutos: [`results/measurement.csv`](./results/measurement.csv),
+[`results/soft-weight-sweep.csv`](./results/soft-weight-sweep.csv),
+[`results/precedence-cells.csv`](./results/precedence-cells.csv), cada um com o seu
+`-environment.txt` ao lado.
 
 ---
 
@@ -90,8 +94,42 @@ de `measurement.csv` mais uma coluna `soft_weight` à frente.
 
 A coluna de objetivo **não é comparável entre pontos** como publicada — cada um a calcula com o seu λ.
 Ela se traz a um λ comum por aritmética exata sobre as colunas publicadas:
-`raw + λ × severidade − 0,10 × severidade`. Relatório:
+`raw + λ × severidade − 0,10 × severidade`. **A aritmética só vale porque a composição é linear em λ**
+— ver [`11`](../docs/revisao-ag/11-varredura-peso-ordem.md) §2.1, que registra a condição. Relatório:
 [`11-varredura-peso-ordem.md`](../docs/revisao-ag/11-varredura-peso-ordem.md).
+
+### O fatorial de precedência (manual)
+
+```bash
+java -cp "target/classes:target/test-classes:$(cat target/cp.txt)" \
+     com.ia.project.dynamicstudyplanner.benchmark.harness.PrecedenceCellsMain
+```
+
+As quatro células de `{ga, ga-timeline} × {lexicographic, weighted}` nas mesmas 24 instâncias, três
+proveniências e cinco sementes, com λ no valor de produção. **1 440 linhas, ~140 s.** Escreve
+`benchmarks/results/precedence-cells.csv`, mesmo esquema de `measurement.csv`.
+
+Duas das quatro células são os padrões publicados (`ga/lexicographic` é a v1 de [`09`], e
+`ga-timeline/weighted` é a v2 de [`10`]), e **reproduzem `measurement.csv` coluna por coluna** — é a
+verificação de que o eixo de política não contaminou as condições de controle. Relatório:
+[`12-desconfundindo-precedencia.md`](../docs/revisao-ag/12-desconfundindo-precedencia.md).
+
+### O ambiente, ao lado de cada CSV
+
+Toda execução escreve um irmão `<nome>-environment.txt` com versão do JDK, VM, sistema, processadores
+e memória, e **recusa rodar num JDK maior diferente de `Environment.EXPECTED_JDK_MAJOR`** (21).
+
+Não é zelo: a ordem canônica dos genes de um plano tático sai da ordem de iteração de um `HashMap`
+(G6). Ela é determinística para hashes fixos, mas é **detalhe de implementação não especificado** da
+biblioteca padrão, e uma atualização de JDK pode movê-la. Duas execuções sob JDKs diferentes podem
+divergir sem mudança de código, e comparar os números de uma com os da outra seria comparar medições
+que não compartilham a condição. Recusar é melhor que avisar — um aviso numa saída de 2 880 linhas não
+é lido. Para medir deliberadamente noutro JDK, suba a constante e **remeça tudo**, tratando o resultado
+como série nova.
+
+As colunas de tempo também dependem da máquina: a mediana do guloso andou 138 → 167 µs entre duas
+execuções sem mudança de código (G17). Comparar custo **entre braços da mesma execução** é válido;
+entre execuções, não.
 
 ---
 
@@ -170,6 +208,7 @@ declarado ao lado do número.
 | `engine` | texto | o motor, **como o seletor o carimbou** |
 | `provenance` | texto | `curated` / `curated-textbook` / `all` |
 | `importance` | texto | estratégia de importância da execução |
+| `precedence_policy` | texto | `lexicographic` (o reparo fixa a ordem) ou `weighted` (a fitness a precifica). **Sempre preenchida** — quando a condição não nomeia política, é a que o motor usou por padrão |
 | `seed` | inteiro | a semente |
 | `prerequisite_edges_hard` | inteiro | arestas `HARD` aplicáveis nesta condição |
 | `prerequisite_edges_soft` | inteiro | arestas `SOFT` aplicáveis nesta condição |
@@ -181,9 +220,21 @@ declarado ao lado do número.
 | `invariants_ok` | booleano | sempre `true` — a linha não existe se for falso |
 | `reproducible` | booleano | sempre `true` — idem |
 
-Não é tautologia: o harness recusa construir a linha de uma execução que reprovou qualquer das duas
+| `search_vital` | booleano | sempre `true` — idem, para a vitalidade da busca |
+| `search_initial_distinct` | inteiro ou vazio | quantas aptidões **distintas** a geração zero tinha. Vazio quando o motor não evolui população (o guloso) |
+| `search_improved` | booleano ou vazio | se a melhor aptidão final superou a inicial |
+
+Não é tautologia: o harness recusa construir a linha de uma execução que reprovou qualquer das
 checagens, então as colunas registram que a checagem **rodou e passou** para aquela linha. Um `false`
 ali significaria que o aborto foi contornado.
+
+**A invariante de vitalidade é dividida, e a divisão é deliberada.** Ela **aborta** quando a melhor
+aptidão final é pior que a inicial — isso é elitismo quebrado, defeito de motor. Ela apenas
+**registra**, em `search_initial_distinct = 1`, uma população inicial totalmente empatada: medido, isso
+é propriedade da instância e não defeito — em 12 das 24 instâncias `SessionBudget` iguala a soma dos
+pisos por item e a geração zero da v1 é um ponto único (G20). Abortar ali recusaria 12 instâncias
+legítimas da biblioteca. Uma invariante que refuta a realidade em vez de a descrever é uma invariante
+errada.
 
 ### Grupo (b) — resultado
 
@@ -253,7 +304,7 @@ Na composição atual (`sinapse`) os termos são, nesta ordem: `syllabusMastery`
 |---|---|
 | `instance` | `InstanceLibrary` (o fatorial, determinístico) e `BenchmarkInstance` (uma instância com suas coordenadas) |
 | `metric` | `Invariants` (a), `OutcomeMetrics` (b), `CostMetrics` (c), `PlanScoring` (d) e `MeasurementRow` (o esquema) |
-| `harness` | `Condition` (a matriz), `MeasurementHarness` (a execução), `MeasurementCsv`, `MeasurementMain` |
+| `harness` | `Condition` (a matriz), `MeasurementHarness` (a execução), `MeasurementCsv`, `Environment` (a invariante de JDK e a proveniência), e os três pontos de entrada: `MeasurementMain`, `WeightSweepMain`, `PrecedenceCellsMain` |
 | `strategy` | Estratégias de alocação de nível macro, herdadas da revisão do AG — **fora da matriz de motores**, ver abaixo |
 
 ### Por que `strategy/**` não está na matriz
