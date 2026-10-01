@@ -4,12 +4,14 @@ import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineEngine;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.plan.EdgeProvenanceFilter;
 import com.ia.project.dynamicstudyplanner.plan.PlanEngineSelector;
+import com.ia.project.dynamicstudyplanner.plan.PrecedencePolicy;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.TimelinePlanEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.GoalPriorityImportance;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -47,8 +49,16 @@ import java.util.Map;
  *
  * @param engine     the engine id, as it appears in {@code algorithmParams.engine}
  * @param provenance the ablation condition
+ * @param policy     how this cell treats ordering preferences: repair them or price them. {@code null}
+ *                   leaves the engine on its own default, which is what the published matrix uses —
+ *                   see {@code PrecedencePolicies} for why the default is per engine
  */
-public record Condition(String engine, EdgeProvenanceFilter provenance) {
+public record Condition(String engine, EdgeProvenanceFilter provenance, PrecedencePolicy policy) {
+
+    /** A condição com a política que o motor já tem por padrão. */
+    public Condition(String engine, EdgeProvenanceFilter provenance) {
+        this(engine, provenance, null);
+    }
 
     /**
      * The engines in the matrix.
@@ -91,18 +101,33 @@ public record Condition(String engine, EdgeProvenanceFilter provenance) {
      * @return a request naming this condition, ready for {@link PlanEngineSelector#plan}
      */
     public PlanRequest applyTo(PlanRequest request, long seed) {
-        Map<String, Object> params = Map.of(
-                PlanEngineSelector.ENGINE_PARAM, engine,
-                EdgeProvenanceFilter.PARAM, provenance.id(),
-                ImportanceStrategies.PARAM, IMPORTANCE);
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put(PlanEngineSelector.ENGINE_PARAM, engine);
+        params.put(EdgeProvenanceFilter.PARAM, provenance.id());
+        params.put(ImportanceStrategies.PARAM, IMPORTANCE);
+        // Ausente quando a celula nao nomeia politica: e assim que a matriz publicada deixa cada
+        // motor no padrao dele, que e o que mantem os numeros de 09, 10 e 11 reproduzindo.
+        if (policy != null) {
+            params.put(PrecedencePolicy.PARAM, policy.id());
+        }
 
         return new PlanRequest(request.contractVersion(), request.horizon(), request.availability(),
                 request.goals(), request.topics(), request.prerequisites(), request.history(),
                 params, seed);
     }
 
-    /** {@code ga/curated-textbook} — what a report table names a column. */
+    /** {@code ga/curated-textbook} ou {@code ga-timeline/all/lexicographic}. */
     public String label() {
-        return engine + "/" + provenance.id();
+        return engine + "/" + provenance.id() + (policy == null ? "" : "/" + policy.id());
+    }
+
+    /** @return a política desta célula, resolvida para o que o motor usaria quando ela é nula */
+    public PrecedencePolicy effectivePolicy() {
+        if (policy != null) {
+            return policy;
+        }
+        return GeneticPlanEngine.ID.equals(engine)
+                ? PrecedencePolicy.LEXICOGRAPHIC
+                : PrecedencePolicy.WEIGHTED;
     }
 }

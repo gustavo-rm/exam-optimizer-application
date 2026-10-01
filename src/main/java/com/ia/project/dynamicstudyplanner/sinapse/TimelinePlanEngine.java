@@ -22,10 +22,10 @@ import com.ia.project.dynamicstudyplanner.plan.PlanOutputInvariants;
 import com.ia.project.dynamicstudyplanner.plan.PlanProtocol;
 import com.ia.project.dynamicstudyplanner.plan.PlanRejectedException;
 import com.ia.project.dynamicstudyplanner.plan.PlanRequestGuard;
-import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
+import com.ia.project.dynamicstudyplanner.plan.PrecedencePolicy;
+import com.ia.project.dynamicstudyplanner.plan.PrerequisiteOrderRepairer;
 import com.ia.project.dynamicstudyplanner.plan.PrerequisiteReport;
 import com.ia.project.dynamicstudyplanner.plan.SoftPrerequisiteEdges;
-import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
 import com.ia.project.dynamicstudyplanner.sinapse.timeline.TimelineChromosomes;
 import com.ia.project.dynamicstudyplanner.sinapse.timeline.TimelineRepairer;
@@ -103,8 +103,7 @@ public class TimelinePlanEngine implements PlanEngine {
 
     private final FitnessComposition composition;
     private final RetentionAlgorithm retention;
-    private final ImportanceStrategies importanceStrategies;
-    private final PrerequisiteProvenance provenance;
+    private final RequestConditions conditions;
     private final SelectionStrategy selection;
     private final SpacedRepetitionRepairer retentionRepairer;
     private final GeneticSearchBudget budget;
@@ -113,8 +112,8 @@ public class TimelinePlanEngine implements PlanEngine {
     /**
      * @param composition       a fitness deste caminho, por nome de bean
      * @param retention         a recorrência que o termo de retenção lê
-     * @param importanceStrategies de onde vem o peso do termo dominante
-     * @param provenance        quais arestas esta execução pode ver
+     * @param conditions        qual célula do fatorial esta requisição nomeia: proveniência,
+     *                          importância e política de precedência
      * @param selection         seleção, a mesma do caminho macro
      * @param retentionRepairer devolve revisões obrigatórias perdidas pelos operadores
      * @param budget            quanta busca gastar; o mesmo da v1
@@ -123,8 +122,7 @@ public class TimelinePlanEngine implements PlanEngine {
     public TimelinePlanEngine(
             @Qualifier("sinapseFitnessComposition") FitnessComposition composition,
             RetentionAlgorithm retention,
-            ImportanceStrategies importanceStrategies,
-            PrerequisiteProvenance provenance,
+            RequestConditions conditions,
             SelectionStrategy selection,
             SpacedRepetitionRepairer retentionRepairer,
             GeneticSearchBudget budget,
@@ -132,8 +130,7 @@ public class TimelinePlanEngine implements PlanEngine {
 
         this.composition = composition;
         this.retention = retention;
-        this.importanceStrategies = importanceStrategies;
-        this.provenance = provenance;
+        this.conditions = conditions;
         this.selection = selection;
         this.retentionRepairer = retentionRepairer;
         this.budget = budget;
@@ -160,20 +157,24 @@ public class TimelinePlanEngine implements PlanEngine {
     }
 
     private PlanResponse run(PlanRequest request) {
-        EdgeProvenanceFilter filter = provenance.resolve(request);
+        EdgeProvenanceFilter filter = conditions.provenance(request);
+        // WEIGHTED e o padrao DESTE motor: e o comportamento que o relatorio 10 mediu como
+        // tratamento e que o 11 varreu. Ver PrecedencePolicies para por que o padrao e por motor.
+        PrecedencePolicy policy = conditions.precedence(request, PrecedencePolicy.WEIGHTED);
         HardPrerequisiteGraph graph =
                 HardPrerequisiteGraph.of(request.topics(), request.prerequisites(), filter);
         SoftPrerequisiteEdges soft =
                 SoftPrerequisiteEdges.of(request.topics(), request.prerequisites(), filter);
 
-        ImportanceStrategy importance = importanceStrategies.resolve(request);
+        ImportanceStrategy importance = conditions.importance(request);
         List<PlanningItem> items = TopicPlanningItems.of(request.topics());
         EvolutionContext context = SinapseEvolutionContexts.of(request, items,
                 AvailabilityWindows.of(request.availability()), composition.evaluator(), retention,
                 importance, SinapseEvolutionContexts.softPrerequisites(soft, request.topics()));
 
         Map<PlanningItem, UUID> topicIdsByItem = TopicPlanningItems.topicIdsByItem(request.topics());
-        TacticalStudyPlan fittest = search(request, context, graph, topicIdsByItem);
+        Searched searched = search(request, context, graph, topicIdsByItem);
+        TacticalStudyPlan fittest = searched.fittest();
         if (fittest.getSchedule().isEmpty()) {
             throw new PlanRejectedException("plan-would-be-empty",
                     "No session fits: the availability windows inside the horizon cannot hold even "
@@ -182,11 +183,41 @@ public class TimelinePlanEngine implements PlanEngine {
                     List.of(request.topics().get(0).id().toString()));
         }
 
-        return respond(request, context, graph, soft, filter, importance, topicIdsByItem, fittest);
+        return respond(request, context, graph, soft, new Reported(filter, policy, importance),
+                topicIdsByItem, searched);
+    }
+
+    /**
+     * O que a busca devolve, e o que o reparo lexicográfico precisa dela.
+     *
+     * <p>Sob {@code LEXICOGRAPHIC} o plano vencedor é <b>reordenado e recolocado</b>, e isso exige o
+     * reparador e os blocos canônicos — que a busca já construiu. Devolvê-los evita reconstruí-los,
+     * e reconstruí-los seria reconstruir a alocação, que precisa ser a mesma das duas políticas para
+     * que a comparação entre elas meça só a política.
+     *
+     * @param fittest   o cromossomo mais apto
+     * @param vitality  os sinais de que a busca buscou
+     * @param repairer  o reparador de linha do tempo desta requisição
+     * @param blocks    os blocos canônicos por item
+     */
+    private record Searched(TacticalStudyPlan fittest, SearchVitality vitality,
+            TimelineRepairer repairer, Map<PlanningItem, List<TacticalStudyBlock>> blocks) {
+    }
+
+    /**
+     * As três escolhas que a resposta ecoa, agrupadas para o construtor de {@code respond} caber no
+     * limite de parâmetros.
+     *
+     * @param filter     a condição de ablação
+     * @param policy     a política de precedência
+     * @param importance a estratégia de importância
+     */
+    private record Reported(EdgeProvenanceFilter filter, PrecedencePolicy policy,
+            ImportanceStrategy importance) {
     }
 
     /** Gera a população inicial, já reparada, e evolui. */
-    private TacticalStudyPlan search(PlanRequest request, EvolutionContext context,
+    private Searched search(PlanRequest request, EvolutionContext context,
             HardPrerequisiteGraph graph, Map<PlanningItem, UUID> topicIdsByItem) {
 
         Map<PlanningItem, Integer> sessions =
@@ -214,47 +245,97 @@ public class TimelinePlanEngine implements PlanEngine {
                     context));
         }
 
-        return new TimelineSearch(selection, new DayBoundaryCrossover(), new BlockSwapMutation(),
-                new MethodologyMutation(), retentionRepairer, repairer)
+        TimelineSearch.Outcome outcome = new TimelineSearch(selection, new DayBoundaryCrossover(),
+                new BlockSwapMutation(), new MethodologyMutation(), retentionRepairer, repairer)
                 .run(seeds, context, budget.generations());
+        return new Searched(outcome.fittest(), outcome.vitality(), repairer, blocksBy);
     }
 
     /** Monta a resposta a partir do cromossomo vencedor, que já é o plano tático. */
     private PlanResponse respond(PlanRequest request, EvolutionContext context,
-            HardPrerequisiteGraph graph, SoftPrerequisiteEdges soft, EdgeProvenanceFilter filter,
-            ImportanceStrategy importance, Map<PlanningItem, UUID> topicIdsByItem,
-            TacticalStudyPlan fittest) {
+            HardPrerequisiteGraph graph, SoftPrerequisiteEdges soft, Reported reported,
+            Map<PlanningItem, UUID> topicIdsByItem, Searched searched) {
 
-        List<PlanRequest.Topic> scheduled = studyOrder(request, topicIdsByItem, fittest);
-        // A ordem COMPLETA: agendados primeiro, depois os que o calendario nao coube. Passar so os
-        // agendados faria PrerequisiteReport concluir que nada ficou de fora, e a resposta afirmaria
-        // um plano completo onde ha um plano parcial — o defeito que "nomear em vez de contar"
-        // existe para impedir.
-        List<PlanRequest.Topic> order = new ArrayList<>(scheduled);
-        request.topics().stream().filter(topic -> !scheduled.contains(topic)).forEach(order::add);
+        TacticalStudyPlan plan = searched.fittest();
+        List<PlanRequest.Topic> order = fullOrder(request, topicIdsByItem, plan);
 
-        long minutes = fittest.getSchedule().values().stream()
+        // SOB LEXICOGRAPHIC, o reparador QUE JA EXISTE roda sobre a saida da linha do tempo.
+        //
+        // E a celula que desconfunde representacao de politica. A v2 publicada precifica a ordem
+        // dentro da busca; esta celula mantem a MESMA representacao e a MESMA alocacao e troca so a
+        // politica por reparo lexicografico. Se ela igualar a v1 em inversoes e preservar a vantagem
+        // de cobertura, a representacao explica o ganho; se perder cobertura ate o nivel da v1, a
+        // vantagem era consequencia da politica e nao da representacao.
+        //
+        // Nenhum segundo reparador foi escrito: PrerequisiteOrderRepairer reordena a lista de topicos
+        // e TimelineRepairer recoloca o calendario naquela ordem. A ordem reparada ja respeita as
+        // arestas rigidas, entao a ordenacao topologica do segundo e inerte sobre ela.
+        PrerequisiteOrderRepairer.Result repair = null;
+        if (reported.policy() == PrecedencePolicy.LEXICOGRAPHIC) {
+            repair = PrerequisiteOrderRepairer.repair(order, graph, soft);
+            order = repair.order();
+            plan = searched.repairer().repair(
+                    TimelineChromosomes.inOrder(itemsOf(order, topicIdsByItem), searched.blocks()),
+                    context);
+        }
+
+        int scheduled = scheduledCount(plan);
+        long minutes = plan.getSchedule().values().stream()
                 .mapToLong(TacticalStudyBlock::durationMinutes)
                 .sum();
-        SessionPlacement.Result placed = new SessionPlacement.Result(fittest, scheduled.size(),
+        SessionPlacement.Result placed = new SessionPlacement.Result(plan, scheduled,
                 request.topics().size(), minutes);
 
-        // measured, e nao repaired: a v2 NAO roda reparo de preferencias. Ela as precifica dentro da
-        // fitness, entao o numero relatado e o que a busca conseguiu, e a chave -before-repair fica
-        // ausente — a mesma declaracao por omissao que o baseline guloso faz.
-        PrerequisiteReport prerequisites =
-                PrerequisiteReport.measured(filter, graph, soft, order, scheduled.size());
+        // measured sob WEIGHTED, repaired sob LEXICOGRAPHIC. A chave -before-repair aparece so na
+        // segunda, que e a declaracao por omissao que o resto do repositorio tambem faz.
+        PrerequisiteReport prerequisites = repair == null
+                ? PrerequisiteReport.measured(reported.filter(), graph, soft, order, scheduled)
+                : PrerequisiteReport.repaired(reported.filter(), graph, soft, repair, order,
+                        scheduled);
 
-        FitnessBreakdown breakdown = composition.evaluator().explain(fittest, context);
+        FitnessBreakdown breakdown = composition.evaluator().explain(plan, context);
         PlanResponse response = new PlanResponse(PlanRequest.VERSION,
-                TacticalSessions.of(fittest, topicIdsByItem),
-                SinapseFitness.of(composition, breakdown, placed, fittest, context, importance,
-                        prerequisites),
+                TacticalSessions.of(plan, topicIdsByItem),
+                SinapseFitness.of(composition, breakdown, placed, plan, context,
+                        reported.importance(), prerequisites, searched.vitality()),
                 new PlanResponse.ExecutionMetadata(coreVersion, request.randomSeed(),
                         budget.generations(), ELAPSED_MILLIS));
 
         PlanOutputInvariants.check(request, response, graph);
         return response;
+    }
+
+    /**
+     * A ordem completa: os agendados na ordem do calendário, depois o que não couve.
+     *
+     * <p>Passar só os agendados faria {@code PrerequisiteReport} concluir que nada ficou de fora, e a
+     * resposta afirmaria um plano completo onde há um plano parcial — o defeito que "nomear em vez de
+     * contar" existe para impedir.
+     */
+    private static List<PlanRequest.Topic> fullOrder(PlanRequest request,
+            Map<PlanningItem, UUID> topicIdsByItem, TacticalStudyPlan plan) {
+
+        List<PlanRequest.Topic> scheduled = studyOrder(request, topicIdsByItem, plan);
+        List<PlanRequest.Topic> order = new ArrayList<>(scheduled);
+        request.topics().stream().filter(topic -> !scheduled.contains(topic)).forEach(order::add);
+        return order;
+    }
+
+    /** Os itens de planejamento de uma ordem de tópicos, para reconstruir o cromossomo. */
+    private static List<PlanningItem> itemsOf(List<PlanRequest.Topic> order,
+            Map<PlanningItem, UUID> topicIdsByItem) {
+
+        Map<UUID, PlanningItem> byId = new LinkedHashMap<>();
+        topicIdsByItem.forEach((item, id) -> byId.put(id, item));
+        return order.stream().map(topic -> byId.get(topic.id())).filter(item -> item != null).toList();
+    }
+
+    /** Tópicos com ao menos um bloco no plano. */
+    private static int scheduledCount(TacticalStudyPlan plan) {
+        return (int) plan.getSchedule().values().stream()
+                .map(TacticalStudyBlock::item)
+                .distinct()
+                .count();
     }
 
     /**

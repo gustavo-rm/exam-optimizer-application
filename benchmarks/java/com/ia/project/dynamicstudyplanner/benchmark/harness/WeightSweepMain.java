@@ -94,6 +94,9 @@ public final class WeightSweepMain {
      * @param args ignorados; os pontos e as sementes estão fixados no repositório
      */
     public static void main(String[] args) {
+        // Invariante de ambiente, antes de qualquer medicao: ver Environment.
+        Environment.requireExpectedJdk();
+
         List<String> lines = new ArrayList<>();
         List<String> header = null;
 
@@ -113,6 +116,7 @@ public final class WeightSweepMain {
         }
 
         MeasurementCsv.writeLines(OUTPUT, lines);
+        Environment.writeBeside(OUTPUT);
         System.out.printf("%npoints %d | rows %d | elapsed %d s | written %s%n",
                 WEIGHTS.length, lines.size() - 1,
                 (System.nanoTime() - startedAt) / 1_000_000_000L, OUTPUT.toAbsolutePath());

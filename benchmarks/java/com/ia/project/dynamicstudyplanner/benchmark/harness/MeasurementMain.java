@@ -54,6 +54,9 @@ public final class MeasurementMain {
      *             repeatable without remembering which flags produced it
      */
     public static void main(String[] args) {
+        // Invariante de ambiente, antes de qualquer medicao: ver Environment.
+        Environment.requireExpectedJdk();
+
         SpringApplicationBuilder builder = new SpringApplicationBuilder(
                 DynamicStudyPlannerApplication.class)
                 .profiles(PlanProtocol.PROFILE)
@@ -69,6 +72,7 @@ public final class MeasurementMain {
 
             List<String> termNames = termNamesIn(context);
             MeasurementCsv.write(OUTPUT, termNames, rows);
+            Environment.writeBeside(OUTPUT);
             report(instances, rows, termNames, elapsedSeconds);
         }
     }

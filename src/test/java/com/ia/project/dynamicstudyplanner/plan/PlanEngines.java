@@ -20,6 +20,7 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjectiv
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
+import com.ia.project.dynamicstudyplanner.sinapse.RequestConditions;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticSearchBudget;
 import com.ia.project.dynamicstudyplanner.sinapse.SinapseFitnessConfig;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.GoalPriorityImportance;
@@ -135,10 +136,23 @@ public final class PlanEngines {
                         new SoftPrerequisiteOrderConstraint(FitnessWeights.SOFT_PREREQUISITE_ORDER),
                         dailyLoadBudget),
                 new HybridRetentionEngine(),
-                importanceStrategies(),
-                ALL_PROVENANCE,
+                conditions(),
                 CORE_VERSION,
                 new GeneticSearchBudget(generations, populationSize));
+    }
+
+    /**
+     * As três escolhas de condição, montadas à mão.
+     *
+     * <p>{@code PrecedencePolicies} não tem estado, então não há o que configurar: cada motor passa o
+     * seu próprio padrão, e um teste que queira a outra célula põe {@code precedence} em
+     * {@code algorithmParams}.
+     *
+     * @return o resolvedor de condições, com proveniência {@code all} como em produção
+     */
+    public static RequestConditions conditions() {
+        return new RequestConditions(importanceStrategies(), ALL_PROVENANCE,
+                new PrecedencePolicies());
     }
 
     /**

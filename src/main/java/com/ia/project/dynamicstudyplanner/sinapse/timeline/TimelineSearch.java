@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.Individual;
 import com.ia.project.dynamicstudyplanner.ga.Population;
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.SelectionStrategy;
+import com.ia.project.dynamicstudyplanner.sinapse.SearchVitality;
 import com.ia.project.dynamicstudyplanner.ga.tactical.repair.ChromosomeRepairer;
 import com.ia.project.dynamicstudyplanner.ga.tactical.strategy.crossover.TacticalCrossoverStrategy;
 import com.ia.project.dynamicstudyplanner.ga.tactical.strategy.mutation.TacticalMutationStrategy;
@@ -86,25 +87,35 @@ public final class TimelineSearch {
     }
 
     /**
-     * Evolui e devolve o cromossomo mais apto.
+     * O que a busca produziu.
+     *
+     * @param fittest  o plano tático mais apto da última geração
+     * @param vitality os sinais de que a busca buscou; ver {@link SearchVitality}
+     */
+    public record Outcome(TacticalStudyPlan fittest, SearchVitality vitality) {
+    }
+
+    /**
+     * Evolui e devolve o cromossomo mais apto, com os sinais de vitalidade da busca.
      *
      * @param seeds       a população inicial, já reparada
      * @param context     o contexto
      * @param generations quantas gerações evoluir
-     * @return o plano tático mais apto da última geração
+     * @return o plano mais apto e a vitalidade
      */
-    public TacticalStudyPlan run(List<TacticalStudyPlan> seeds, EvolutionContext context,
-            int generations) {
+    public Outcome run(List<TacticalStudyPlan> seeds, EvolutionContext context, int generations) {
+        Population initial = new Population(seeds.size());
+        seeds.forEach(plan -> initial.addIndividual(new Individual(plan)));
+        initial.calculateFitness(context);
 
-        Population population = new Population(seeds.size());
-        seeds.forEach(plan -> population.addIndividual(new Individual(plan)));
-        population.calculateFitness(context);
-
-        Population current = population;
+        Population current = initial;
         for (int generation = 0; generation < generations; generation++) {
             current = evolve(current, context);
         }
-        return (TacticalStudyPlan) current.getFittest().getPlan();
+        // Aptidao em cache: ler aqui nao reavalia nem consome sorteio, entao o plano e o mesmo de
+        // antes desta invariante existir.
+        return new Outcome((TacticalStudyPlan) current.getFittest().getPlan(),
+                SearchVitality.of(initial, current));
     }
 
     /**
