@@ -34,7 +34,8 @@ pendências G1–G14.
 | 08 | [`08-saturacao-e-amostragem.md`](./08-saturacao-e-amostragem.md) | Por que 4 de 8 instâncias saturam, heterogeneidade, e a decisão de não expandir a amostra | Sim — empates do Spearman |
 | 09 | [`09-medicao-baseline-vs-v1.md`](./09-medicao-baseline-vs-v1.md) | Primeira medição do sistema que existe hoje: guloso × AG com pré-requisitos táticos (v1), no domínio de tópicos. §9 republicada com a severidade graduada | Sim, na etapa 10 — G14 |
 | 10 | [`10-medicao-v2-linha-do-tempo.md`](./10-medicao-v2-linha-do-tempo.md) | A terceira condição: cromossomo de linha do tempo (v2), medido pelas mesmas instâncias e sementes. A hipótese não se confirmou, e a §5 aponta a ponderação | Sim — G14, G15, motor novo |
-| 11 | [`11-varredura-peso-ordem.md`](./11-varredura-peso-ordem.md) | **Estado atual.** Varredura de `SOFT_PREREQUISITE_ORDER` em seis pontos, a v2 medida em cada um. **O peso funciona e não é o que separa a v1 da v2** — a hipótese de §5 da etapa 10 foi testada e refutada | Só a abertura do peso como chave |
+| 11 | [`11-varredura-peso-ordem.md`](./11-varredura-peso-ordem.md) | Varredura de `SOFT_PREREQUISITE_ORDER` em seis pontos, a v2 medida em cada um. **O peso funciona e não é o que separa a v1 da v2** — a hipótese de §5 da etapa 10 foi testada e refutada. §5.1 e §5.2 acrescentadas na etapa 12; §2.3, §4 e §6 corrigidas | Só a abertura do peso como chave |
+| 12 | [`12-desconfundindo-precedencia.md`](./12-desconfundindo-precedencia.md) | **Estado atual.** O fatorial 2×2 representação × política de precedência, **pré-registrado antes de rodar**. A v2′ (linha do tempo + reparo lexicográfico) **bate a v1 em ordem e preserva a cobertura**: a representação explica o ganho de cobertura, a política explica a ordem | Só a abertura da política como parâmetro |
 
 ---
 
@@ -131,13 +132,23 @@ severidade original. **Atualizado em 2026-08-31 (etapa 07).**
 | **G16** | **A ponderação decidia o resultado da comparação v1 × v2 e ninguém a medira.** | ✅ **RESOLVIDO** (etapa 11) — varredura de seis pontos, 2 880 execuções. O peso guia a v2 monotonicamente (856 → 509 inversões) e **não fecha a distância até a v1** (420) nem em λ = 0,80, acima do limite do argumento de ordenação. λ = 0,10 está dentro do ótimo achatado do objetivo canônico. **A diferença entre reparo lexicográfico e preço ponderado não se fecha por preço** | [`11`](./11-varredura-peso-ordem.md) §1, §4, §5 |
 | **G17** | **A v2 custava 27× a v1 com as mesmas 2 440 avaliações.** O diagnóstico original — "recomputa o calendário por descendente" — **estava errado**: perfilado com JFR, o recomputo do calendário é **2,6%**, e ~⅓ do tempo estava em `TacticalStudyPlan.extractDaysPerItem`, que alocava um `HashSet<Integer>` por item | 🟡 **PARCIAL** — **1,37× mais rápido**, com saída **bit a bit idêntica** nas 1 080 linhas. O resto é estrutural: o reparo por descendente é o que garante validade, e um reparo incremental é mudança grande sobre mecanismo que **G16 ainda não justificou** | [`10`](./10-medicao-v2-linha-do-tempo.md) §6 · `domain/tactical/TacticalStudyPlan` |
 
-| **G18** | **Nenhum λ global serve à maioria das instâncias**: 53% das células preferem λ ≤ 0,05 e o modal (0,05) leva só 30%. Um peso único é compromisso entre instâncias que querem coisas diferentes — a mesma heterogeneidade que o `I²` de 58% registrava noutro eixo | ⬜ **ABERTO** — um peso por instância seria parâmetro derivado de dado que a plataforma não envia, e escolhê-lo por busca faria a fitness ajustar a si mesma. Registrado, não corrigido | [`11`](./11-varredura-peso-ordem.md) §5 |
-| **G19** | **A v1 é uniformemente mediana e a v2 é bimodal.** Em λ = 0,80 a v2 zera a ordem em 160 células contra 121 da v1, e tem 42 células com ≥4 inversões contra 15. Qual perfil o produto prefere **não é pergunta técnica** | ⬜ **ABERTO — decisão de produto** | [`11`](./11-varredura-peso-ordem.md) §6 |
+| **G18** | **Nenhum λ global serve à maioria das instâncias**: 53% das células preferem λ ≤ 0,05 e o modal (0,05) leva só 30% | 🟡 **FECHADO COMO VARIAÇÃO, NÃO COMO ESTRUTURA** (etapa 12) — o ótimo por célula **não acompanha** tamanho, densidade, aperto nem dispersão. A correlação aparente com o tamanho é artefato da convenção de empate (55% de empate com 10 tópicos contra 5% com 25), e **80% da variação está dentro da instância**, entre sementes. Um λ por instância, por oráculo, levaria 674 → 647 inversões (v1: 420). **Um λ global está certo** | [`11`](./11-varredura-peso-ordem.md) §5, §5.1 |
+| **G19** | **A v1 é uniformemente mediana e a v2 é bimodal.** Em λ = **0,40** (o maior admissível) a v2 zera a ordem em 147 células contra 121 da v1, e tem 46 células com ≥4 inversões contra 15. Qual perfil o produto prefere **não é pergunta técnica** | ⬜ **ABERTO — decisão de produto**, reformulada pela etapa 12: com reparo lexicográfico a v2′ zera 169 e tem pior célula 6 contra 7 da v1, mas mantém 21 células com ≥4 contra 15 | [`11`](./11-varredura-peso-ordem.md) §6 · [`12`](./12-desconfundindo-precedencia.md) §7 |
 
-**Resumo: 11 de 19 resolvidos, 1 parcial (G17).** Dos sete abertos, G5, G6 e G11 são sobre código fora do caminho de
-execução de produção; **G12, G13, G16 e G17 estão no caminho de produção**. G13 e **G16 aguardam
-decisão de produto** — os dois são sobre até onde a fitness deve trocar cobertura por outra coisa, e
-G16 é o que decide se a v2 tem valor.
+### Acrescentados na etapa 12
+
+| # | Gap | Status | Onde |
+|---|---|---|---|
+| **G20** | **O espaço de busca da v1 é um ponto único em 12 das 24 instâncias.** `SessionBudget` iguala a soma dos pisos por item em todo aperto 0,7 e em aperto 1,0 esparso, então os 40 indivíduos da geração zero são o mesmo plano e as 2 440 avaliações reavaliam 40 cópias. Achado pela invariante de vitalidade da busca, **antes** de a medição rodar. Não é defeito de motor nem de biblioteca — é propriedade da interação | ⬜ **ABERTO** — decisão de biblioteca: aceitar e declarar, ou acrescentar instâncias com folga. Enquanto estiver aberto, "a v1 ganha" nessas 12 instâncias **não é evidência sobre busca** | [`12`](./12-desconfundindo-precedencia.md) §4, §8 |
+| **G21** | **O custo da v2′ é 19,4× a v1** — a mais caro dos quatro braços, porque paga a linha do tempo mais um reparo e uma recolocação de blocos ao final. O caminho novo nunca passou por JFR | ⬜ **ABERTO** — G17 já mostrou 1,37× de folga achável com perfilamento no caminho vizinho | [`12`](./12-desconfundindo-precedencia.md) §9 |
+| **G22** | **A função de dano de uma inversão `SOFT` não foi medida**, e a escolha entre total, pior célula e contagem pareada depende de qual se assume: o total pressupõe dano **aditivo**, a pior célula pressupõe dano **categórico**. A etapa 12 escolheu uma estatística ordinal por isso, e declarou a escolha antes de rodar | ⬜ **ABERTO — precisa de dado de aprendizagem**, que este projeto não coleta | [`12`](./12-desconfundindo-precedencia.md) §2, §14 |
+
+**Resumo: 11 de 22 resolvidos, 2 parciais (G17, G18).** Dos nove abertos, G5, G6 e G11 são sobre código
+fora do caminho de execução de produção; **G12, G13, G17, G20, G21 e G22 tocam o caminho de produção ou
+o instrumento que o mede**. G13, G19 e G22 **aguardam decisão humana** — os três são sobre o que o
+produto promete ao aluno, não sobre o que o código faz. G16, que decidia se a v2 tinha valor, foi
+resolvido na etapa 11 e **desdobrado** na etapa 12: a resposta é que representação e política explicam
+coisas diferentes, e a combinação das duas melhores vence nas duas dimensões.
 
 > **G5 fechou por consequência.** Ele registrava "camada tática morta sem teste nem plano", ~400
 > linhas que o Spring instanciava e ninguém consumia. A etapa 10 as pôs no caminho de execução de um
