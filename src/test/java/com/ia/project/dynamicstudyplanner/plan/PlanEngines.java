@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.plan;
 
+import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineEngine;
 import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineScheduler;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
@@ -131,7 +132,7 @@ public final class PlanEngines {
                         new ScoreGainObjective(), new RetentionObjective(),
                         new DailyLoadBudgetObjective(), new MinimumDaysConstraint(),
                         new MandatoryReviewConstraint(new HybridRetentionEngine()),
-                        new SoftPrerequisiteOrderConstraint(),
+                        new SoftPrerequisiteOrderConstraint(FitnessWeights.SOFT_PREREQUISITE_ORDER),
                         dailyLoadBudget),
                 new HybridRetentionEngine(),
                 importanceStrategies(),

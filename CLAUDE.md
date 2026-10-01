@@ -52,8 +52,9 @@ behaviour that matters. If you believe a floor must move, do not move it: stop a
 
 ## 1b. What this service is, after EOA-4b
 
-One endpoint: `POST /plans`, under the `baseline-core` profile, answered by one of two engines
-(`greedy-baseline`, `ga`). The older `/api/v1/optimizer/**` API — its DTOs, its mappers, its service
+One endpoint: `POST /plans`, under the `baseline-core` profile, answered by one of **three** engines
+(`greedy-baseline`, `ga`, `ga-timeline`). The default stays `greedy-baseline`; EOA-8 added the third
+and changed no default. The older `/api/v1/optimizer/**` API — its DTOs, its mappers, its service
 layer, `Exam`, `Subject`, `StudentProfile` and the asynchronous job flow — was removed in EOA-4b, and
 with it the fitness terms that read self-declared psychological state (`DropoutRiskPenalty`,
 `FatigueAndSustainabilityPenalty`) and the subject-scale load term (`CognitiveLoadObjective`).
@@ -75,7 +76,17 @@ Three consequences worth knowing before touching anything:
 * **The soft term returns 0 on a macro plan, on purpose.** The chromosome has no calendar, so it
   cannot violate an ordering preference; the term only bites on the placed plan. Making it steer the
   search would turn v1 into a worse v2 — v1 is the *control group* for the timeline chromosome, not
-  a draft of it.
+  a draft of it. EOA-8 built that v2 (`ga-timeline`) and measured it: it loses to v1 on soft
+  inversions (674 against 420) at ~18x the cost, and the measured cause is the **weighting**, not the
+  representation — `SOFT_PREREQUISITE_ORDER` is 0.10, so v2's search trades order for coverage at a
+  profit. **G16 then swept that weight and closed it**: the weight steers v2 monotonically (856 down
+  to 509 inversions from λ 0.00 to 0.80) and **never reaches v1's 420**, not even at λ 0.80 which is
+  already above `CONSTRAINT_VIOLATION`. λ 0.10 sits inside the flat optimum of the canonical
+  objective, so **the recommendation is to leave it alone** — and per instance there is no majority λ
+  at all (53% prefer ≤ 0.05, G18). `plan.fitness.sinapse.soft-prerequisite-order` opens the weight for
+  measurement; read `docs/revisao-ag/11-varredura-peso-ordem.md` §5 before changing it. Constraint
+  weights are subtracted and are not in the convex combination, so changing this one renormalises
+  nothing — unlike an objective weight.
 * **The greedy baseline does not repair soft inversions**, and
   `GreedyBaselineSchedulerTest.softEdgesDoNotConstrainTheOrder` pins that. It is the control for the
   engine comparison; teaching it the genetic path's repair would make the two differ by one thing
@@ -183,6 +194,21 @@ Four rules it is built on, each of which someone will be tempted to undo:
   reproducibility failure is a defect report, and `MeasurementAbortedException` carries the instance
   and seed that reproduce it.
 * **Adding an engine is one line in `Condition.ENGINES`.** The harness never names an engine class.
+  Verified rather than claimed: `ga-timeline` was added in EOA-8 as exactly that one line, and no
+  metric, invariant or CSV column changed.
+
+**`TacticalStudyPlan` is built thousands of times per request on the timeline path**, not once as on
+the other two, so its constructor is hot. `extractDaysPerItem` uses a `BitSet` per item rather than a
+`HashSet<Integer>` for that reason (G17: it was ~⅓ of v2's time, measured with JFR), and both of its
+maps stay `HashMap` on purpose — the returned map's iteration order decides the plan's canonical gene
+order, so changing the type changes results. Do not "tidy" them to `LinkedHashMap`.
+
+**Two fitness fixes came out of this and both are load-bearing.** `MandatoryReviewConstraint` grades
+its severity (G14) instead of returning a flat 1, and **selection ranks on `rawScore` where the clamp
+would erase the ordering** (G15) — but only for a `TacticalStudyPlan`, because
+`WeightedAverageCrossover` uses fitness as a blending weight and a negative weight there extrapolates.
+`FitnessBreakdown.selectionScore()` carries the rule; `evaluate()` is the selection path and
+`explain()` is the publication path, and they return different numbers on purpose.
 
 `benchmarks/java/.../benchmark/strategy/**` is **not** in the engine matrix, and its `package-info`
 says why: those planners allocate a macro budget and produce no calendar.

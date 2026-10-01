@@ -32,7 +32,9 @@ pendências G1–G14.
 | 06d | [`06-verificacao-pos-rodada.md`](./06-verificacao-pos-rodada.md) | Verificação independente em código. Origem de G1–G11 | Só um teste |
 | 07 | [`07-correcao-metrica-e-ausubel.md`](./07-correcao-metrica-e-ausubel.md) | Métrica corrigida, baseline remedida, narrativa de Ausubel | Sim — método de agregação |
 | 08 | [`08-saturacao-e-amostragem.md`](./08-saturacao-e-amostragem.md) | Por que 4 de 8 instâncias saturam, heterogeneidade, e a decisão de não expandir a amostra | Sim — empates do Spearman |
-| 09 | [`09-medicao-baseline-vs-v1.md`](./09-medicao-baseline-vs-v1.md) | **Estado atual.** Primeira medição do sistema que existe hoje: guloso × AG com pré-requisitos táticos (v1), no domínio de tópicos. Linha de base da v2 | Não |
+| 09 | [`09-medicao-baseline-vs-v1.md`](./09-medicao-baseline-vs-v1.md) | Primeira medição do sistema que existe hoje: guloso × AG com pré-requisitos táticos (v1), no domínio de tópicos. §9 republicada com a severidade graduada | Sim, na etapa 10 — G14 |
+| 10 | [`10-medicao-v2-linha-do-tempo.md`](./10-medicao-v2-linha-do-tempo.md) | A terceira condição: cromossomo de linha do tempo (v2), medido pelas mesmas instâncias e sementes. A hipótese não se confirmou, e a §5 aponta a ponderação | Sim — G14, G15, motor novo |
+| 11 | [`11-varredura-peso-ordem.md`](./11-varredura-peso-ordem.md) | **Estado atual.** Varredura de `SOFT_PREREQUISITE_ORDER` em seis pontos, a v2 medida em cada um. **O peso funciona e não é o que separa a v1 da v2** — a hipótese de §5 da etapa 10 foi testada e refutada | Só a abertura do peso como chave |
 
 ---
 
@@ -120,15 +122,27 @@ severidade original. **Atualizado em 2026-08-31 (etapa 07).**
 | **G12** | **L4 — `I8-escala` mantém ρ = −0,880 e a temperagem não a moveu.** 40 disciplinas, dispersão de 32:1 (abaixo da fronteira de ~200:1), amplitude de retenção de apenas 2,5 pp. É a instância que mais puxa o agregado e a principal fonte da heterogeneidade de I² = 58%. Hipótese **não medida**: `InterleavedCriticalStrategy` estuda só as 3 disciplinas mais críticas por dia. **Atenção:** a explicação original — "regime linear por orçamento apertado" — **não se confirmou** quando foi testada em [`06b`](./06-regime-alta-carga.md) §3; o driver medido é a dispersão dos pesos, não o orçamento | ⬜ **PENDENTE** — caracterizado, não corrigido. Teste seria variar `INTERLEAVING_FOCUS_SIZE` | [`08`](./08-saturacao-e-amostragem.md) §1.2 · [`06b`](./06-regime-alta-carga.md) §10 · [`05`](./05-fitness-function.md) §8 (L4) |
 | **G13** | **A divisão uniforme vence o AG na janela de retenção em `I3` (96,0% × 76,6%) e `I4` (100,0% × 81,4%).** Medido, não é defeito: o AG perde em O₁ **e** em O₃ nessas instâncias e vence pelo termo de carga cognitiva — a troca real é memória × sustentabilidade da agenda. A alavanca que fecharia a lacuna é o piso de dias mínimos (+23,4 pp por 0,52% de O₁), não os pesos | ⬜ **PENDENTE — decisão de negócio.** Exige responder antes qual promessa de cobertura o produto faz ao aluno | [`06c`](./06-limite-troca-pesos.md) §6 |
 
-### Acrescentado na etapa 09
+### Acrescentados nas etapas 09 e 10
 
 | # | Gap | Status | Onde |
 |---|---|---|---|
-| **G14** | **`MandatoryReviewConstraint` é binária e satura.** Severidade 1,0 em 720 de 720 execuções medidas, o que leva a fitness agregada a zero em 94,6% delas: `F` não distingue planos nesta biblioteca de instâncias. Não afeta as conclusões de [`09`](./09-medicao-baseline-vs-v1.md), que não se apoiam em `F` — afeta qualquer uso futuro de `F` como critério, incluindo um limiar de CI sobre ela | ⬜ **ABERTO** — caracterizado, não corrigido. Graduar ou repesar a restrição é mudança na função objetivo e não se faz como efeito colateral de uma medição | [`09`](./09-medicao-baseline-vs-v1.md) §9 · `ga/fitness/constraint/MandatoryReviewConstraint` |
+| **G14** | **`MandatoryReviewConstraint` era binária e saturava.** Severidade 1,0 em 720 de 720 execuções, levando a fitness agregada a zero em 94,6% delas | ✅ **RESOLVIDO** — severidade graduada para a fração de revisões devidas perdidas, travada por `MandatoryReviewConstraintTest` com verificação por sabotagem. Saturação para 84,4%, **nenhum peso mudou**, e nenhuma métrica de resultado ou custo de [`09`](./09-medicao-baseline-vs-v1.md) se moveu | [`09`](./09-medicao-baseline-vs-v1.md) §9 |
+| **G15** | **`clamp(raw, 0, 1)` achatava a ordenação entre planos táticos inviáveis**, deixando o torneio comparar zeros | ✅ **RESOLVIDO** — a seleção ordena pelo bruto em plano tático; a publicação segue limitada a `[0,1]`. O limite continua valendo no caminho macro, onde `WeightedAverageCrossover` usa a aptidão como peso de mistura. Agregado positivo da v2: **328/360** contra 97 da v1 | [`10`](./10-medicao-v2-linha-do-tempo.md) §8 |
+| **G16** | **A ponderação decidia o resultado da comparação v1 × v2 e ninguém a medira.** | ✅ **RESOLVIDO** (etapa 11) — varredura de seis pontos, 2 880 execuções. O peso guia a v2 monotonicamente (856 → 509 inversões) e **não fecha a distância até a v1** (420) nem em λ = 0,80, acima do limite do argumento de ordenação. λ = 0,10 está dentro do ótimo achatado do objetivo canônico. **A diferença entre reparo lexicográfico e preço ponderado não se fecha por preço** | [`11`](./11-varredura-peso-ordem.md) §1, §4, §5 |
+| **G17** | **A v2 custava 27× a v1 com as mesmas 2 440 avaliações.** O diagnóstico original — "recomputa o calendário por descendente" — **estava errado**: perfilado com JFR, o recomputo do calendário é **2,6%**, e ~⅓ do tempo estava em `TacticalStudyPlan.extractDaysPerItem`, que alocava um `HashSet<Integer>` por item | 🟡 **PARCIAL** — **1,37× mais rápido**, com saída **bit a bit idêntica** nas 1 080 linhas. O resto é estrutural: o reparo por descendente é o que garante validade, e um reparo incremental é mudança grande sobre mecanismo que **G16 ainda não justificou** | [`10`](./10-medicao-v2-linha-do-tempo.md) §6 · `domain/tactical/TacticalStudyPlan` |
 
-**Resumo: 8 de 14 resolvidos.** Dos seis abertos, G5, G6 e G11 são sobre código fora do caminho de
-execução de produção; **G12, G13 e G14 estão no caminho de produção** — G12 é técnico e não
-explicado, G13 aguarda decisão humana, G14 foi medido na etapa 09.
+| **G18** | **Nenhum λ global serve à maioria das instâncias**: 53% das células preferem λ ≤ 0,05 e o modal (0,05) leva só 30%. Um peso único é compromisso entre instâncias que querem coisas diferentes — a mesma heterogeneidade que o `I²` de 58% registrava noutro eixo | ⬜ **ABERTO** — um peso por instância seria parâmetro derivado de dado que a plataforma não envia, e escolhê-lo por busca faria a fitness ajustar a si mesma. Registrado, não corrigido | [`11`](./11-varredura-peso-ordem.md) §5 |
+| **G19** | **A v1 é uniformemente mediana e a v2 é bimodal.** Em λ = 0,80 a v2 zera a ordem em 160 células contra 121 da v1, e tem 42 células com ≥4 inversões contra 15. Qual perfil o produto prefere **não é pergunta técnica** | ⬜ **ABERTO — decisão de produto** | [`11`](./11-varredura-peso-ordem.md) §6 |
+
+**Resumo: 11 de 19 resolvidos, 1 parcial (G17).** Dos sete abertos, G5, G6 e G11 são sobre código fora do caminho de
+execução de produção; **G12, G13, G16 e G17 estão no caminho de produção**. G13 e **G16 aguardam
+decisão de produto** — os dois são sobre até onde a fitness deve trocar cobertura por outra coisa, e
+G16 é o que decide se a v2 tem valor.
+
+> **G5 fechou por consequência.** Ele registrava "camada tática morta sem teste nem plano", ~400
+> linhas que o Spring instanciava e ninguém consumia. A etapa 10 as pôs no caminho de execução de um
+> motor registrado, com teste, e corrigiu o defeito de determinismo que elas carregavam. O que
+> `service/scheduler/tactical/**` tinha saiu antes, com o caminho de concurso.
 
 > **Cuidado ao ler G12 e G13.** Os dois foram levantados sobre o caminho de concurso, que a EOA-4b
 > removeu. As instâncias, a métrica e os pesos que eles citam não existem mais na forma descrita. A

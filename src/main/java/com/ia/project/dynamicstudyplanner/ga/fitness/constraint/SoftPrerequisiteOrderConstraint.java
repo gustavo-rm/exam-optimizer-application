@@ -7,6 +7,7 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TimeSlot;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -71,6 +72,39 @@ public class SoftPrerequisiteOrderConstraint implements ConstraintValidator {
 
     /** Worst gravity a single inversion can carry. */
     private static final double MAXIMUM_GRAVITY = 1.0;
+
+    /** A chave que abre este peso para varredura. Ver o construtor. */
+    public static final String WEIGHT_PROPERTY = "plan.fitness.sinapse.soft-prerequisite-order";
+
+    private final double penaltyWeight;
+
+    /**
+     * @param penaltyWeight quanto uma preferência violada custa, por unidade de severidade; o padrão
+     *                      é {@link FitnessWeights#SOFT_PREREQUISITE_ORDER}
+     *
+     * <h2>Por que este peso é configurável e os outros não</h2>
+     *
+     * O Javadoc de {@link FitnessWeights#SOFT_PREREQUISITE_ORDER} diz que o valor 0,10 vem de um
+     * <b>argumento de ordenação e não de uma medição</b>, e termina dizendo o que fazer a respeito:
+     * "se [as inversões] forem comuns e os planos piores por causa delas, o peso é o que se deve
+     * subir, a partir de dados". Abrir a chave é o que torna esse "a partir de dados" executável.
+     *
+     * <p>É a decisão que {@code G16} pede, e ela pesa porque o peso decide o resultado da comparação
+     * entre a v1 e a v2: com 0,10, a busca da v2 troca ordem por cobertura <b>com lucro</b>
+     * ({@code docs/revisao-ag/10-medicao-v2-linha-do-tempo.md} §5).
+     *
+     * <h2>Nenhuma renormalização segue disto</h2>
+     *
+     * Restrições são <b>subtraídas</b> e não fazem parte da combinação convexa: {@code FitnessEvaluator}
+     * afirma que os pesos dos <b>objetivos</b> somam 1, e este não é um deles. Mudar este número não
+     * rescala a fitness de nenhum objetivo — ao contrário do que aconteceria com um peso de objetivo,
+     * que {@code SinapseFitnessConfig} tem de renormalizar quando o termo de carga sai.
+     */
+    public SoftPrerequisiteOrderConstraint(
+            @Value("${" + WEIGHT_PROPERTY + ":0.10}") double penaltyWeight) {
+
+        this.penaltyWeight = penaltyWeight;
+    }
 
     @Override
     public boolean isValid(StudyPlan plan, EvolutionContext context) {
@@ -159,6 +193,6 @@ public class SoftPrerequisiteOrderConstraint implements ConstraintValidator {
 
     @Override
     public double getPenaltyWeight() {
-        return FitnessWeights.SOFT_PREREQUISITE_ORDER;
+        return penaltyWeight;
     }
 }

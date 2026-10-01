@@ -47,6 +47,27 @@ public final class MeasurementCsv {
         }
     }
 
+    /**
+     * Escreve linhas já formatadas.
+     *
+     * <p>Usado pela varredura de peso, que monta as suas próprias linhas por acrescentar uma coluna
+     * antes das de {@code MeasurementRow}. O escape já aconteceu ali, pelo mesmo caminho.
+     *
+     * @param target onde escrever
+     * @param lines  o cabeçalho e as linhas, em ordem
+     */
+    public static void writeLines(Path target, List<String> lines) {
+        try {
+            Path parent = target.toAbsolutePath().getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.write(target, lines, StandardCharsets.UTF_8);
+        } catch (IOException failure) {
+            throw new UncheckedIOException("Could not write " + target, failure);
+        }
+    }
+
     private static String line(List<String> cells) {
         return String.join(",", cells.stream().map(MeasurementCsv::quoted).toList());
     }

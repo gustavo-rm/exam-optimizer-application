@@ -74,7 +74,7 @@ public final class MeasurementMain {
     }
 
     /** The harness, assembled entirely from beans of the running context. */
-    private static MeasurementHarness harnessIn(ConfigurableApplicationContext context) {
+    static MeasurementHarness harnessIn(ConfigurableApplicationContext context) {
         FitnessComposition composition =
                 context.getBean("sinapseFitnessComposition", FitnessComposition.class);
         PlanScoring scoring =
@@ -85,7 +85,7 @@ public final class MeasurementMain {
     }
 
     /** The composition's terms, in composition order: the per-term columns of the CSV. */
-    private static List<String> termNamesIn(ConfigurableApplicationContext context) {
+    static List<String> termNamesIn(ConfigurableApplicationContext context) {
         FitnessComposition composition =
                 context.getBean("sinapseFitnessComposition", FitnessComposition.class);
         List<String> names = new java.util.ArrayList<>();

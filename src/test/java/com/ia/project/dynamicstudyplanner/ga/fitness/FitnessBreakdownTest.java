@@ -136,8 +136,8 @@ class FitnessBreakdownTest {
     class SobreVariasEntradas {
 
         @Test
-        @DisplayName("o agregado da decomposicao e, bit a bit, o double que evaluate devolve")
-        void oAgregadoEhExatamenteODeEvaluate() {
+        @DisplayName("o escore de selecao da decomposicao e, bit a bit, o double que evaluate devolve")
+        void oEscoreDeSelecaoEhExatamenteODeEvaluate() {
             FitnessEvaluator avaliador = avaliador();
             EvolutionContext context = contexto(12);
 
@@ -145,10 +145,17 @@ class FitnessBreakdownTest {
                 double historico = avaliador.evaluate(plano, context);
                 FitnessBreakdown decomposto = avaliador.explain(plano, context);
 
-                assertThat(decomposto.aggregate())
+                // A invariante e sobre selectionScore, nao sobre aggregate: evaluate e o caminho da
+                // SELECAO e explain e o da PUBLICACAO, e os dois numeros divergem de proposito em
+                // plano tatico inviavel (G15). Estes planos sao macro, onde eles coincidem — o que a
+                // asserticao seguinte registra em vez de deixar implicito.
+                assertThat(decomposto.selectionScore())
                         .as("explain repete a aritmetica de evaluate; se divergirem, uma das duas "
                                 + "copias mudou sem a outra")
                         .isEqualTo(historico);
+                assertThat(decomposto.aggregate())
+                        .as("em plano macro o limite e inerte, entao publicacao e selecao coincidem")
+                        .isEqualTo(decomposto.selectionScore());
             }
         }
 

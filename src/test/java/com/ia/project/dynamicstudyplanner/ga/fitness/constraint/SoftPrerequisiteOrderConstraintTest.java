@@ -39,7 +39,8 @@ class SoftPrerequisiteOrderConstraintTest {
 
     private static final LocalDateTime DAY_ONE = LocalDateTime.of(2026, 9, 1, 8, 0);
 
-    private final SoftPrerequisiteOrderConstraint constraint = new SoftPrerequisiteOrderConstraint();
+    private final SoftPrerequisiteOrderConstraint constraint =
+            new SoftPrerequisiteOrderConstraint(FitnessWeights.SOFT_PREREQUISITE_ORDER);
 
     @Test
     @DisplayName("no preferences: nothing to violate, severity zero")
