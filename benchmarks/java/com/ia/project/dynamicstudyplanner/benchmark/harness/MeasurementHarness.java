@@ -13,6 +13,7 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.plan.PlanEngineSelector;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticSearchBudget;
+import com.ia.project.dynamicstudyplanner.sinapse.SearchVitality;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
 
@@ -119,6 +120,7 @@ public final class MeasurementHarness {
 
         checkReproducible(instance, condition, seed, request, response);
         checkValid(instance, condition, seed, request, response);
+        checkVital(instance, condition, seed, response);
 
         EvolutionContext context = scoring.contextFor(request, condition.provenance(),
                 importance(request));
@@ -126,10 +128,17 @@ public final class MeasurementHarness {
         FitnessBreakdown objective = scoring.score(plan, context);
         checkScoringFaithful(instance, condition, seed, response, objective);
 
+        Object distinct = response.fitness().get(SearchVitality.DISTINCT_KEY);
+        Integer initialDistinct = distinct instanceof Number number ? number.intValue() : null;
+        Boolean improved = initialDistinct == null ? null
+                : asDouble(response.fitness().get(SearchVitality.FINAL_KEY))
+                        > asDouble(response.fitness().get(SearchVitality.INITIAL_KEY));
+
         return new MeasurementRow(instance, engineOf(response), condition.provenance().id(),
-                Condition.IMPORTANCE, seed,
+                condition.effectivePolicy().id(), Condition.IMPORTANCE, seed,
                 count(response, "prerequisite-edges-hard"),
                 count(response, "prerequisite-edges-soft"),
+                initialDistinct, improved,
                 OutcomeMetrics.of(response, plan, context, instance.availableMinutes()),
                 CostMetrics.of(response, populationSizeFor(response), elapsedMicros),
                 objective);
@@ -205,6 +214,52 @@ public final class MeasurementHarness {
                     List.of("engine published: " + published,
                             "harness re-scored: " + objective.aggregate()));
         }
+    }
+
+    /**
+     * Stop rule (c): the search must not have <b>broken</b>, and a search that had nothing to search
+     * is recorded rather than refused.
+     *
+     * <h2>Two signals, and only one of them is a defect</h2>
+     *
+     * <ul>
+     *   <li><b>The final best must not be worse than the initial best.</b> With elitism it cannot be,
+     *       so if it is, elitism broke. That is a defect in the engine and it <b>aborts</b>.</li>
+     *   <li><b>The initial population may be wholly tied</b> — one distinct fitness across the whole
+     *       of generation zero, so the tournament compared equal numbers and chose at random. This
+     *       was built expecting it to be a defect, and measuring showed it is <b>a property of the
+     *       instance</b>: where the session budget equals the sum of the per-item floors there is
+     *       nothing to distribute, every individual is the same plan, and the search space is a
+     *       single point. Refusing would refuse 12 of the 24 library instances for the macro engine,
+     *       and those are legitimate instances. So it is <b>recorded</b>, in
+     *       {@code search_initial_distinct}, and reported.</li>
+     * </ul>
+     *
+     * <p>The distinction matters because the two call for different responses. Broken elitism is
+     * fixed in code. A degenerate search space is a fact about the comparison: on those instances the
+     * engine is not searching, so a result there is not evidence about search, and the report has to
+     * say so rather than the harness hiding it.
+     *
+     * <p>An engine that publishes none of the keys does not search — the greedy scheduler — and is
+     * not checked. There is nothing to check, which is different from passing.
+     */
+    private static void checkVital(BenchmarkInstance instance, Condition condition, long seed,
+            PlanResponse response) {
+
+        if (!(response.fitness().get(SearchVitality.DISTINCT_KEY) instanceof Number)) {
+            return;
+        }
+        double initial = asDouble(response.fitness().get(SearchVitality.INITIAL_KEY));
+        double last = asDouble(response.fitness().get(SearchVitality.FINAL_KEY));
+        if (last < initial) {
+            throw new MeasurementAbortedException(instance, condition, seed,
+                    "the search ended worse than it started, so elitism did not hold",
+                    List.of("initial best " + initial + ", final best " + last));
+        }
+    }
+
+    private static double asDouble(Object value) {
+        return value instanceof Number number ? number.doubleValue() : 0.0;
     }
 
     /**

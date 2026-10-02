@@ -4,6 +4,7 @@ import com.ia.project.dynamicstudyplanner.domain.FitnessBreakdown;
 import com.ia.project.dynamicstudyplanner.domain.StudyPlan;
 import com.ia.project.dynamicstudyplanner.ga.EvolutionContext;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessComposition;
+import com.ia.project.dynamicstudyplanner.plan.PrecedencePolicy;
 import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
 import com.ia.project.dynamicstudyplanner.plan.PrerequisiteReport;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
@@ -58,12 +59,13 @@ public final class SinapseFitness {
      * @param placed      what the calendar could hold
      * @param importance  which meaning of importance ran, echoed so the run is reconstructable
      * @param prerequisites what the prerequisite stage saw and did, echoed for the same reason
+     * @param vitality      signals that the search searched; an invariant, not a metric
      * @return the map to report, read-only
      */
     public static Map<String, Object> of(FitnessComposition composition,
             FitnessBreakdown breakdown, SessionPlacement.Result placed,
             StudyPlan plan, EvolutionContext context, ImportanceStrategy importance,
-            PrerequisiteReport prerequisites) {
+            PrerequisiteReport prerequisites, SearchVitality vitality) {
 
         Map<String, Object> fitness = new LinkedHashMap<>();
         fitness.put("path", composition.path());
@@ -94,6 +96,11 @@ public final class SinapseFitness {
         fitness.put("partial", placed.partial());
         fitness.put("scheduled-minutes", placed.scheduledMinutes());
         reportPrerequisites(fitness, prerequisites);
+        // Validade da busca, nao qualidade dela: ver SearchVitality. Publicado para que um medidor
+        // possa cobrar que a busca buscou, em vez de supor.
+        fitness.put(SearchVitality.DISTINCT_KEY, vitality.initialDistinctFitness());
+        fitness.put(SearchVitality.INITIAL_KEY, vitality.initialBest());
+        fitness.put(SearchVitality.FINAL_KEY, vitality.finalBest());
         return Collections.unmodifiableMap(fitness);
     }
 
@@ -124,6 +131,7 @@ public final class SinapseFitness {
     private static void reportPrerequisites(Map<String, Object> fitness,
             PrerequisiteReport prerequisites) {
 
+        fitness.put(PrecedencePolicy.FITNESS_KEY, prerequisites.policy().id());
         fitness.put(PrerequisiteProvenance.FITNESS_KEY, prerequisites.provenance().id());
         fitness.put("prerequisite-edges-hard", prerequisites.hardEdges());
         fitness.put("prerequisite-edges-soft", prerequisites.softEdges());

@@ -73,6 +73,9 @@ public final class BaselineFitness {
         fitness.put("available-minutes", availableMinutes);
         fitness.put("availability-utilisation", ratio(scheduledMinutes, availableMinutes));
         fitness.put("hard-edges-applied", hardEdgesApplied);
+        // A politica de precedencia NAO e ecoada aqui: este escalonador nao repara nem precifica —
+        // nao avalia fitness nenhuma —, entao nao participa daquele eixo. Ecoar um valor sugeriria
+        // que ele escolheu uma politica. Ver PrecedencePolicies.
         fitness.put(PrerequisiteProvenance.FITNESS_KEY, prerequisites.provenance().id());
         fitness.put("prerequisite-edges-hard", prerequisites.hardEdges());
         fitness.put("prerequisite-edges-soft", prerequisites.softEdges());

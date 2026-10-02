@@ -37,10 +37,18 @@ import java.util.Locale;
  * @param instance    which instance ran, with its factorial coordinates
  * @param engine      the engine id, as {@code PlanEngineSelector} stamped it
  * @param provenance  the ablation condition the run saw the graph under
+ * @param policy      how this run treated ordering preferences: repaired or priced
  * @param importance  the importance strategy the run used
  * @param seed        the replication unit: distinct seeds on the same instance
  * @param hardEdges   {@code HARD} edges that were constraints under this condition
  * @param softEdges   {@code SOFT} edges that were preferences under this condition
+ * @param searchInitialDistinct distinct fitness values in the search's initial population, or
+ *                              {@code null} for an engine that does not search. Group (a): one value
+ *                              means generation zero had nothing to select on
+ * @param searchImproved        whether the search beat its own initial population, or {@code null}
+ *                              for an engine that does not search. <b>Secondary, not an invariant</b>
+ *                              — see {@code SearchVitality.improved()} for why no improvement can be
+ *                              convergence rather than inertia
  * @param outcome     group (b)
  * @param cost        group (c)
  * @param objective   group (d)
@@ -49,10 +57,13 @@ public record MeasurementRow(
         BenchmarkInstance instance,
         String engine,
         String provenance,
+        String policy,
         String importance,
         long seed,
         int hardEdges,
         int softEdges,
+        Integer searchInitialDistinct,
+        Boolean searchImproved,
         OutcomeMetrics outcome,
         CostMetrics cost,
         FitnessBreakdown objective) {
@@ -62,16 +73,16 @@ public record MeasurementRow(
             // identity
             "instance_id", "topics", "density", "tightness", "horizon_days",
             "demanded_minutes", "available_minutes",
-            "engine", "provenance", "importance", "seed",
+            "engine", "provenance", "precedence_policy", "importance", "seed",
             "prerequisite_edges_hard", "prerequisite_edges_soft",
-            // group (a) — validity, not quality. A row only exists when both are true.
-            "invariants_ok", "reproducible",
+            // group (a) — validity, not quality. A row only exists when these hold.
+            "invariants_ok", "reproducible", "search_vital", "search_initial_distinct",
             // group (b) — outcome
             "soft_inversions", "inversions_removed", "topics_scheduled", "topics_unscheduled",
             "scheduled_minutes", "utilisation", "load_ceiling_bound", "load_excess_ratio",
             "first_quarter_share", "peak_over_mean",
             // group (c) — cost
-            "generations", "population_size", "evaluations", "elapsed_micros",
+            "generations", "population_size", "evaluations", "elapsed_micros", "search_improved",
             // group (d) — the GA's objective, reported for completeness
             "ga_objective_aggregate", "ga_objective_raw", "ga_objective_bounded",
             "ga_objective_penalty_factor");
@@ -114,12 +125,16 @@ public record MeasurementRow(
         cells.add(Long.toString(instance.availableMinutes()));
         cells.add(engine);
         cells.add(provenance);
+        cells.add(policy);
         cells.add(importance);
         cells.add(Long.toString(seed));
         cells.add(Integer.toString(hardEdges));
         cells.add(Integer.toString(softEdges));
         cells.add("true");
         cells.add("true");
+        // Vazio quando o motor nao busca: nao ha o que checar, o que e diferente de passar.
+        cells.add(searchInitialDistinct == null ? "" : "true");
+        cells.add(searchInitialDistinct == null ? "" : Integer.toString(searchInitialDistinct));
         outcomeCells(cells);
         costCells(cells);
         objectiveCells(cells, termNames);
@@ -147,6 +162,7 @@ public record MeasurementRow(
         cells.add(Integer.toString(cost.populationSize()));
         cells.add(Long.toString(cost.evaluations()));
         cells.add(Long.toString(cost.elapsedMicros()));
+        cells.add(searchImproved == null ? "" : Boolean.toString(searchImproved));
     }
 
     private void objectiveCells(List<String> cells, List<String> termNames) {

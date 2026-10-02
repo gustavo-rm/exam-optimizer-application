@@ -14,6 +14,10 @@ import java.util.List;
  * that decided which edges were applicable in the first place — a run under {@code curated} and a
  * run under {@code all} can report the same residue over completely different graphs.
  *
+ * @param policy           whether this run repaired the preferences or priced them. Echoed rather
+ *                         than inferred from {@code inversionsBefore}: "no repair ran" and "a repair
+ *                         ran and removed nothing" are different facts, and after EOA-11 the policy
+ *                         is an axis of the factorial rather than a property of the engine
  * @param provenance       the condition this run saw the graph under
  * @param hardEdges        how many {@code HARD} edges became ordering constraints
  * @param softEdges        how many {@code SOFT} edges became priced preferences
@@ -26,8 +30,9 @@ import java.util.List;
  *                         path's fitness term prices, and what the baseline is measured on
  * @param unscheduled      topics the calendar could not hold, named rather than counted
  */
-public record PrerequisiteReport(EdgeProvenanceFilter provenance, int hardEdges, int softEdges,
-        Integer inversionsBefore, int inversionsAfter, List<String> unscheduled) {
+public record PrerequisiteReport(PrecedencePolicy policy, EdgeProvenanceFilter provenance,
+        int hardEdges, int softEdges, Integer inversionsBefore, int inversionsAfter,
+        List<String> unscheduled) {
 
     /** Defensive copy: this ends up in a response map that must not change under a reader. */
     public PrerequisiteReport {
@@ -60,8 +65,9 @@ public record PrerequisiteReport(EdgeProvenanceFilter provenance, int hardEdges,
         // silently incomplete one.
         List<String> unscheduled = unscheduledOf(order, scheduled);
 
-        return new PrerequisiteReport(provenance, hard.appliedEdgeCount(), soft.size(),
-                repair.inversionsBefore(), repair.inversionsAfter(), unscheduled);
+        return new PrerequisiteReport(PrecedencePolicy.LEXICOGRAPHIC, provenance,
+                hard.appliedEdgeCount(), soft.size(), repair.inversionsBefore(),
+                repair.inversionsAfter(), unscheduled);
     }
 
     /**
@@ -83,7 +89,8 @@ public record PrerequisiteReport(EdgeProvenanceFilter provenance, int hardEdges,
             HardPrerequisiteGraph hard, SoftPrerequisiteEdges soft,
             List<PlanRequest.Topic> order, int scheduled) {
 
-        return new PrerequisiteReport(provenance, hard.appliedEdgeCount(), soft.size(), null,
+        return new PrerequisiteReport(PrecedencePolicy.WEIGHTED, provenance,
+                hard.appliedEdgeCount(), soft.size(), null,
                 PrerequisiteOrderRepairer.inversionsIn(order, soft), unscheduledOf(order, scheduled));
     }
 

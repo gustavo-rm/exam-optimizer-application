@@ -14,13 +14,12 @@ import com.ia.project.dynamicstudyplanner.ga.config.GeneticAlgorithmFactory;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessComposition;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessEvaluator;
 import com.ia.project.dynamicstudyplanner.ga.generator.PopulationGenerator;
-import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategy;
 import com.ia.project.dynamicstudyplanner.plan.EdgeProvenanceFilter;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
 import com.ia.project.dynamicstudyplanner.plan.PrerequisiteOrderRepairer;
 import com.ia.project.dynamicstudyplanner.plan.PrerequisiteReport;
-import com.ia.project.dynamicstudyplanner.plan.PrerequisiteProvenance;
+import com.ia.project.dynamicstudyplanner.plan.PrecedencePolicy;
 import com.ia.project.dynamicstudyplanner.plan.SoftPrerequisiteEdges;
 import com.ia.project.dynamicstudyplanner.plan.PlanEngine;
 import com.ia.project.dynamicstudyplanner.plan.PlanOutputInvariants;
@@ -88,15 +87,15 @@ public class GeneticPlanEngine implements PlanEngine {
     private final PopulationGenerator populations;
     private final FitnessComposition composition;
     private final RetentionAlgorithm retention;
-    private final ImportanceStrategies importanceStrategies;
-    private final PrerequisiteProvenance provenance;
+    private final RequestConditions conditions;
     private final String coreVersion;
     private final GeneticSearchBudget budget;
 
     /**
      * @param composition this path's fitness, by bean name, so no other aggregate can be injected
      *                    here by accident
-     * @param provenance  which edges this run may see; the ablation condition
+     * @param conditions  which cell of the factorial this request names: provenance, importance and
+     *                    precedence policy. See {@code RequestConditions}
      * @param coreVersion the build, reported as {@code metadata.coreVersion}; no code default
      * @param budget      how much search to spend, from {@code plan.engine.ga.*}
      */
@@ -105,8 +104,7 @@ public class GeneticPlanEngine implements PlanEngine {
             PopulationGenerator populations,
             @Qualifier("sinapseFitnessComposition") FitnessComposition composition,
             RetentionAlgorithm retention,
-            ImportanceStrategies importanceStrategies,
-            PrerequisiteProvenance provenance,
+            RequestConditions conditions,
             @Value("${baseline.core.version}") String coreVersion,
             GeneticSearchBudget budget) {
 
@@ -114,8 +112,7 @@ public class GeneticPlanEngine implements PlanEngine {
         this.populations = populations;
         this.composition = composition;
         this.retention = retention;
-        this.importanceStrategies = importanceStrategies;
-        this.provenance = provenance;
+        this.conditions = conditions;
         this.coreVersion = coreVersion;
         this.budget = budget;
     }
@@ -140,24 +137,34 @@ public class GeneticPlanEngine implements PlanEngine {
     }
 
     private PlanResponse run(PlanRequest request) {
-        EdgeProvenanceFilter filter = provenance.resolve(request);
+        EdgeProvenanceFilter filter = conditions.provenance(request);
+        // LEXICOGRAPHIC e o padrao DESTE motor, e nao um padrao global: e o comportamento que os
+        // relatorios 09 e 10 mediram como grupo de controle. Ver PrecedencePolicies.
+        PrecedencePolicy policy = conditions.precedence(request, PrecedencePolicy.LEXICOGRAPHIC);
         HardPrerequisiteGraph graph = HardPrerequisiteGraph.of(
                 request.topics(), request.prerequisites(), filter);
         SoftPrerequisiteEdges soft = SoftPrerequisiteEdges.of(
                 request.topics(), request.prerequisites(), filter);
 
-        ImportanceStrategy importance = importanceStrategies.resolve(request);
+        ImportanceStrategy importance = conditions.importance(request);
         EvolutionContext context = contextFor(request, importance, soft);
-        StudyPlan chromosome = evolve(context, SessionBudget.of(request, context));
+        Evolved evolved = evolve(context, SessionBudget.of(request, context));
+        StudyPlan chromosome = evolved.chromosome();
 
         Map<PlanningItem, UUID> topicsByItem = TopicPlanningItems.topicIdsByItem(request.topics());
         List<PlanRequest.Topic> ordered =
                 SinapseStudyOrder.of(request.topics(), graph, chromosome, topicsByItem);
         // Topological first, then the preferences: the repair may only reorder within what the
         // hard constraints already allow, so it can never turn a valid order into an invalid one.
-        PrerequisiteOrderRepairer.Result repair =
-                PrerequisiteOrderRepairer.repair(ordered, graph, soft);
-        List<PlanRequest.Topic> order = repair.order();
+        //
+        // Sob WEIGHTED o reparo NAO roda: a ordem fica como a alocacao a induziu, e a inversao
+        // residual e precificada pelo termo da fitness. Essa celula isola o que o reparo contribui
+        // na representacao macro, e e por construcao quase inerte — o termo devolve 0,0 num plano
+        // macro, entao a BUSCA nao ve preco nenhum e so a ordem final difere.
+        PrerequisiteOrderRepairer.Result repair = policy == PrecedencePolicy.LEXICOGRAPHIC
+                ? PrerequisiteOrderRepairer.repair(ordered, graph, soft)
+                : null;
+        List<PlanRequest.Topic> order = repair == null ? ordered : repair.order();
 
         SessionPlacement.Result placed =
                 SessionPlacement.place(request, order, chromosome, itemsByTopic(request));
@@ -170,13 +177,15 @@ public class GeneticPlanEngine implements PlanEngine {
         }
 
         FitnessBreakdown breakdown = evaluator().explain(placed.plan(), context);
-        PrerequisiteReport prerequisites = PrerequisiteReport.repaired(
-                filter, graph, soft, repair, order, placed.topicsScheduled());
+        PrerequisiteReport prerequisites = repair == null
+                ? PrerequisiteReport.measured(filter, graph, soft, order, placed.topicsScheduled())
+                : PrerequisiteReport.repaired(filter, graph, soft, repair, order,
+                        placed.topicsScheduled());
         PlanResponse response = new PlanResponse(
                 PlanRequest.VERSION,
                 TacticalSessions.of(placed.plan(), topicsByItem),
                 SinapseFitness.of(composition, breakdown, placed, placed.plan(), context,
-                        importance, prerequisites),
+                        importance, prerequisites, evolved.vitality()),
                 new PlanResponse.ExecutionMetadata(coreVersion, request.randomSeed(),
                         budget.generations(), ELAPSED_MILLIS));
 
@@ -199,14 +208,27 @@ public class GeneticPlanEngine implements PlanEngine {
         return composition.evaluator();
     }
 
+    /**
+     * A alocação mais apta, e os sinais de que a busca buscou.
+     *
+     * @param chromosome a alocação vencedora
+     * @param vitality   ver {@link SearchVitality}
+     */
+    private record Evolved(StudyPlan chromosome, SearchVitality vitality) {
+    }
+
     /** Runs the evolution and returns the fittest allocation. */
-    private StudyPlan evolve(EvolutionContext context, int sessions) {
+    private Evolved evolve(EvolutionContext context, int sessions) {
         GeneticAlgorithm algorithm = algorithms.create();
-        Population population = populations.generate(sessions, budget.populationSize(), context);
+        Population initial = populations.generate(sessions, budget.populationSize(), context);
+        Population population = initial;
         for (int generation = 0; generation < budget.generations(); generation++) {
             population = algorithm.evolvePopulation(population, context);
         }
-        return population.getFittest().getPlan();
+        // A aptidao esta em cache, entao ler aqui nao reavalia nada nem consome sorteio: o plano
+        // desta busca e identico ao de antes desta invariante existir.
+        return new Evolved(population.getFittest().getPlan(),
+                SearchVitality.of(initial, population));
     }
 
     /** Topic to planning item, for reading the chromosome during placement. */

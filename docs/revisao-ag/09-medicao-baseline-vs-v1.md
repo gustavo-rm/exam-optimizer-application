@@ -34,7 +34,7 @@ medida quando existir.
 | Onde ela desaparece? | Onde há poucas arestas `SOFT` aplicáveis. Das 99 células empatadas, **59 estão em `curated`**, a condição mais estreita (2,5 arestas em média) |
 | Alguma inversão `HARD`? | **Nenhuma**, em 720 execuções e 6 condições. A regra de parada (a) não disparou |
 | Alguma execução não reprodutível? | **Nenhuma**, em 720 pares de execuções. A regra de parada (b) não disparou |
-| A v1 é melhor em tudo? | **Não.** Ela usa mais o calendário (+7,8 pontos percentuais de utilização) e agenda **menos tópicos** (−0,12 em média, pior em 146 células de 360). Ver §7 |
+| A v1 é melhor em tudo? | **Não.** Ela usa mais o calendário (+7,8 pontos percentuais de utilização) e agenda **menos tópicos** (−0,12 em média, pior em 146 células de 360). Ver §7 e §8.1 |
 
 **A afirmação que esta medição sustenta é estreita e é a que a EOA-7 fez:** a etapa tática de
 pré-requisitos reduz as inversões de preferência que o guloso deixa, de forma consistente, sem nunca
@@ -376,6 +376,60 @@ e qual dos dois está melhor servido é decisão de produto e não consequência
 cada. Isso é coerente com o que `DailyLoadBudgetBindingRateTest` já observa, e nesta biblioteca não
 muda a conclusão de nenhuma seção.
 
+### 8.1 Cobertura, guloso × v1, olhada de frente (corte pendente da EOA-9, item 6)
+
+*Acrescentada em 2026-10-01, sobre os mesmos dados, sem remedir nada.*
+
+A tabela acima dá o número; esta subseção o lê como decisão. **O motor que atende aluno hoje é o
+guloso, por configuração** (`plan.engine.default = greedy-baseline`), e a pergunta "trocar o padrão
+para a v1?" não pode ser respondida sabendo só os 13,52 tópicos da v1.
+
+| | guloso | v1 | v2 (etapa 10) |
+|---|--:|--:|--:|
+| tópicos agendados | **13,639** | 13,517 | **15,228** |
+| tópicos **não** agendados | 3,861 | 3,983 | **2,272** |
+| utilização | 0,6935 | 0,7713 | **0,8443** |
+| minutos agendados | 1 413 | 1 578 | **1 735** |
+| inversões `SOFT` (total) | 980 | **420** | 674 |
+
+**Em cobertura, o guloso não está atrás da v1 — está ligeiramente à frente**, e o pareamento confirma
+que não é arredondamento:
+
+| pareamento | resultado |
+|---|---|
+| por célula (360) | guloso agenda mais em **146**, empata em 124, menos em 90. Teste de sinais **p = 0,00032** |
+| por instância (24) | guloso à frente em **11**, empate em 7, v1 à frente em 6. Teste de sinais **p = 0,33** |
+
+A discordância entre as duas linhas é informativa e não é contradição: as 15 células de uma instância
+não são independentes, então o p por célula é otimista. **A leitura defensável é a da linha de baixo:
+guloso e v1 empatam em cobertura**, com uma inclinação a favor do guloso que o pareamento por instância
+não distingue de ruído.
+
+**E o empate no agregado esconde um padrão forte por aperto de calendário:**
+
+| aperto | guloso | v1 | Δ |
+|--:|--:|--:|--:|
+| 0,7 (apertado) | 10,083 | **10,958** | **+0,88 pró-v1** |
+| 1,0 | 13,333 | 13,375 | +0,04 |
+| 1,5 (folgado) | **17,500** | 16,217 | **−1,28 pró-guloso** |
+
+**Onde o calendário é folgado, o guloso enche-o e a v1 não.** Nas quatro instâncias de 25 tópicos com
+aperto 1,5 o guloso agenda os 25 e a v1 fica entre 22,7 e 23,7: ela gasta a folga em revisões, porque é
+o que `retention` (peso 0,30) pede. Onde o calendário é apertado, a ordem se inverte — a v1 cabe mais
+coisa no pouco que há.
+
+**O que a decisão sobre o padrão enfrenta, posto em números**, para que não seja escolha no escuro:
+
+| trocar `greedy-baseline` por… | custa | compra |
+|---|---|---|
+| **v1** | 23,3× o tempo; **−0,12 tópico** no agregado e **−1,28 em calendário folgado** | **−57% de inversões `SOFT`** (980 → 420), +7,8 p.p. de utilização, +165 min agendados, +0,88 tópico em calendário apertado |
+| **v2** | 16,0× o tempo | **−31% de inversões** (980 → 674), **+1,59 tópico**, +15,1 p.p. de utilização |
+
+**Nenhuma das duas trocas foi feita**, e esta subseção não a recomenda: ela existe para que a troca
+deixe de ser escolha no escuro. O que ela estabelece é que o argumento "a v1 ordena melhor" **não** vem
+acompanhado de "e cobre mais" — a cobertura é o que a v1 **não** compra —, e que o eixo em que o guloso
+perde feio é a ordem, não a cobertura.
+
 ---
 
 ## 9. Achado: a fitness agregada satura — G14, corrigida em parte
@@ -595,4 +649,5 @@ invariante, nenhuma coluna do CSV muda.
 | # | Gap | Status | Onde |
 |---|---|---|---|
 | **G14** | **`MandatoryReviewConstraint` era binária e saturava:** severidade 1,0 em 720 de 720 execuções, levando `ga_objective_aggregate` a zero em 94,6% delas | ✅ **RESOLVIDO** (EOA-8) — severidade graduada para a fração de revisões devidas perdidas, travada por `MandatoryReviewConstraintTest` com verificação por sabotagem. Saturação caiu para 84,4%. Nenhum peso mudou; nenhuma métrica de resultado ou custo mudou | §9 · `ga/fitness/constraint/MandatoryReviewConstraint` |
-| **G15** | **`clamp(raw, 0, 1)` destrói a ordenação entre planos táticos inviáveis.** A restrição de revisão subtrai em média 0,4644 contra 0,4265 que os objetivos conseguem somar — 109% —, então `raw` é negativo e o limite achata tudo em zero. Medido: o limite é **inerte no caminho macro** (0 de 2 400 candidatos com `raw < 0`, menor `raw` 0,3600), logo o efeito é exclusivo de planos táticos, que é onde a v2 vive. O limite existe para manter a fitness **publicada** em `[0,1]` — requisito de relato, não de seleção | ⬜ **ABERTO** — bloqueia a v2 em 16 das 24 instâncias (aperto 0,7 e 1,0) | §9.4 · `ga/fitness/FitnessEvaluator` |
+| **G15** | **`clamp(raw, 0, 1)` destrói a ordenação entre planos táticos inviáveis.** A restrição de revisão subtrai em média 0,4644 contra 0,4265 que os objetivos conseguem somar — 109% —, então `raw` é negativo e o limite achata tudo em zero. Medido: o limite é **inerte no caminho macro** (0 de 2 400 candidatos com `raw < 0`, menor `raw` 0,3600), logo o efeito é exclusivo de planos táticos, que é onde a v2 vive. O limite existe para manter a fitness **publicada** em `[0,1]` — requisito de relato, não de seleção | ✅ **RESOLVIDO** (EOA-8) — `FitnessBreakdown.selectionScore()` ordena pelo bruto **quando o plano é tático**, e a publicação segue limitada a `[0,1]`. O limite continua valendo no caminho macro, onde `WeightedAverageCrossover` usa a aptidão como peso de mistura e um peso negativo extrapolaria. Agregado positivo da v2: 328/360 | §9.4 · [`10`](./10-medicao-v2-linha-do-tempo.md) §8 · `ga/fitness/FitnessEvaluator` |
+| **item 6 da EOA-9** | **Cobertura do guloso contra a v1 nunca foi lida como decisão**, só como linha de tabela — e o padrão de produção é o guloso | ✅ **RESOLVIDO** (2026-10-01) — guloso **13,639** contra 13,517 da v1: empate em cobertura (pareado por instância 11 × 6 × 7, p = 0,33), com padrão forte por aperto de calendário (+0,88 pró-v1 em 0,7; −1,28 pró-guloso em 1,5). O que a v1 compra é ordem, não cobertura | §8.1 |
