@@ -69,9 +69,14 @@ public record SearchVitality(int initialDistinctFitness, double initialBest, dou
      *
      * <p><b>Não</b> faz parte da invariante, e é importante dizer por quê: numa instância pequena a
      * população inicial pode já conter o ótimo alcançável, e aí não melhorar é convergência e não
-     * inércia. A invariante é {@link #initialDistinctFitness} maior que um — que diz que havia sobre
-     * o que selecionar — mais {@link #finalBest} não pior que {@link #initialBest}. A melhora estrita
-     * é relatada como secundária.
+     * inércia. A invariante que o harness faz abortar é só {@link #finalBest} não pior que
+     * {@link #initialBest} — pior que o inicial significa elitismo quebrado, que é defeito de motor.
+     *
+     * <p>{@link #initialDistinctFitness} <b>também não</b> faz parte dela, e isso foi medido e não
+     * suposto: em 12 das 24 instâncias da biblioteca de medição o orçamento de sessões iguala a soma
+     * dos pisos por item, a geração zero da v1 é um plano único repetido, e o valor é 1 legitimamente
+     * (G20). Abortar ali recusaria metade do fatorial. O harness o <b>registra</b> na coluna
+     * {@code search_initial_distinct} em vez de o recusar, e o relatório tem de o dizer.
      *
      * @return se houve melhora estrita
      */
