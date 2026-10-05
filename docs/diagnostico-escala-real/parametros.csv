@@ -1,0 +1,3 @@
+property,value
+plan.engine.ga.generations,60
+plan.engine.ga.population-size,40

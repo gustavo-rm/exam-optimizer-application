@@ -1,0 +1,10 @@
+# reducao do plan-would-be-empty
+partida: apertado, reproduz em 10/10, guloso viavel exigido: false
+topics: 35 -> 18 (bloco 17)
+topics: 18 -> 1 (bloco 17)
+windows: 12 -> 6 (bloco 6)
+windows: 6 -> 3 (bloco 3)
+windows: 3 -> 2 (bloco 1)
+windows: 2 -> 1 (bloco 1)
+goals: removidas todas (1)
+minimo: 1 topicos, 1 janelas, 0 metas; confirmado em 10/10; guloso aceita: false
