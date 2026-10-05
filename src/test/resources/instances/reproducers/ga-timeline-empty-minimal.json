@@ -1,0 +1,28 @@
+{
+  "contractVersion" : "1.0",
+  "horizon" : {
+    "start" : "2026-10-12",
+    "end" : "2026-11-09"
+  },
+  "availability" : [ {
+    "start" : "2026-11-07T12:00:00Z",
+    "end" : "2026-11-07T13:10:00Z"
+  } ],
+  "goals" : [ ],
+  "topics" : [ {
+    "id" : "33e33cf9-3bb2-3890-8fff-b98a7c2cf972",
+    "subjectId" : "cc7047ff-0c43-3b4f-b10c-9052261e970a",
+    "position" : 35,
+    "effortTier" : "EXTENDED",
+    "estimatedMinutes" : 150
+  } ],
+  "prerequisites" : [ ],
+  "history" : [ ],
+  "algorithmParams" : {
+    "engine" : "ga-timeline",
+    "generations" : 400,
+    "mutation-rate" : 0.05,
+    "population-size" : 120
+  },
+  "randomSeed" : 1
+}
