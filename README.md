@@ -558,13 +558,14 @@ Two details that look like tidying and are not:
 
 ## 🧭 Core scheduler: two engines behind `POST /plans` (`baseline-core` profile)
 
-`POST /plans` has **two implementations behind one interface** (`plan.PlanEngine`), which are the two
+`POST /plans` has **three implementations behind one interface** (`plan.PlanEngine`), which are the
 conditions of the experiment:
 
 | `algorithmParams.engine` | Engine | Stage | Notes |
 |---|---|---|---|
 | `greedy-baseline` | `baseline.GreedyBaselineEngine` | EOA-2 | deterministic greedy pass; the default |
 | `ga` | `sinapse.GeneticPlanEngine` | EOA-5 | the genetic algorithm on the SINAPSE contract |
+| `ga-timeline` | `sinapse.TimelinePlanEngine` | EOA-8 | the genetic algorithm on the timeline chromosome |
 
 The engine is chosen **per request**, from `algorithmParams` — a `Map<String, Object>` in the
 contract, so nothing was invented to carry it. Without the key, `plan.engine.default` decides. Per
@@ -574,6 +575,60 @@ exist, never silently replaced by the default.
 
 **The answer always declares which engine ran**, under `fitness.engine`. The selector stamps it after
 the engine returns, so an engine can neither mislabel its own output nor forget to label it.
+
+### Choosing the engine per request: `algorithmParams.engine`
+
+The key is `algorithmParams.engine` (`PlanEngineSelector.ENGINE_PARAM`). **It is not a new field of
+the contract**: `algorithmParams` is already an open `Map<String, Object>` in `PlanRequest` v1.0, so
+a value under it changes no schema. The reference documents in `src/test/resources/contract/` do not
+carry the key and do not need to.
+
+Valid values are the registered engines: `ga`, `ga-timeline` and `greedy-baseline`. The default is
+`plan.engine.default`, which is `greedy-baseline`.
+
+| What the request sends | Answer |
+|---|---|
+| no `engine` key | `200`, planned by the default engine |
+| `"greedy-baseline"`, the default named explicitly | `200`, the **same plan** as with no key: every field except `metadata.elapsedMillis` |
+| another registered name | `200`, planned by that engine |
+| `null` | **`400`**, type `.../errors/malformed-body` |
+| `""` (empty string) | **`422`**, type `.../errors/unknown-engine`, `offending: [""]` |
+| an unknown name | `422`, type `.../errors/unknown-engine`; `detail` lists the registered engines and `offending` names the value |
+| a non-string value, e.g. `42` | `422`, type `.../errors/unusable-engine` |
+
+**Practical rule: to use the default, omit the key.** `null` is refused with `400` and `""` with
+`422`; neither falls back to the default. An unknown name is never replaced by the default either,
+because a plan recorded under the wrong condition is worse than no plan.
+
+Why `null` is a `400` and not the default: `PlanRequest` copies `algorithmParams` with
+`Map.copyOf` (`PlanRequest.java:87`), which refuses null values. Deserialisation fails and
+`RequestErrorAdvice` answers `malformed-body` **before the selector runs**, so the selector's own
+"null means default" branch is unreachable over HTTP. Changing this means changing the contract
+mirror in `coreapi/contract`, which is a decision for both repositories.
+
+**`fitness.engine` carries the engine that actually ran**, not the default. The response does not
+echo `algorithmParams`: `PlanResponse` has `contractVersion`, `sessions`, `fitness` and `metadata`,
+and the effective engine is visible only under `fitness.engine`.
+
+The engine choice does not enter the seed: the same body, the same `randomSeed` and the same engine
+give the same plan, with or without the key when it names the default.
+
+**`engine` is not the only key the Core applies.** `src/main` reads four keys of `algorithmParams`:
+
+| Key | Read in |
+|---|---|
+| `engine` | `PlanEngineSelector.java:98` |
+| `importance` | `ImportanceStrategies.java:86` |
+| `precedence` | `PrecedencePolicies.java:50` |
+| `provenance` | `PrerequisiteProvenance.java:62` |
+
+Every other key is ignored, including the `generations`, `population-size` and `mutation-rate` the
+platform sends. The search budget comes from `plan.engine.ga.*`.
+
+These behaviours are pinned by `PlanEngineSelectionHttpTest` (over HTTP, on the reference request)
+and `PlanEngineSelectorTest`. Reproducibility per engine is covered by
+`PlanEngineDeterminismTest` (`ga`) and by `MeasurementHarnessTest` through
+`MeasurementHarness.checkReproducible` (`ga-timeline`).
 
 Both engines satisfy the same output invariants — the eight `RestSinapseCore.validated` applies, the
 four it does not (horizon, availability window, non-overlap, known `topicId`) and contiguous
