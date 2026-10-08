@@ -462,7 +462,7 @@ requires marking the job as a required status check in the branch protection set
 
 * **Stateless:** The API is stateless and does not maintain sessions.
 * **Public Access:** `POST /plans` is `permitAll()` on a filter chain of its own, and so is Swagger UI. `/api/v1/**` is still `permitAll()` although nothing handles it since EOA-4b — the rule is kept so that removing it stays a deliberate posture change rather than a side effect of this removal. CSRF is disabled.
-* **No authentication anywhere.** Because nothing authenticates `/plans`, **this service must run on a private network, behind the platform** — see [Core scheduler](#-core-scheduler-two-engines-behind-post-plans-baseline-core-profile) for the requirement in both languages.
+* **No authentication anywhere.** Because nothing authenticates `/plans`, **this service must run on a private network, behind the platform** — see [Core scheduler](#-core-scheduler-three-engines-behind-post-plans-baseline-core-profile) for the requirement in both languages.
 * **No rate limiting.** The Bucket4j filter priced a request by its exam syllabus and its `gaConfig` and guarded only `/api/v1/optimizer/**`; it left with that path in EOA-4b. `/plans` was never behind it, so no protection was lost — and none exists. Add one before this service is reachable by anything but the platform.
 * **Input Validation:** `PlanRequestGuard` and `HorizonBounds` refuse, before any search runs, a request whose horizon, availability, topics or prerequisite graph cannot produce a plan — with `422` naming what it tripped over. `EffortTierBands` refuses a tier outside the contract's closed set.
 
@@ -540,8 +540,9 @@ their serialisation against reference documents that are byte-for-byte identical
 | `docs/CORE_CONTRACT_SURVEY.md` | Component-by-component transcription of the platform's records |
 
 **The reference documents are the source of truth**, not either side's Java. They are what
-`coreapi/CoreContractGoldenTest` pins the wire shape against, and the platform runs a twin test
-(`br.com.sinapse.platform.coreclient.CoreContractGoldenTest`) reading the same two files. The trade
+`coreapi/CoreContractGoldenTest` pins the wire shape against. The platform's side of that protection
+is described in its own `docs/ai/INTEGRATION.md`, "Reference contract JSON" (`sinapse-platform`,
+read at `1006475`). The trade
 is deliberate and worth stating: publishing an artifact would make the compiler catch a divergence,
 and without one the build catches it instead — one test run later, but with nothing to version,
 publish and keep in step across two release cycles.
@@ -572,7 +573,7 @@ Two details that look like tidying and are not:
   into the local domain model. Mapping to and from `PlanningItem`, `StudyPlan` and the rest is the
   adapter's job (`sinapse/`).
 
-## 🧭 Core scheduler: two engines behind `POST /plans` (`baseline-core` profile)
+## 🧭 Core scheduler: three engines behind `POST /plans` (`baseline-core` profile)
 
 `POST /plans` has **three implementations behind one interface** (`plan.PlanEngine`), which are the
 conditions of the experiment:
@@ -661,8 +662,9 @@ there on purpose: stamping a value would claim the greedy engine applied a condi
 #### The GA's search parameters belong to the Core
 
 Decided by the project owner on 2026-10-08 (D4, [ADR 0009](./docs/adr/0009-hiperparametros-sao-do-core.md)).
-`generations`, `population-size` and `mutation-rate` — the three keys the platform sends — are
-outside the closed set and change nothing. **Executed, not only read**: `HiperparametrosDoCoreHttpTest`
+`generations`, `population-size` and `mutation-rate` — the three keys the reference request
+`src/test/resources/contract/plan-request-v1.0.json` carries — are outside the closed set and change
+nothing. **Executed, not only read**: `HiperparametrosDoCoreHttpTest`
 sends the same request and seed with each of them at a minimum and a maximum value and gets the
 same sessions, `fitness` and `metadata`. As a positive control, the same engine built with a
 one-generation budget does produce a different plan.
@@ -698,10 +700,16 @@ for all three engines, and again for every engine by `MeasurementHarnessTest` th
 `MeasurementHarness.checkReproducible`.
 
 Every engine checks its own answer with `PlanOutputInvariants.check` before returning it
-(`GreedyBaselineScheduler.java:173`, `GeneticPlanEngine.java:192`, `TimelinePlanEngine.java:304`):
-the eight properties `RestSinapseCore.validated` applies, the four it does not (horizon, availability
-window, non-overlap, known `topicId`) and contiguous `sequenceIndex`. A violation is answered with
-`500`, never returned as a plan.
+(`GreedyBaselineScheduler.java:173`, `GeneticPlanEngine.java:192`, `TimelinePlanEngine.java:304`).
+What the Core enforces there: the contract version; at least one session; metadata naming the core
+version and echoing the seed; every session with a topic, a kind and a start, and a positive
+duration; every topic one that was sent; every session starting inside the horizon and fitting
+whole inside one availability window; no two sessions overlapping; `sequenceIndex` unique and
+contiguous from 0; and no session of a dependent topic before its `HARD` prerequisites. A violation
+is answered with `500`, never returned as a plan. `PlanEngineInvariantTest` checks it for all three
+engines. What the platform validates on its side is described in its own documentation,
+`sinapse-platform` `docs/ai/INTEGRATION.md` "Response validation" (read at `1006475`); this README
+does not restate it.
 
 In tests, `PlanEngineInvariantTest` and the rest of the suite parameterised over
 `PlanEngines.all()` cover all three engines. That list is written by hand, not read from the

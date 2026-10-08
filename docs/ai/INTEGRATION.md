@@ -24,8 +24,8 @@ README "Core contract (v1.0)"; they are not repeated here.
 - Records ↔ reference JSON on this side: `coreapi/CoreContractGoldenTest` (round trip, union of keys,
   component sweep). OBSERVED(9104c1b, `./mvnw test -Dtest=CoreContractGoldenTest` → 8 tests, 0 failures)
 - Reference JSON here ↔ reference JSON in the platform: **process only**. No test in this repository
-  reads the platform's copy; the platform runs a twin test against its own copy, which is
-  UNVERIFIED(this repository's README and test Javadoc, not read in sinapse-platform).
+  reads the platform's copy. The platform's side of the protection is in its own
+  `docs/ai/INTEGRATION.md` "Reference contract JSON" (READ at other-repo@1006475).
 
 ## algorithmParams — index
 
@@ -135,6 +135,12 @@ PROPOSAL — nobody has decided this procedure; the README rule it builds on is 
 2. Bump `PlanRequest.VERSION`; update both reference JSON files identically in both repositories.
 3. Provider (this repository) lands first, consumer second, within one logical change.
 4. Never edit a reference JSON to make a test pass (CLAUDE.md §2).
+
+## What the consumer assumes about this repository
+
+Not restated here: `sinapse-platform` `docs/ai/INTEGRATION.md` "Assumptions about the Core" (READ at
+other-repo@1006475). Where one of those assumptions is contradicted by this repository, the row there
+names the STATE.md entry here that says so.
 
 ## What this repository assumes about its consumer
 

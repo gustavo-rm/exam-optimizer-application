@@ -16,7 +16,7 @@ document's contents.
 | EOA-13 | `elapsedMillis` (DT-2) and honest hyperparameters (D4) | done | (number added in a second commit) | #33 (merged), D4 and DT (decided 2026-10-08) | Item 0 executed: the three GA keys are ignored (`HiperparametrosDoCoreHttpTest`). 0b: effective `importance`/`precedence` already in `fitness` for the GA engines; they do not apply to greedy, nothing stamped. 0c: `fitness.build`. Part A documentation only |
 | EOA-12 | GA repair at real scale | blocked | — | D1, D2 | Inputs: EOA-10 §8 and §10. Prompt still a skeleton: UNVERIFIED(planner, 2026-10-08) |
 | EOA-9b | 2×2 factorial for the thesis | pending | — | EOA-12 | — |
-| AI-1 | AI context layer (`docs/ai/`, CLAUDE.md protocol) | in-progress | this branch, `docs/1.0/ai-context-layer` | — | ID assigned here; the planner had none |
+| AI-1 | AI context layer (`docs/ai/`, CLAUDE.md protocol) | done | #35 (merge `40e6061`) | — | ID assigned here; the planner had none. Merged: OBSERVED(`git log --merges`) |
 
 ## Open decisions
 
@@ -42,7 +42,7 @@ Owner of every row: project owner.
 | K5 | `metadata.elapsedMillis` is a reserved constant 0 in all three engines and does not measure time; it stays 0 by owner decision DT-2 | READ(GeneticPlanEngine.java:84, TimelinePlanEngine.java:102, GreedyBaselineScheduler.java:99@40e6061); DECISION(project owner, 2026-10-08, [ADR-0008](../adr/0008-elapsed-millis-reservado.md)) | README "metadata, field by field"; class Javadoc of each engine | measure outside the Core: the platform times its call, the harness times the engine call | deliberate (ADR-0008) |
 | K6 | `algorithmParams.generations`, `population-size`, `mutation-rate` are ignored; the GA runs `plan.engine.ga.*` (60 generations × 40). Deliberate since D4 | OBSERVED(EOA-13 branch, `HiperparametrosDoCoreHttpTest`: same plan at min and max of each key, positive control changes it); DECISION(project owner, 2026-10-08, ADR-0009) | README "The GA's search parameters belong to the Core" | the ignored names are logged at WARN, the effective values at INFO | deliberate (ADR-0009) |
 | K7 | **Closed.** `metadata.coreVersion` is still the Maven version and does not identify the build; `fitness.build` now carries the commit SHA (`-dirty` suffix if the tree was dirty, `unknown` without git) | OBSERVED(EOA-13 branch, `VersaoDoBuildTest`: `fitness.build` equals the generated `git.properties`) | README "The GA's search parameters belong to the Core"; `plan/BuildIdentity` | read `fitness.build` | EOA-13 (option (a), `git-commit-id-maven-plugin`) |
-| K8 | README heading says "two engines behind `POST /plans`"; there are three | READ(README.md:559@9104c1b) vs README.md:563-569 | — | trust the table under it | unassigned (team doc, out of scope here) |
+| K8 | **Closed.** The README heading now says "three engines behind `POST /plans`", matching the table under it | READ(README.md, EOA-13 branch) | — | — | EOA-13 |
 | K9 | **Closed.** README now documents the values of `algorithmParams.precedence` (`lexicographic`, `weighted`) and their per-engine default | OBSERVED(EOA-13 branch, executed over HTTP) | README "The closed set: the four keys the Core applies" | — | EOA-13 |
 | K10 | Without profile `baseline-core` the app serves no endpoint; the default active profile is `dev` | READ(application.properties:2@9104c1b; CLAUDE.md §1b) | — | set `spring.profiles.active` to include `baseline-core` | deliberate (CLAUDE.md §1b) |
 | K11 | No authentication and no rate limiting on `/plans`; private network required | READ(baseline/BaselinePlanSecurityConfig.java:88@9104c1b; README.md:449-450) | README "Deployment: private network only" | network isolation | deliberate |
@@ -54,8 +54,7 @@ Owner of every row: project owner.
   does not measure it; it only lists the four keys as read. READ(docs/DIAGNOSTICO_ESCALA_REAL.md:82@9104c1b)
 - The platform audit figures before EOA-10 (`ga` 2–4 topics, `ga-timeline` 422
   `plan-would-be-empty`, greedy 33 sessions). UNVERIFIED(sinapse-platform audit, 2026-10-05)
-- Whether the platform drops `generations` and `elapsedMillis` as `PlanResponse.java:69-71` claims.
-  UNVERIFIED(this repository's Javadoc about the other repository)
 - Production topology (replicas behind a load balancer): nothing in this repository deploys it.
   UNVERIFIED(planner, 2026-10-08)
-- What the platform assumes about the Core beyond the contract: unknown. UNVERIFIED(not read)
+- What the platform assumes about the Core: not restated here. See `sinapse-platform`
+  `docs/ai/INTEGRATION.md` "Assumptions about the Core" (READ at other-repo@1006475).

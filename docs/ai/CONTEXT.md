@@ -122,13 +122,23 @@ This repository offers it the v1.0 contract and expects nothing that is verified
 | Why the GA fails on the real catalogue | [docs/DIAGNOSTICO_ESCALA_REAL.md](../DIAGNOSTICO_ESCALA_REAL.md) §1 |
 | Contract component-by-component | [docs/CORE_CONTRACT_SURVEY.md](../CORE_CONTRACT_SURVEY.md) |
 
+## Files that are never edited
+
+The single list; each row names where the rule comes from.
+
+| Path | Rule | Source |
+|---|---|---|
+| `src/test/resources/contract/*.json` | never edited, not even to make a test pass; byte-identical to the platform's copies, and a failure there means the repositories diverged | CLAUDE.md §2 |
+| `src/test/resources/instances/*.json` and its `README.md` | byte-for-byte copies of `sinapse-platform@cbb5529`, SHA-256 listed in that README and in `docs/DIAGNOSTICO_ESCALA_REAL.md` §2 (EOA-10); updated only by a new copy whose SHA-256 is checked, announced by the platform | HANDOFF.md EOA-H2 |
+| `src/test/resources/instances/reproducers/` | the EOA-10 `ddmin` reproducers; not edited | INTEGRATION.md "Instances shared with the platform" |
+| `ga/strategy/mutation/CreepMutation`, `ga/strategy/mutation/TransferMutation`, `ga/strategy/crossover/WeightedAverageCrossover`, `ga/strategy/selection/TournamentSelection`, `ga/Population`, the evolution loop in `ga/GeneticAlgorithm` | not touched without an explicit instruction | CLAUDE.md §4 |
+| `GaResultadoInalteradoTest` | never weakened (seed, assertion, comparison); a divergence is a finding | CLAUDE.md §5 |
+
 ## Non-negotiables
 
-- Never edit `src/test/resources/contract/*.json` to make a test pass (CLAUDE.md §2).
 - Never lower a coverage floor, relax a Checkstyle rule or add `@SuppressWarnings` (CLAUDE.md §1).
-- Never weaken `GaResultadoInalteradoTest`; a divergence is a finding (CLAUDE.md §5).
 - No randomness outside `util/RandomProvider`; none at all in `ga/fitness` (CLAUDE.md §3).
-- Do not touch the six GA classes listed in CLAUDE.md §4 without an explicit instruction.
+- The files in "Files that are never edited" above.
 - Diagnose before fixing: no engine change without a verified diagnosis. DECISION(stated by project owner)
 - No secrets, tokens, student data or personal data in docs or examples; instances are synthetic.
 - Never record a proposal as a decision.

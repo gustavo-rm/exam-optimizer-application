@@ -66,15 +66,17 @@ public record PlanResponse(
     /**
      * What the run was.
      *
-     * <p>The platform reads {@code generations} and {@code elapsedMillis} off the wire and drops
-     * them: neither is validated nor persisted there. They are part of the shape all the same, and
-     * removing them would be a contract change.
+     * <p>O que este lado põe aqui: {@code generations} é a contagem real nos dois motores genéticos e
+     * {@code 0} no guloso; {@code elapsedMillis} é uma constante reservada, sempre {@code 0}, que não
+     * mede tempo ({@code docs/adr/0008-elapsed-millis-reservado.md}). Os dois fazem parte da forma, e
+     * removê-los seria mudança de contrato. O que a plataforma faz com eles está na documentação dela,
+     * não aqui.
      *
      * @param coreVersion   version of the optimiser that produced the plan
      * @param randomSeed    seed it ran with, echoed back so that the record can be checked against
      *                      what was sent rather than assumed
      * @param generations   how many generations the algorithm ran
-     * @param elapsedMillis how long it took
+     * @param elapsedMillis reserved, always {@code 0}; does not measure time
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ExecutionMetadata(
