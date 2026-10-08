@@ -42,6 +42,12 @@ import java.util.TreeMap;
  *
  * Antes de rodar, {@link AlgorithmParamsLog} registra as chaves recebidas que o Core não aplica e os
  * parâmetros de busca efetivos do motor escolhido. Só registra: a escolha e o plano não mudam.
+ *
+ * <h2>O build também é estampado aqui</h2>
+ *
+ * No mesmo ponto em que grava {@code fitness.engine}, {@link #plan} grava
+ * {@value BuildIdentity#FITNESS_KEY} com o commit do build ({@link BuildIdentity}). Pela mesma razão:
+ * nenhum motor pode esquecê-lo, e um plano guardado diz que código o produziu.
  */
 @Component
 @Profile(PlanProtocol.PROFILE)
@@ -53,6 +59,7 @@ public class PlanEngineSelector {
     private final Map<String, PlanEngine> byId;
     private final String defaultEngineId;
     private final AlgorithmParamsLog paramsLog;
+    private final BuildIdentity build;
 
     /**
      * @param engines         every registered engine, injected by Spring
@@ -60,9 +67,11 @@ public class PlanEngineSelector {
      *                        {@code plan.engine.default}. There is no code default — a deployment
      *                        that cannot say which condition it runs by default fails to start
      * @param paramsLog       registra o que foi feito com {@code algorithmParams}
+     * @param build           o commit deste build, estampado em {@code fitness.build}
      */
     public PlanEngineSelector(List<PlanEngine> engines,
-            @Value("${plan.engine.default}") String defaultEngineId, AlgorithmParamsLog paramsLog) {
+            @Value("${plan.engine.default}") String defaultEngineId, AlgorithmParamsLog paramsLog,
+            BuildIdentity build) {
 
         Map<String, PlanEngine> registry = new TreeMap<>();
         for (PlanEngine engine : engines) {
@@ -77,6 +86,7 @@ public class PlanEngineSelector {
         this.byId = Map.copyOf(registry);
         this.defaultEngineId = defaultEngineId;
         this.paramsLog = paramsLog;
+        this.build = build;
 
         if (!byId.containsKey(defaultEngineId)) {
             throw new IllegalStateException("plan.engine.default is '" + defaultEngineId
@@ -89,13 +99,14 @@ public class PlanEngineSelector {
      * Runs the request on the engine it asked for, or on the configured default.
      *
      * @param request the request as the platform sent it
-     * @return the plan, with {@code fitness.engine} set to the engine that produced it
+     * @return the plan, with {@code fitness.engine} set to the engine that produced it and
+     *         {@code fitness.build} to the build that ran it
      * @throws PlanRejectedException when the request names an engine that does not exist
      */
     public PlanResponse plan(PlanRequest request) {
         PlanEngine engine = resolve(request);
         paramsLog.record(request, engine.id());
-        return stamp(engine.plan(request), engine.id());
+        return stamp(engine.plan(request), engine.id(), build.id());
     }
 
     /** @return the id of the engine this request runs on */
@@ -126,21 +137,18 @@ public class PlanEngineSelector {
     }
 
     /**
-     * Replaces the engine key with the id of the engine that ran.
+     * Replaces the engine key with the id of the engine that ran, and the build key with this build.
      *
      * <p>Insertion order puts the engine first, which costs nothing and makes the attribution the
      * first thing a person reads in a stored plan. The contract record copies the map with
      * {@code Map.copyOf} afterwards, whose iteration order is its own, so the order is a
      * convenience here and not a promise.
      */
-    private static PlanResponse stamp(PlanResponse response, String engineId) {
+    private static PlanResponse stamp(PlanResponse response, String engineId, String buildId) {
         Map<String, Object> fitness = new LinkedHashMap<>();
         fitness.put(PlanEngine.FITNESS_ENGINE_KEY, engineId);
-        response.fitness().forEach((key, value) -> {
-            if (!PlanEngine.FITNESS_ENGINE_KEY.equals(key)) {
-                fitness.put(key, value);
-            }
-        });
+        fitness.put(BuildIdentity.FITNESS_KEY, buildId);
+        response.fitness().forEach(fitness::putIfAbsent);
         return new PlanResponse(response.contractVersion(), response.sessions(),
                 fitness, response.metadata());
     }

@@ -151,6 +151,35 @@
                     </execution>
                 </executions>
             </plugin>
+            <!--
+                Writes target/classes/git.properties with the commit the build was made from, which
+                POST /plans stamps as fitness.build (plan/BuildIdentity). metadata.coreVersion is the
+                Maven version, unchanged across many commits, so it cannot say which code ran; with
+                the GA hyperparameters owned by the Core (ADR 0009) that is what makes a stored plan
+                reproducible.
+
+                Version and the revision goal come from spring-boot-starter-parent's pluginManagement.
+                Three settings are overridden here, each for a reason:
+
+                - includeOnlyProperties: the default file also carries the committer's and the build
+                  user's name and e-mail and the build host. They would ship inside the jar, and
+                  personal data has no business there. Only the commit id and the dirty flag are kept.
+                - verbose=false: the parent prints every property into the build log.
+                - failOnNoGitDirectory=false: a build from a source archive, with no .git, still
+                  builds; BuildIdentity then reports "unknown" instead of failing the build.
+            -->
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <configuration>
+                    <verbose>false</verbose>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <includeOnlyProperties>
+                        <includeOnlyProperty>^git.commit.id$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.dirty$</includeOnlyProperty>
+                    </includeOnlyProperties>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

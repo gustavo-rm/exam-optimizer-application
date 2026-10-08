@@ -70,6 +70,9 @@ public final class PlanEngines {
     /** A versão reportada como {@code metadata.coreVersion}; qualquer string não vazia serve aqui. */
     private static final String CORE_VERSION = "2.0.1";
 
+    /** Um build fixo, para que planos de teste comparem sem depender do commit corrente. */
+    public static final BuildIdentity BUILD = new BuildIdentity("test-build");
+
     /**
      * The widest provenance condition, which is what every test that is not about the ablation
      * wants: it sees exactly the edges the request carries, so a fixture's edges all apply and a
@@ -115,7 +118,8 @@ public final class PlanEngines {
     /** Um seletor com os três motores e o baseline como padrão, como em produção. */
     public static PlanEngineSelector selector() {
         return new PlanEngineSelector(
-                List.of(greedy(), genetic(), timeline()), GreedyBaselineEngine.ID, paramsLog());
+                List.of(greedy(), genetic(), timeline()), GreedyBaselineEngine.ID, paramsLog(),
+                BUILD);
     }
 
     /** O registro de {@code algorithmParams}, com os parâmetros efetivos dos dois AGs de teste. */
