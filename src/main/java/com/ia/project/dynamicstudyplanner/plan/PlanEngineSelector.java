@@ -37,6 +37,11 @@ import java.util.TreeMap;
  * {@link #plan} overwrites {@link PlanEngine#FITNESS_ENGINE_KEY} in the returned {@code fitness} map
  * with the id of the engine that was actually invoked. An engine cannot mislabel its own output,
  * and an engine that forgets to label it cannot ship an unattributed plan.
+ *
+ * <h2>O que foi feito com {@code algorithmParams} fica no log</h2>
+ *
+ * Antes de rodar, {@link AlgorithmParamsLog} registra as chaves recebidas que o Core não aplica e os
+ * parâmetros de busca efetivos do motor escolhido. Só registra: a escolha e o plano não mudam.
  */
 @Component
 @Profile(PlanProtocol.PROFILE)
@@ -47,15 +52,17 @@ public class PlanEngineSelector {
 
     private final Map<String, PlanEngine> byId;
     private final String defaultEngineId;
+    private final AlgorithmParamsLog paramsLog;
 
     /**
      * @param engines         every registered engine, injected by Spring
      * @param defaultEngineId the id to use when the request names none; from
      *                        {@code plan.engine.default}. There is no code default — a deployment
      *                        that cannot say which condition it runs by default fails to start
+     * @param paramsLog       registra o que foi feito com {@code algorithmParams}
      */
     public PlanEngineSelector(List<PlanEngine> engines,
-            @Value("${plan.engine.default}") String defaultEngineId) {
+            @Value("${plan.engine.default}") String defaultEngineId, AlgorithmParamsLog paramsLog) {
 
         Map<String, PlanEngine> registry = new TreeMap<>();
         for (PlanEngine engine : engines) {
@@ -69,6 +76,7 @@ public class PlanEngineSelector {
         }
         this.byId = Map.copyOf(registry);
         this.defaultEngineId = defaultEngineId;
+        this.paramsLog = paramsLog;
 
         if (!byId.containsKey(defaultEngineId)) {
             throw new IllegalStateException("plan.engine.default is '" + defaultEngineId
@@ -86,6 +94,7 @@ public class PlanEngineSelector {
      */
     public PlanResponse plan(PlanRequest request) {
         PlanEngine engine = resolve(request);
+        paramsLog.record(request, engine.id());
         return stamp(engine.plan(request), engine.id());
     }
 

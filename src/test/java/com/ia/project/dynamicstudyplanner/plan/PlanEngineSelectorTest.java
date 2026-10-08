@@ -75,7 +75,7 @@ class PlanEngineSelectorTest {
     @DisplayName("um padrao que nenhum motor atende falha no arranque, nao na primeira requisicao")
     void padraoInvalidoFalhaNoArranque() {
         assertThatThrownBy(() -> new PlanEngineSelector(
-                List.of(PlanEngines.greedy()), "nao-existe"))
+                List.of(PlanEngines.greedy()), "nao-existe", PlanEngines.paramsLog()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("plan.engine.default")
                 .hasMessageContaining("nao-existe");
@@ -86,7 +86,8 @@ class PlanEngineSelectorTest {
     void idsDuplicadosFalhamNoArranque() {
         // O id e como um plano guardado e atribuido a uma condicao do experimento meses depois.
         assertThatThrownBy(() -> new PlanEngineSelector(
-                List.of(PlanEngines.greedy(), PlanEngines.greedy()), GreedyBaselineEngine.ID))
+                List.of(PlanEngines.greedy(), PlanEngines.greedy()), GreedyBaselineEngine.ID,
+                PlanEngines.paramsLog()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("answer to the id");
     }
