@@ -17,12 +17,13 @@ Status values: `open` | `acknowledged` | `done`.
 | Why | One fact, one place: the keys the Core reads, and their effect, are decided here |
 | Interface affected | `PlanRequest.algorithmParams` (open map; no contract version change) |
 | What the platform must do | Reference README "Choosing the engine per request" (and its successor after EOA-13) from SP-8 item 3b instead of restating it |
-| Depends on | D4, EOA-13 (STATE.md) |
+| Depends on | D4 (decided 2026-10-08, ADR-0009), EOA-13 (STATE.md) |
 | Status | open |
 
-Today the README indexes the four keys the Core reads (`engine`, `importance`, `precedence`,
-`provenance`) and states that `generations`, `population-size`, `mutation-rate` are ignored.
-READ(README.md:616-627@9104c1b). The content of SP-8 is UNVERIFIED(not read in sinapse-platform).
+Since EOA-13 the README section documents all four keys the Core applies, with values, defaults,
+errors and the effective value in the response, and states that the GA hyperparameters belong to
+the Core. The anchor is unchanged ("Choosing the engine per request"). The content of SP-8 is
+UNVERIFIED(not read in sinapse-platform).
 
 ### EOA-H2 — instances are byte copies of the platform's
 
@@ -54,6 +55,7 @@ Newest first, at most 20 entries; older ones leave (git keeps them).
 
 | Date | Change | Interface affected | Action required |
 |---|---|---|---|
+| 2026-10-08 | EOA-13: `fitness.build` carries the Core's build commit; the ignored `algorithmParams` keys are logged by name; README documents the four applied keys; D4 and DT decided (ADR-0009, ADR-0008) | `PlanResponse.fitness` (open map, no contract change) | platform: may read `fitness.build` to know which Core build produced a plan; `metadata.coreVersion` does not say it |
 | 2026-10-08 | PR #33 merged: engine selection pinned over HTTP; README documents `algorithmParams.engine` and indexes the four read keys | `algorithmParams` (documentation only) | platform: see EOA-H1 |
 | 2026-10-05 | PR #32 merged: EOA-10 real-scale diagnosis; `ga` and `ga-timeline` refuse most real-catalogue requests | `POST /plans` behaviour (no shape change) | platform: do not rely on GA engines for the real catalogue (INTEGRATION.md "Known deviations") |
 | 2026-10-05 | Commit `e9e09d1`: three instances copied from `sinapse-platform@cbb5529` | test inputs | see EOA-H2 |

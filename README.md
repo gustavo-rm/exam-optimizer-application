@@ -594,6 +594,9 @@ the engine returns, so an engine can neither mislabel its own output nor forget 
 
 ### Choosing the engine per request: `algorithmParams.engine`
 
+This section covers `engine` first, then [the four keys](#the-closed-set-the-four-keys-the-core-applies)
+the Core applies, and [who owns the GA's search parameters](#the-gas-search-parameters-belong-to-the-core).
+
 The key is `algorithmParams.engine` (`PlanEngineSelector.ENGINE_PARAM`). **It is not a new field of
 the contract**: `algorithmParams` is already an open `Map<String, Object>` in `PlanRequest` v1.0, so
 a value under it changes no schema. The reference documents in `src/test/resources/contract/` do not
@@ -629,20 +632,68 @@ and the effective engine is visible only under `fitness.engine`.
 The engine choice does not enter the seed: the same body, the same `randomSeed` and the same engine
 give the same plan, with or without the key when it names the default.
 
-**`engine` is not the only key the Core applies.** `src/main` reads four keys of `algorithmParams`:
+#### The closed set: the four keys the Core applies
 
-| Key | Read in |
-|---|---|
-| `engine` | `PlanEngineSelector.java:98` |
-| `importance` | `ImportanceStrategies.java:86` |
-| `precedence` | `PrecedencePolicies.java:50` |
-| `provenance` | `PrerequisiteProvenance.java:62` |
+`engine` is one of **four** keys the Core reads from `algorithmParams`. The set is closed: `engine`,
+`importance`, `precedence` and `provenance` (`AlgorithmParamsLog.APPLIED_KEYS`). Every other key is
+accepted and ignored. The values, defaults and error answers below were checked against the code and
+executed over HTTP on the reference request, for each engine, in EOA-13.
 
-Every other key is ignored, including the `generations`, `population-size` and `mutation-rate` the
-platform sends. The search budget comes from `plan.engine.ga.*`.
+| Key | Accepted values | Default when absent | Unknown string, `""` included | Non-string, e.g. `42` | Effective value in the response | Applies to |
+|---|---|---|---|---|---|---|
+| `engine` | `ga`, `ga-timeline`, `greedy-baseline` | `plan.engine.default` = `greedy-baseline` | `422` `unknown-engine` | `422` `unusable-engine` | `fitness.engine`, every engine | every request |
+| `importance` | `goal-priority`, `prerequisite-centrality` | `plan.fitness.sinapse.importance-strategy` = `goal-priority` | `422` `unknown-importance-strategy` | `422` `unusable-importance-strategy` | `fitness.importance-strategy`, also when it came from the default | `ga`, `ga-timeline` |
+| `precedence` | `lexicographic`, `weighted` | **per engine**: `ga` → `lexicographic`, `ga-timeline` → `weighted` | `422` `unknown-precedence-policy` | `422` `unusable-precedence-policy` | `fitness.precedence-policy`, also when it came from the default | `ga`, `ga-timeline` |
+| `provenance` | `curated`, `curated-textbook`, `all` | `plan.prerequisites.provenance` = `all` | `422` `unknown-provenance-filter` | `422` `unusable-provenance-filter` | `fitness.prerequisite-provenance`, every engine | every engine |
 
-These behaviours are pinned by `PlanEngineSelectionHttpTest` (over HTTP, on the reference request)
-and `PlanEngineSelectorTest`. Reproducibility per engine is covered by `PlanEngineDeterminismTest`
+Error types are `https://api.dynamicstudyplanner.com/errors/<code>`, and a `422` names the value in
+`offending`. A `null` value under **any** of the four keys is a `400` `malformed-body`, for the
+reason given above for `engine`. An unknown value is refused, never replaced by the default.
+
+**`importance` and `precedence` do not apply to `greedy-baseline`.** The greedy engine runs no
+fitness, so it has nothing to weigh by importance and no repair-or-price choice to make
+(`CLAUDE.md` §1b). It does not read either key, so it does not validate them either: sent to the
+greedy engine, even an invalid value is answered `200` with the same plan as without the key, and
+its `fitness` carries neither `importance-strategy` nor `precedence-policy`. Nothing is stamped
+there on purpose: stamping a value would claim the greedy engine applied a condition it ignores.
+`provenance` does apply to the greedy engine.
+
+#### The GA's search parameters belong to the Core
+
+Decided by the project owner on 2026-10-08 (D4, [ADR 0009](./docs/adr/0009-hiperparametros-sao-do-core.md)).
+`generations`, `population-size` and `mutation-rate` — the three keys the platform sends — are
+outside the closed set and change nothing. **Executed, not only read**: `HiperparametrosDoCoreHttpTest`
+sends the same request and seed with each of them at a minimum and a maximum value and gets the
+same sessions, `fitness` and `metadata`. As a positive control, the same engine built with a
+one-generation budget does produce a different plan.
+
+What actually runs:
+
+| Parameter | `ga` | `ga-timeline` | Where it comes from |
+|---|---|---|---|
+| generations | 60 | 60 | `plan.engine.ga.generations` |
+| population size | 40 | 40 | `plan.engine.ga.population-size` |
+| crossover rate | 0.95 | 0.95 | `DefaultGeneticAlgorithmFactory.CROSSOVER_RATE` / `TimelineSearch.CROSSOVER_RATE` |
+| mutation rate | 0.05 | 0.05 | `DefaultGeneticAlgorithmFactory.MUTATION_RATE` / `TimelineSearch.MUTATION_RATE` |
+| elitism, stagnation patience, hypermutation rate | on, 25, 0.20 | — | `DefaultGeneticAlgorithmFactory` |
+
+The ignored keys are no longer ignored silently. On every request the Core logs a `WARN` naming the
+received keys outside the closed set (names only, never values) and an `INFO` with the effective
+search parameters of the engine that runs (`AlgorithmParamsLog`).
+
+**Which build ran is in `fitness.build`**: the full commit SHA the jar was built from, with a
+`-dirty` suffix if the tree had uncommitted changes, or `unknown` if it was built outside a git
+clone. `metadata.coreVersion` is the Maven version and does **not** identify the build. The rates
+are code, so the commit identifies them. `generations` and `population-size` are configuration:
+the commit identifies their packaged values, but a deployment can override `plan.engine.ga.*`, and
+such an override shows only in `metadata.generations` (for generations) and in the `INFO` log line.
+The response has no field for the population size or the rates, and none was added: that would be
+a contract change.
+
+These behaviours are pinned by `PlanEngineSelectionHttpTest` (over HTTP, on the reference request),
+`PlanEngineSelectorTest`, `HiperparametrosDoCoreHttpTest` (the ignored keys, executed),
+`AlgorithmParamsLogTest` (the log lines) and `BuildIdentityTest` / `VersaoDoBuildTest`
+(`fitness.build`). Reproducibility per engine is covered by `PlanEngineDeterminismTest`
 for all three engines, and again for every engine by `MeasurementHarnessTest` through
 `MeasurementHarness.checkReproducible`.
 
