@@ -626,9 +626,9 @@ Every other key is ignored, including the `generations`, `population-size` and `
 platform sends. The search budget comes from `plan.engine.ga.*`.
 
 These behaviours are pinned by `PlanEngineSelectionHttpTest` (over HTTP, on the reference request)
-and `PlanEngineSelectorTest`. Reproducibility per engine is covered by
-`PlanEngineDeterminismTest` (`ga`) and by `MeasurementHarnessTest` through
-`MeasurementHarness.checkReproducible` (`ga-timeline`).
+and `PlanEngineSelectorTest`. Reproducibility per engine is covered by `PlanEngineDeterminismTest`
+for all three engines, and again for every engine by `MeasurementHarnessTest` through
+`MeasurementHarness.checkReproducible`.
 
 Every engine checks its own answer with `PlanOutputInvariants.check` before returning it
 (`GreedyBaselineScheduler.java:173`, `GeneticPlanEngine.java:192`, `TimelinePlanEngine.java:304`):
@@ -636,12 +636,11 @@ the eight properties `RestSinapseCore.validated` applies, the four it does not (
 window, non-overlap, known `topicId`) and contiguous `sequenceIndex`. A violation is answered with
 `500`, never returned as a plan.
 
-The test suite does **not** cover the three engines equally. `PlanEngineInvariantTest` is
-parameterised over `PlanEngines.all()`, a hand-written list holding `greedy-baseline` and `ga` only,
-not over the registry: `ga-timeline` is not in it, and a new engine does not join it by being
-registered. In tests, `ga-timeline`'s answers are checked only by `MeasurementHarnessTest`, whose
-`Invariants.violations` covers a subset (no `HARD` inversion, inside availability, no overlap,
-contiguous `sequenceIndex`) on two library instances.
+In tests, `PlanEngineInvariantTest` and the rest of the suite parameterised over
+`PlanEngines.all()` cover all three engines. That list is written by hand, not read from the
+registry: **a new engine does not join it by being registered**. `ga-timeline` was missing from it
+from EOA-8 until it was added explicitly. `MeasurementHarnessTest` also checks every engine's answers
+with `Invariants.violations`, a subset of the invariants, on two library instances.
 
 The greedy engine is described in [`docs/BASELINE_CORE.md`](./docs/BASELINE_CORE.md); the genetic
 engine's adapter, its project assumptions and the parameters still to be calibrated are in

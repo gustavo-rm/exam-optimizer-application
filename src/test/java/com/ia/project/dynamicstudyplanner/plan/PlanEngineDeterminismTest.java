@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.plan;
 
+import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineEngine;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanRequest;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanResponse;
@@ -8,10 +9,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,8 +39,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <h2>Sementes diferentes têm de divergir</h2>
  *
  * Sem essa contraprova, um motor que ignorasse a aleatoriedade por completo passaria no teste de
- * reprodutibilidade. É exigida só do motor genético: o guloso é determinístico por construção e não
- * lê semente alguma, o que é a propriedade dele — e é verificada como tal.
+ * reprodutibilidade. É exigida dos dois motores genéticos: o guloso é determinístico por construção
+ * e não lê semente alguma, o que é a propriedade dele — e é verificada como tal.
+ *
+ * <p>O {@code ga-timeline} tem a sua própria forma da contraprova, e o motivo foi medido: no fixture
+ * com folga, as sementes 1 e 2 dão o mesmo plano para ele, e as sementes 1 a 10 dão quatro planos
+ * distintos. A semente chega à busca; só aquele par coincide. Por isso a exigência para ele é "mais
+ * de um plano entre as sementes 1 a 10", fixada sem escolher um par que por acaso divirja. Até esta
+ * correção ele caía no ramo do guloso, que exige o contrário, e passava pelo motivo errado.
  */
 @DisplayName("Motores de plano: reprodutibilidade")
 class PlanEngineDeterminismTest {
@@ -94,15 +104,29 @@ class PlanEngineDeterminismTest {
         String comUma = signature(engine.plan(comFolga().withSeed(1L).build()));
         String comOutra = signature(engine.plan(comFolga().withSeed(2L).build()));
 
-        if (engine.id().equals(GeneticPlanEngine.ID)) {
+        if (engine.id().equals(GreedyBaselineEngine.ID)) {
+            assertThat(comOutra)
+                    .as("o guloso e deterministico por construcao: a semente nao o afeta")
+                    .isEqualTo(comUma);
+        } else if (engine.id().equals(GeneticPlanEngine.ID)) {
             assertThat(comOutra)
                     .as("um AG que ignorasse a semente passaria no teste de reprodutibilidade")
                     .isNotEqualTo(comUma);
         } else {
-            assertThat(comOutra)
-                    .as("o guloso e deterministico por construcao: a semente nao o afeta")
-                    .isEqualTo(comUma);
+            // Qualquer outro motor e tratado como genetico ate prova em contrario: um motor novo e
+            // deterministico falha aqui e obriga quem o registrou a classifica-lo, em vez de herdar
+            // em silencio a regra do guloso, que foi o que aconteceu com o ga-timeline.
+            assertThat(plansOverSeedsOneToTen(engine))
+                    .as("%s: uma busca que ignorasse a semente daria um plano so", engine)
+                    .hasSizeGreaterThan(1);
         }
+    }
+
+    /** Os planos distintos que o motor dá ao fixture com folga, sob as sementes 1 a 10. */
+    private static Set<String> plansOverSeedsOneToTen(PlanEngines.Case engine) {
+        return LongStream.rangeClosed(1, 10)
+                .mapToObj(seed -> signature(engine.plan(comFolga().withSeed(seed).build())))
+                .collect(Collectors.toSet());
     }
 
     @ParameterizedTest(name = "{0}")

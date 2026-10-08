@@ -1,5 +1,6 @@
 package com.ia.project.dynamicstudyplanner.plan;
 
+import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessComposition;
 import com.ia.project.dynamicstudyplanner.ga.fitness.FitnessWeights;
 import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineEngine;
 import com.ia.project.dynamicstudyplanner.baseline.GreedyBaselineScheduler;
@@ -12,6 +13,7 @@ import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.RepairingCrossov
 import com.ia.project.dynamicstudyplanner.ga.strategy.crossover.WeightedAverageCrossover;
 import com.ia.project.dynamicstudyplanner.ga.strategy.mutation.CreepMutation;
 import com.ia.project.dynamicstudyplanner.ga.strategy.selection.TournamentSelection;
+import com.ia.project.dynamicstudyplanner.ga.tactical.repair.SpacedRepetitionRepairer;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MandatoryReviewConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.MinimumDaysConstraint;
 import com.ia.project.dynamicstudyplanner.ga.fitness.constraint.SoftPrerequisiteOrderConstraint;
@@ -23,6 +25,7 @@ import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.RequestConditions;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticSearchBudget;
 import com.ia.project.dynamicstudyplanner.sinapse.SinapseFitnessConfig;
+import com.ia.project.dynamicstudyplanner.sinapse.TimelinePlanEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.GoalPriorityImportance;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.PrerequisiteCentralityImportance;
@@ -32,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Os dois motores, montados à mão, para os testes que valem para ambos.
+ * Os três motores, montados à mão, para os testes que valem para todos.
  *
  * <h2>Sem contexto Spring, de propósito</h2>
  *
@@ -90,17 +93,27 @@ public final class PlanEngines {
         }
     }
 
-    /** @return um caso por motor registrado */
+    /**
+     * Um caso por motor registrado em produção.
+     *
+     * <p>A lista é escrita à mão, e não lida do registro, porque esta classe não sobe o contexto. O
+     * preço é que um motor novo <b>não entra sozinho</b>: o {@code ga-timeline} ficou fora daqui do
+     * EOA-8 até esta correção, e com ele toda a suíte que itera esta lista. A ordem importa para quem
+     * indexa: {@code get(0)} é o guloso e {@code get(1)} é o {@code ga}.
+     *
+     * @return um caso por motor, na ordem guloso, {@code ga}, {@code ga-timeline}
+     */
     public static List<Case> all() {
         PlanEngineSelector selector = selector();
         return List.of(new Case(GreedyBaselineEngine.ID, selector),
-                new Case(GeneticPlanEngine.ID, selector));
+                new Case(GeneticPlanEngine.ID, selector),
+                new Case(TimelinePlanEngine.ID, selector));
     }
 
-    /** Um seletor com os dois motores e o baseline como padrão, como em produção. */
+    /** Um seletor com os três motores e o baseline como padrão, como em produção. */
     public static PlanEngineSelector selector() {
         return new PlanEngineSelector(
-                List.of(greedy(), genetic()), GreedyBaselineEngine.ID);
+                List.of(greedy(), genetic(), timeline()), GreedyBaselineEngine.ID);
     }
 
     /** O motor guloso (EOA-2). */
@@ -121,7 +134,6 @@ public final class PlanEngines {
     /** O motor genético com um orçamento de busca escolhido. */
     public static GeneticPlanEngine genetic(int generations, int populationSize,
             boolean dailyLoadBudget) {
-        SinapseFitnessConfig compositions = new SinapseFitnessConfig();
         return new GeneticPlanEngine(
                 new DefaultGeneticAlgorithmFactory(
                         new TournamentSelection(),
@@ -129,16 +141,36 @@ public final class PlanEngines {
                                 new RepairingCrossover()),
                         new CreepMutation()),
                 new DefaultPopulationGenerator(),
-                compositions.sinapseFitnessComposition(
-                        new ScoreGainObjective(), new RetentionObjective(),
-                        new DailyLoadBudgetObjective(), new MinimumDaysConstraint(),
-                        new MandatoryReviewConstraint(new HybridRetentionEngine()),
-                        new SoftPrerequisiteOrderConstraint(FitnessWeights.SOFT_PREREQUISITE_ORDER),
-                        dailyLoadBudget),
+                composition(dailyLoadBudget),
                 new HybridRetentionEngine(),
                 conditions(),
                 CORE_VERSION,
                 new GeneticSearchBudget(generations, populationSize));
+    }
+
+    /**
+     * O motor de linha do tempo (EOA-8), com a mesma composição e o mesmo orçamento de teste do
+     * {@code ga}: os dois genéticos diferem aqui só na representação, como em produção.
+     */
+    public static TimelinePlanEngine timeline() {
+        return new TimelinePlanEngine(
+                composition(true),
+                new HybridRetentionEngine(),
+                conditions(),
+                new TournamentSelection(),
+                new SpacedRepetitionRepairer(new HybridRetentionEngine()),
+                new GeneticSearchBudget(TEST_GENERATIONS, TEST_POPULATION),
+                CORE_VERSION);
+    }
+
+    /** A composição de fitness do caminho SINAPSE, a mesma que o Spring monta em produção. */
+    private static FitnessComposition composition(boolean dailyLoadBudget) {
+        return new SinapseFitnessConfig().sinapseFitnessComposition(
+                new ScoreGainObjective(), new RetentionObjective(),
+                new DailyLoadBudgetObjective(), new MinimumDaysConstraint(),
+                new MandatoryReviewConstraint(new HybridRetentionEngine()),
+                new SoftPrerequisiteOrderConstraint(FitnessWeights.SOFT_PREREQUISITE_ORDER),
+                dailyLoadBudget);
     }
 
     /**
