@@ -396,6 +396,22 @@ study history, `algorithmParams` and `randomSeed`.
 **Response:** a `PlanResponse` — the scheduled sessions, the fitness breakdown of the terms that
 actually ran, and execution metadata.
 
+**`metadata`, field by field:**
+
+| Field | What it carries |
+|---|---|
+| `coreVersion` | the Maven version of the Core (`project.version`). It does **not** identify the build: it stays the same across many commits. The commit is in `fitness.build` (see [Choosing the engine per request](#choosing-the-engine-per-request-algorithmparamsengine)) |
+| `randomSeed` | the seed the plan was built with, echoed from the request |
+| `generations` | the generations the genetic engines actually ran (`plan.engine.ga.generations`); `0` for `greedy-baseline` |
+| `elapsedMillis` | **a reserved constant, always `0`, in every engine. It does not measure time.** |
+
+`elapsedMillis` is `0` on purpose ([ADR 0008](./docs/adr/0008-elapsed-millis-reservado.md), decided by
+the project owner on 2026-10-08): a measured duration would make two runs of the same seeded request
+differ, and byte-for-byte reproducibility is a requirement. The field stays in the contract because
+removing it would change contract v1.0. Whoever needs a duration measures it outside the Core: the
+platform times its call, and the Core's measurement harness times the engine call itself
+(`MeasurementHarness`).
+
 **Error Handling:**
 Every error is returned as a standardized **RFC 7807 Problem Detail**. Handling is split across three
 ordered `@RestControllerAdvice` classes, separated by the *nature of the cause* rather than by status
@@ -589,7 +605,7 @@ Valid values are the registered engines: `ga`, `ga-timeline` and `greedy-baselin
 | What the request sends | Answer |
 |---|---|
 | no `engine` key | `200`, planned by the default engine |
-| `"greedy-baseline"`, the default named explicitly | `200`, the **same plan** as with no key: every field except `metadata.elapsedMillis` |
+| `"greedy-baseline"`, the default named explicitly | `200`, the **same plan** as with no key, every field included |
 | another registered name | `200`, planned by that engine |
 | `null` | **`400`**, type `.../errors/malformed-body` |
 | `""` (empty string) | **`422`**, type `.../errors/unknown-engine`, `offending: [""]` |

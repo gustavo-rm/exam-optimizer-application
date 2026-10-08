@@ -78,8 +78,13 @@ READ(api/exception/ProblemDetails.java:34@9104c1b)
 - Guaranteed: same body, same `randomSeed`, same engine ⇒ same plan, on any thread.
   OBSERVED(9104c1b, `./mvnw test -Dtest=PlanEngineDeterminismTest,GaResultadoInalteradoTest` →
   16 tests, 0 failures). Rules that keep it: CLAUDE.md §3 and §5.
-- `metadata.elapsedMillis` is the constant 0 in every engine, precisely to keep the response
-  reproducible. READ(GeneticPlanEngine.java:70-84@9104c1b). Do not use it as a duration (EOA-13).
+- `metadata.elapsedMillis` is a **reserved constant, always 0**, in every engine, and it does not
+  measure time. It stays 0 by owner decision DT-2 of 2026-10-08
+  ([ADR-0008](../adr/0008-elapsed-millis-reservado.md)): a measured duration would make two runs of
+  the same seeded request differ. Whoever needs a duration measures it outside the Core: the
+  platform times its call, the Core's harness times the engine call (`MeasurementHarness`).
+  DECISION(project owner, 2026-10-08); constant READ(GeneticPlanEngine.java:84,
+  TimelinePlanEngine.java:102, GreedyBaselineScheduler.java:99@40e6061).
 - `metadata.generations` is the real count for the GA engines and 0 for greedy.
   READ(GeneticPlanEngine.java:72-73, GreedyBaselineScheduler.java:78@9104c1b)
 - Core version: `metadata.coreVersion`, resolved from `baseline.core.version=@project.version@`.
@@ -95,7 +100,8 @@ READ(api/exception/ProblemDetails.java:34@9104c1b)
 - That the `offending` id of a `ga-timeline` `plan-would-be-empty` names the cause: it is always the
   first topic of the request. READ(sinapse/TimelinePlanEngine.java:183@9104c1b)
 - That `generations`/`population-size`/`mutation-rate` sent in `algorithmParams` change anything (K6).
-- That `elapsedMillis` measures time (K5), or that `coreVersion` identifies a build (K7).
+- That `elapsedMillis` measures time: it is a reserved constant 0 (ADR-0008, STATE.md K5). Nor that
+  `coreVersion` identifies a build (K7).
 - That a missing `engine` key and `"engine": null` mean the same thing: null is a 400.
 - That a partial plan is an error: not enough availability yields a declared partial plan, a prefix
   of the study order, with `partial` and `topics-unscheduled-ids` in `fitness`. READ(README.md:245-250@9104c1b)

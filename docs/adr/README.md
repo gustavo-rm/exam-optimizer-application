@@ -40,3 +40,4 @@ antigo passa a "Substituído por". O histórico é o valor.
 | [0005](./0005-criterio-de-classificacao-de-erro.md) | O que separa `IllegalArgumentException` (400) de `DomainException` (422) | Aceito |
 | [0006](./0006-separacao-de-responsabilidades-do-otimizador.md) | Três classes para quatro responsabilidades no otimizador | Aceito |
 | [0007](./0007-idioma-do-codigo-e-da-documentacao.md) | Inglês para o que a máquina lê, português para o que a pessoa lê | Aceito |
+| [0008](./0008-elapsed-millis-reservado.md) | `metadata.elapsedMillis` continua 0; quem precisa de tempo mede por fora | Aceito |

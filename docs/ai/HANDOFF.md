@@ -42,8 +42,11 @@ them. READ(@9104c1b). Current files match: OBSERVED(9104c1b, `sha256sum src/test
 
 ## Responses to requests from the other repository
 
-None recorded. `sinapse-platform` has no `docs/ai/` yet, and it was not read in this task.
-UNVERIFIED(planner, 2026-10-08)
+Requests are read in `sinapse-platform`'s `docs/ai/HANDOFF.md`, at the SHA in each row.
+
+| Their ID | Read at | Response | Resolved by | Status |
+|---|---|---|---|---|
+| SP-H2 | other-repo@1006475 | Decided by the project owner on 2026-10-08 (DT-2, [ADR-0008](../adr/0008-elapsed-millis-reservado.md)): the Core will **not** fill `metadata.elapsedMillis`. It stays a reserved constant 0, so the response stays reproducible byte for byte and the contract does not change. The platform measures the call itself, in a new column (its SP-8 item 3c) | EOA-13 Part A (documentation only); done on the platform side when SP-8 item 3c is delivered | acknowledged |
 
 ## Cross-repository log
 
