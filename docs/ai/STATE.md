@@ -13,7 +13,7 @@ document's contents.
 |---|---|---|---|---|---|
 | EOA-10 | Real-catalogue scale diagnosis | done | #32 (merge `abd6676`) | — | [docs/DIAGNOSTICO_ESCALA_REAL.md](../DIAGNOSTICO_ESCALA_REAL.md). Merged: OBSERVED(9104c1b, `git log --merges`) |
 | EOA-11b | Engine-selection tests and docs | done | #33 (merge `21c8e41`) | — | README documents `algorithmParams.engine` and indexes all four read keys. Follow-up #34 (`9104c1b`) put `ga-timeline` in `PlanEngines.all()`. OBSERVED(9104c1b, `git log --merges`) |
-| EOA-13 | `elapsedMillis` (DT-2) and honest hyperparameters (D4) | done | (number added in a second commit) | #33 (merged), D4 and DT (decided 2026-10-08) | Item 0 executed: the three GA keys are ignored (`HiperparametrosDoCoreHttpTest`). 0b: effective `importance`/`precedence` already in `fitness` for the GA engines; they do not apply to greedy, nothing stamped. 0c: `fitness.build`. Part A documentation only |
+| EOA-13 | `elapsedMillis` (DT-2) and honest hyperparameters (D4) | done | #36 | #33 (merged), D4 and DT (decided 2026-10-08) | Item 0 executed: the three GA keys are ignored (`HiperparametrosDoCoreHttpTest`). 0b: effective `importance`/`precedence` already in `fitness` for the GA engines; they do not apply to greedy, nothing stamped. 0c: `fitness.build`. Part A documentation only |
 | EOA-12 | GA repair at real scale | blocked | — | D1, D2 | Inputs: EOA-10 §8 and §10. Prompt still a skeleton: UNVERIFIED(planner, 2026-10-08) |
 | EOA-9b | 2×2 factorial for the thesis | pending | — | EOA-12 | — |
 | AI-1 | AI context layer (`docs/ai/`, CLAUDE.md protocol) | done | #35 (merge `40e6061`) | — | ID assigned here; the planner had none. Merged: OBSERVED(`git log --merges`) |
