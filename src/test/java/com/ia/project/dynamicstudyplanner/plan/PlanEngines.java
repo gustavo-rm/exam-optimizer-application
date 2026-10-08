@@ -21,10 +21,12 @@ import com.ia.project.dynamicstudyplanner.ga.fitness.objective.RetentionObjectiv
 import com.ia.project.dynamicstudyplanner.ga.fitness.objective.ScoreGainObjective;
 import com.ia.project.dynamicstudyplanner.service.calculation.retention.HybridRetentionEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.DailyLoadBudgetObjective;
+import com.ia.project.dynamicstudyplanner.sinapse.GeneticEngineParameters;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticPlanEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.RequestConditions;
 import com.ia.project.dynamicstudyplanner.sinapse.GeneticSearchBudget;
 import com.ia.project.dynamicstudyplanner.sinapse.SinapseFitnessConfig;
+import com.ia.project.dynamicstudyplanner.sinapse.TimelineEngineParameters;
 import com.ia.project.dynamicstudyplanner.sinapse.TimelinePlanEngine;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.GoalPriorityImportance;
 import com.ia.project.dynamicstudyplanner.sinapse.importance.ImportanceStrategies;
@@ -67,6 +69,9 @@ public final class PlanEngines {
 
     /** A versão reportada como {@code metadata.coreVersion}; qualquer string não vazia serve aqui. */
     private static final String CORE_VERSION = "2.0.1";
+
+    /** Um build fixo, para que planos de teste comparem sem depender do commit corrente. */
+    public static final BuildIdentity BUILD = new BuildIdentity("test-build");
 
     /**
      * The widest provenance condition, which is what every test that is not about the ablation
@@ -113,7 +118,15 @@ public final class PlanEngines {
     /** Um seletor com os três motores e o baseline como padrão, como em produção. */
     public static PlanEngineSelector selector() {
         return new PlanEngineSelector(
-                List.of(greedy(), genetic(), timeline()), GreedyBaselineEngine.ID);
+                List.of(greedy(), genetic(), timeline()), GreedyBaselineEngine.ID, paramsLog(),
+                BUILD);
+    }
+
+    /** O registro de {@code algorithmParams}, com os parâmetros efetivos dos dois AGs de teste. */
+    public static AlgorithmParamsLog paramsLog() {
+        GeneticSearchBudget budget = new GeneticSearchBudget(TEST_GENERATIONS, TEST_POPULATION);
+        return new AlgorithmParamsLog(List.of(new GeneticEngineParameters(budget),
+                new TimelineEngineParameters(budget)));
     }
 
     /** O motor guloso (EOA-2). */

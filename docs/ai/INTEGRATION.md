@@ -24,16 +24,16 @@ README "Core contract (v1.0)"; they are not repeated here.
 - Records ↔ reference JSON on this side: `coreapi/CoreContractGoldenTest` (round trip, union of keys,
   component sweep). OBSERVED(9104c1b, `./mvnw test -Dtest=CoreContractGoldenTest` → 8 tests, 0 failures)
 - Reference JSON here ↔ reference JSON in the platform: **process only**. No test in this repository
-  reads the platform's copy; the platform runs a twin test against its own copy, which is
-  UNVERIFIED(this repository's README and test Javadoc, not read in sinapse-platform).
+  reads the platform's copy. The platform's side of the protection is in its own
+  `docs/ai/INTEGRATION.md` "Reference contract JSON" (READ at other-repo@1006475).
 
 ## algorithmParams — index
 
 `algorithmParams` is an open `Map<String, Object>` in v1.0, so a key is not a contract change.
-Accepted values, defaults and errors: README "Choosing the engine per request" (for `engine`),
-README "Objective function" (`importance`, README.md:104), README "Provenance: three conditions,
-one key" (`provenance`). `precedence` values are only in `plan/PrecedencePolicy.java:37-40` and
-CLAUDE.md §1b (STATE.md K9).
+Accepted values, defaults, error answers and whether the response carries the effective value, for
+all four keys: README "Choosing the engine per request", subsection "The closed set: the four keys
+the Core applies". OBSERVED(EOA-13 branch, executed over HTTP for each engine). `importance` and
+`precedence` do not apply to `greedy-baseline`: it neither reads nor validates them.
 
 | Key | Read in | Status |
 |---|---|---|
@@ -41,7 +41,7 @@ CLAUDE.md §1b (STATE.md K9).
 | `importance` | `sinapse/importance/ImportanceStrategies.java:86` | READ(@9104c1b) |
 | `precedence` | `plan/PrecedencePolicies.java:50` | READ(@9104c1b) |
 | `provenance` | `plan/PrerequisiteProvenance.java:62` | READ(@9104c1b) |
-| `generations`, `population-size`, `mutation-rate` | nowhere in `src/main`; ignored | READ(grep@9104c1b); no-effect not executed (EOA-13 item 0) |
+| `generations`, `population-size`, `mutation-rate` | nowhere in `src/main`; ignored, name logged at WARN | OBSERVED(EOA-13 branch, `HiperparametrosDoCoreHttpTest`); deliberate: the Core owns the GA hyperparameters, DECISION(project owner, 2026-10-08, ADR-0009) |
 
 `importance`, `precedence` and `provenance` change the **problem**, not the search: they are
 experimental factors. READ(README.md:226-243; CLAUDE.md §1b@9104c1b)
@@ -58,9 +58,15 @@ experimental factors. READ(README.md:226-243; CLAUDE.md §1b@9104c1b)
 
 **Effective values in the response.** The response does not echo `algorithmParams`. It does record
 the effective condition in `fitness`: `engine` (all engines), `prerequisite-provenance` (all
-engines), `importance-strategy` and `precedence-policy` (`ga` and `ga-timeline` only; the greedy
-engine reports neither). READ(PlanEngineSelector.java:129, sinapse/SinapseFitness.java:74,134-135,
-baseline/BaselineFitness.java:79@9104c1b). Not executed over HTTP.
+engines), `importance-strategy` and `precedence-policy` (`ga` and `ga-timeline` only, defaults
+included; they do not apply to the greedy engine, which reports neither). OBSERVED(EOA-13 branch,
+over HTTP, with and without the keys, for each engine). The GA's search parameters are not in the
+response except `metadata.generations`; they are logged at INFO per request.
+
+**Build identity.** `fitness.build` is the commit SHA the Core was built from (`-dirty` suffix for
+a dirty tree, `unknown` without git), stamped by the selector next to `fitness.engine`.
+`metadata.coreVersion` does not identify the build (STATE.md K7). OBSERVED(EOA-13 branch,
+`VersaoDoBuildTest`).
 
 ## Error types
 
@@ -78,13 +84,18 @@ READ(api/exception/ProblemDetails.java:34@9104c1b)
 - Guaranteed: same body, same `randomSeed`, same engine ⇒ same plan, on any thread.
   OBSERVED(9104c1b, `./mvnw test -Dtest=PlanEngineDeterminismTest,GaResultadoInalteradoTest` →
   16 tests, 0 failures). Rules that keep it: CLAUDE.md §3 and §5.
-- `metadata.elapsedMillis` is the constant 0 in every engine, precisely to keep the response
-  reproducible. READ(GeneticPlanEngine.java:70-84@9104c1b). Do not use it as a duration (EOA-13).
+- `metadata.elapsedMillis` is a **reserved constant, always 0**, in every engine, and it does not
+  measure time. It stays 0 by owner decision DT-2 of 2026-10-08
+  ([ADR-0008](../adr/0008-elapsed-millis-reservado.md)): a measured duration would make two runs of
+  the same seeded request differ. Whoever needs a duration measures it outside the Core: the
+  platform times its call, the Core's harness times the engine call (`MeasurementHarness`).
+  DECISION(project owner, 2026-10-08); constant READ(GeneticPlanEngine.java:84,
+  TimelinePlanEngine.java:102, GreedyBaselineScheduler.java:99@40e6061).
 - `metadata.generations` is the real count for the GA engines and 0 for greedy.
   READ(GeneticPlanEngine.java:72-73, GreedyBaselineScheduler.java:78@9104c1b)
 - Core version: `metadata.coreVersion`, resolved from `baseline.core.version=@project.version@`.
   OBSERVED(9104c1b, built `target/classes/application-baseline-core.properties` → `2.0.1`). It does
-  not identify a commit (STATE.md K7).
+  not identify a commit; `fitness.build` does (STATE.md K7).
 - The tactical gene order depends on `HashMap` iteration order; numbers are tied to JDK 21.
   READ(CLAUDE.md §5b@9104c1b)
 
@@ -94,8 +105,12 @@ READ(api/exception/ProblemDetails.java:34@9104c1b)
   instances with 422 `plan-would-be-empty` (STATE.md K2, K3).
 - That the `offending` id of a `ga-timeline` `plan-would-be-empty` names the cause: it is always the
   first topic of the request. READ(sinapse/TimelinePlanEngine.java:183@9104c1b)
-- That `generations`/`population-size`/`mutation-rate` sent in `algorithmParams` change anything (K6).
-- That `elapsedMillis` measures time (K5), or that `coreVersion` identifies a build (K7).
+- That `generations`/`population-size`/`mutation-rate` sent in `algorithmParams` change anything (K6,
+  ADR-0009).
+- That `importance` or `precedence` sent to `greedy-baseline` are validated or applied: they are
+  neither, and an invalid value there is answered `200`.
+- That `elapsedMillis` measures time: it is a reserved constant 0 (ADR-0008, STATE.md K5). Nor that
+  `coreVersion` identifies a build: read `fitness.build` (K7).
 - That a missing `engine` key and `"engine": null` mean the same thing: null is a 400.
 - That a partial plan is an error: not enough availability yields a declared partial plan, a prefix
   of the study order, with `partial` and `topics-unscheduled-ids` in `fitness`. READ(README.md:245-250@9104c1b)
@@ -120,6 +135,12 @@ PROPOSAL — nobody has decided this procedure; the README rule it builds on is 
 2. Bump `PlanRequest.VERSION`; update both reference JSON files identically in both repositories.
 3. Provider (this repository) lands first, consumer second, within one logical change.
 4. Never edit a reference JSON to make a test pass (CLAUDE.md §2).
+
+## What the consumer assumes about this repository
+
+Not restated here: `sinapse-platform` `docs/ai/INTEGRATION.md` "Assumptions about the Core" (READ at
+other-repo@1006475). Where one of those assumptions is contradicted by this repository, the row there
+names the STATE.md entry here that says so.
 
 ## What this repository assumes about its consumer
 
