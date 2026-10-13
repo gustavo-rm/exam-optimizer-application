@@ -86,6 +86,7 @@ suppressed (CLAUDE.md §1, "The prohibition"). DECISION(stated by project owner)
 | `docs/adr/` | ADRs, Portuguese, `NNNN-slug.md`, indexed in [docs/adr/README.md](../adr/README.md) |
 | `docs/revisao-ag/`, `docs/qualidade/` | GA review and quality sweep reports, each with a README index |
 | `docs/DIAGNOSTICO_ESCALA_REAL.md` (+ `.csv`, `docs/diagnostico-escala-real/`) | EOA-10 real-scale diagnosis |
+| `docs/REPARO_ESCALA_REAL.md` (+ `docs/reparo-escala-real/`) | EOA-12 repair: Phase 0 experiments, the `ga-timeline` fix, open Phase 2 proposals |
 | `docs/ai/` | this layer |
 
 Root-level `*_ARCHITECTURE.md`, `*_AUDIT.md` and `*_EVALUATION.md` files were not reviewed for this
@@ -120,6 +121,7 @@ This repository offers it the v1.0 contract and expects nothing that is verified
 | Why a past architectural choice was made | [docs/adr/](../adr/README.md) |
 | GA review history and measured results | [docs/revisao-ag/README.md](../revisao-ag/README.md) |
 | Why the GA fails on the real catalogue | [docs/DIAGNOSTICO_ESCALA_REAL.md](../DIAGNOSTICO_ESCALA_REAL.md) §1 |
+| What EOA-12 repaired, and what is still open | [docs/REPARO_ESCALA_REAL.md](../REPARO_ESCALA_REAL.md) §1, §7 |
 | Contract component-by-component | [docs/CORE_CONTRACT_SURVEY.md](../CORE_CONTRACT_SURVEY.md) |
 
 ## Files that are never edited

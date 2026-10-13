@@ -101,8 +101,11 @@ READ(api/exception/ProblemDetails.java:34@9104c1b)
 
 ## Known deviations — what a consumer must NOT assume
 
-- That any engine plans the real catalogue fully: `ga-timeline` and `ga` refuse most real-catalogue
-  instances with 422 `plan-would-be-empty` (STATE.md K2, K3).
+- That `ga` plans the real catalogue: it refuses 23 of 30 real-catalogue runs with 422
+  `plan-would-be-empty` (STATE.md K3). `ga-timeline` answers 30 of 30 since EOA-12 (K2 closed), and
+  no engine schedules every topic: some never fit any window (STATE.md K4).
+- That two runs of the same request give byte-identical JSON across JVM restarts: the key order of
+  `fitness` varies (STATE.md K13). Compare parsed content.
 - That the `offending` id of a `ga-timeline` `plan-would-be-empty` names the cause: it is always the
   first topic of the request. READ(sinapse/TimelinePlanEngine.java:183@9104c1b)
 - That `generations`/`population-size`/`mutation-rate` sent in `algorithmParams` change anything (K6,
@@ -124,8 +127,11 @@ SHA-256 of all three match the README table: OBSERVED(9104c1b, `sha256sum src/te
 
 `src/test/resources/instances/reproducers/` (commit `b9f62b3`): two minimal requests produced by
 the EOA-10 `ddmin` reduction in `diagnostic/RealCatalogDiagnosticTest`. `ga-timeline-empty-minimal.json`
-(one 150-min topic, one 70-min window) is refused by `ga-timeline` and by greedy;
-`…-feasible.json` (two topics) is accepted by greedy and still refused by `ga-timeline` in 10/10 seeds. READ(docs/DIAGNOSTICO_ESCALA_REAL.md:318-319@9104c1b). Do not edit them.
+(one 150-min topic, one 70-min window) is refused by all three engines in 10/10 seeds, rightly:
+nothing fits. `…-feasible.json` (a 50-min and a 150-min topic, one 70-min window) is accepted by
+greedy and, since EOA-12, by `ga-timeline` in 10/10 seeds with the one 50-min session that fits;
+`ga` still refuses it in 10/10. OBSERVED(9405285, `RealCatalogRepairTest`; `LinhaDoTempoPlanoNaoVazioTest`
+pins the feasible case in `verify`). Do not edit them.
 
 ## Contract change protocol
 
