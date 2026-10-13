@@ -44,6 +44,12 @@ import java.util.List;
  * saída, e qualquer etapa depois dele poderia quebrá-las de novo. O reparo de retenção vem antes dele
  * porque sobrescreve blocos e muda durações, e o reempacotamento precisa ver o multiconjunto final.
  *
+ * <h2>Aptidão não finita vale o pior valor</h2>
+ *
+ * Logo depois de cada {@code calculateFitness}, {@link NonFiniteFitness#demote} troca {@code NaN} e
+ * infinitos por {@code -Infinity}. Sem isso o plano vazio, que pontua {@code NaN}, vencia
+ * {@code getFittest} e o elitismo o mantinha até o fim (EOA-12, ADR-0011).
+ *
  * <h2>Elitismo, e o que deliberadamente não tem</h2>
  *
  * O melhor indivíduo passa intacto para a geração seguinte, como no laço macro. <b>Não há
@@ -107,6 +113,8 @@ public final class TimelineSearch {
         Population initial = new Population(seeds.size());
         seeds.forEach(plan -> initial.addIndividual(new Individual(plan)));
         initial.calculateFitness(context);
+        // Antes de qualquer leitor: o plano vazio pontua NaN, e Double.compare poria NaN no topo.
+        NonFiniteFitness.demote(initial);
 
         Population current = initial;
         for (int generation = 0; generation < generations; generation++) {
@@ -134,6 +142,7 @@ public final class TimelineSearch {
         }
 
         next.calculateFitness(context);
+        NonFiniteFitness.demote(next);
         return next;
     }
 
