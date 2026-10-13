@@ -295,7 +295,8 @@ Before any non-trivial task:
    read it, say so and mark every dependent claim UNVERIFIED. Do not guess.
 After the task, in the SAME PR as the code:
 4. Update your row in STATE.md (edit only your own task row to avoid merge conflicts), known issues
-   and open decisions.
+   and open decisions. Write your own row as done in the PR that finishes it, adding the PR number
+   in a second commit; a row left in-progress inside its own PR is stale the moment it merges.
 5. Add or close entries in HANDOFF.md when the change affects the other repository.
 6. Record an ADR (or a DECISION line in CONTEXT.md if the repository has no ADR directory) for any
    decision that someone with authority actually made. Never record a proposal as a decision.

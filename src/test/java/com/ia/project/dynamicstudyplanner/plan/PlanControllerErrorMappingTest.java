@@ -28,7 +28,7 @@ class PlanControllerErrorMappingTest {
 
     private final PlanController controller = new PlanController(new PlanEngineSelector(
             List.of(new GreedyBaselineEngine(new GreedyBaselineScheduler("2.0.1", PlanEngines.ALL_PROVENANCE))),
-            GreedyBaselineEngine.ID));
+            GreedyBaselineEngine.ID, PlanEngines.paramsLog(), PlanEngines.BUILD));
 
     private static MockHttpServletRequest postToPlans() {
         return new MockHttpServletRequest("POST", PlanProtocol.PLANS_PATH);

@@ -6,12 +6,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -89,5 +92,44 @@ class VersaoDoBuildTest {
         assertThat(resposta.metadata().coreVersion())
                 .as("a atribuicao so serve se sair na resposta, nao apenas na configuracao")
                 .isEqualTo(versaoDeclaradaNoPom());
+    }
+
+    /**
+     * {@code coreVersion} não distingue um build de outro; {@code fitness.build} distingue.
+     *
+     * <p>O valor esperado é lido do {@code git.properties} que o {@code git-commit-id-maven-plugin}
+     * gerou neste mesmo build, e não reescrito aqui: o teste prova o caminho do arquivo até a
+     * resposta. Quando o arquivo não tem commit (build fora de um clone git), o esperado é
+     * {@code unknown}, e o teste continua valendo.
+     */
+    @Test
+    @DisplayName("fitness.build chega na resposta com o commit que o build registrou")
+    void oCommitDoBuildChegaNaResposta() throws IOException {
+        Properties gerado = new Properties();
+        try (InputStream arquivo = new ClassPathResource("git.properties").getInputStream()) {
+            gerado.load(arquivo);
+        }
+        String commit = gerado.getProperty("git.commit.id");
+        String esperado = commit == null ? BuildIdentity.UNKNOWN
+                : commit + (Boolean.parseBoolean(gerado.getProperty("git.dirty"))
+                        ? BuildIdentity.DIRTY_SUFFIX : "");
+
+        PlanResponse resposta = motores.plan(PlanRequests.builder().build());
+
+        assertThat(resposta.fitness()).containsEntry(BuildIdentity.FITNESS_KEY, esperado);
+        assertThat(resposta.fitness().get(BuildIdentity.FITNESS_KEY))
+                .as("o build nao e a versao Maven")
+                .isNotEqualTo(resposta.metadata().coreVersion());
+    }
+
+    @Test
+    @DisplayName("o git.properties embarcado nao carrega nome nem e-mail de ninguem")
+    void oArquivoNaoCarregaDadoPessoal() throws IOException {
+        Properties gerado = new Properties();
+        try (InputStream arquivo = new ClassPathResource("git.properties").getInputStream()) {
+            gerado.load(arquivo);
+        }
+
+        assertThat(gerado.stringPropertyNames()).isSubsetOf("git.commit.id", "git.dirty");
     }
 }

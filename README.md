@@ -396,6 +396,22 @@ study history, `algorithmParams` and `randomSeed`.
 **Response:** a `PlanResponse` — the scheduled sessions, the fitness breakdown of the terms that
 actually ran, and execution metadata.
 
+**`metadata`, field by field:**
+
+| Field | What it carries |
+|---|---|
+| `coreVersion` | the Maven version of the Core (`project.version`). It does **not** identify the build: it stays the same across many commits. The commit is in `fitness.build` (see [Choosing the engine per request](#choosing-the-engine-per-request-algorithmparamsengine)) |
+| `randomSeed` | the seed the plan was built with, echoed from the request |
+| `generations` | the generations the genetic engines actually ran (`plan.engine.ga.generations`); `0` for `greedy-baseline` |
+| `elapsedMillis` | **a reserved constant, always `0`, in every engine. It does not measure time.** |
+
+`elapsedMillis` is `0` on purpose ([ADR 0008](./docs/adr/0008-elapsed-millis-reservado.md), decided by
+the project owner on 2026-10-08): a measured duration would make two runs of the same seeded request
+differ, and byte-for-byte reproducibility is a requirement. The field stays in the contract because
+removing it would change contract v1.0. Whoever needs a duration measures it outside the Core: the
+platform times its call, and the Core's measurement harness times the engine call itself
+(`MeasurementHarness`).
+
 **Error Handling:**
 Every error is returned as a standardized **RFC 7807 Problem Detail**. Handling is split across three
 ordered `@RestControllerAdvice` classes, separated by the *nature of the cause* rather than by status
@@ -446,7 +462,7 @@ requires marking the job as a required status check in the branch protection set
 
 * **Stateless:** The API is stateless and does not maintain sessions.
 * **Public Access:** `POST /plans` is `permitAll()` on a filter chain of its own, and so is Swagger UI. `/api/v1/**` is still `permitAll()` although nothing handles it since EOA-4b — the rule is kept so that removing it stays a deliberate posture change rather than a side effect of this removal. CSRF is disabled.
-* **No authentication anywhere.** Because nothing authenticates `/plans`, **this service must run on a private network, behind the platform** — see [Core scheduler](#-core-scheduler-two-engines-behind-post-plans-baseline-core-profile) for the requirement in both languages.
+* **No authentication anywhere.** Because nothing authenticates `/plans`, **this service must run on a private network, behind the platform** — see [Core scheduler](#-core-scheduler-three-engines-behind-post-plans-baseline-core-profile) for the requirement in both languages.
 * **No rate limiting.** The Bucket4j filter priced a request by its exam syllabus and its `gaConfig` and guarded only `/api/v1/optimizer/**`; it left with that path in EOA-4b. `/plans` was never behind it, so no protection was lost — and none exists. Add one before this service is reachable by anything but the platform.
 * **Input Validation:** `PlanRequestGuard` and `HorizonBounds` refuse, before any search runs, a request whose horizon, availability, topics or prerequisite graph cannot produce a plan — with `422` naming what it tripped over. `EffortTierBands` refuses a tier outside the contract's closed set.
 
@@ -524,8 +540,9 @@ their serialisation against reference documents that are byte-for-byte identical
 | `docs/CORE_CONTRACT_SURVEY.md` | Component-by-component transcription of the platform's records |
 
 **The reference documents are the source of truth**, not either side's Java. They are what
-`coreapi/CoreContractGoldenTest` pins the wire shape against, and the platform runs a twin test
-(`br.com.sinapse.platform.coreclient.CoreContractGoldenTest`) reading the same two files. The trade
+`coreapi/CoreContractGoldenTest` pins the wire shape against. The platform's side of that protection
+is described in its own `docs/ai/INTEGRATION.md`, "Reference contract JSON" (`sinapse-platform`,
+read at `1006475`). The trade
 is deliberate and worth stating: publishing an artifact would make the compiler catch a divergence,
 and without one the build catches it instead — one test run later, but with nothing to version,
 publish and keep in step across two release cycles.
@@ -556,7 +573,7 @@ Two details that look like tidying and are not:
   into the local domain model. Mapping to and from `PlanningItem`, `StudyPlan` and the rest is the
   adapter's job (`sinapse/`).
 
-## 🧭 Core scheduler: two engines behind `POST /plans` (`baseline-core` profile)
+## 🧭 Core scheduler: three engines behind `POST /plans` (`baseline-core` profile)
 
 `POST /plans` has **three implementations behind one interface** (`plan.PlanEngine`), which are the
 conditions of the experiment:
@@ -578,6 +595,9 @@ the engine returns, so an engine can neither mislabel its own output nor forget 
 
 ### Choosing the engine per request: `algorithmParams.engine`
 
+This section covers `engine` first, then [the four keys](#the-closed-set-the-four-keys-the-core-applies)
+the Core applies, and [who owns the GA's search parameters](#the-gas-search-parameters-belong-to-the-core).
+
 The key is `algorithmParams.engine` (`PlanEngineSelector.ENGINE_PARAM`). **It is not a new field of
 the contract**: `algorithmParams` is already an open `Map<String, Object>` in `PlanRequest` v1.0, so
 a value under it changes no schema. The reference documents in `src/test/resources/contract/` do not
@@ -589,7 +609,7 @@ Valid values are the registered engines: `ga`, `ga-timeline` and `greedy-baselin
 | What the request sends | Answer |
 |---|---|
 | no `engine` key | `200`, planned by the default engine |
-| `"greedy-baseline"`, the default named explicitly | `200`, the **same plan** as with no key: every field except `metadata.elapsedMillis` |
+| `"greedy-baseline"`, the default named explicitly | `200`, the **same plan** as with no key, every field included |
 | another registered name | `200`, planned by that engine |
 | `null` | **`400`**, type `.../errors/malformed-body` |
 | `""` (empty string) | **`422`**, type `.../errors/unknown-engine`, `offending: [""]` |
@@ -613,28 +633,83 @@ and the effective engine is visible only under `fitness.engine`.
 The engine choice does not enter the seed: the same body, the same `randomSeed` and the same engine
 give the same plan, with or without the key when it names the default.
 
-**`engine` is not the only key the Core applies.** `src/main` reads four keys of `algorithmParams`:
+#### The closed set: the four keys the Core applies
 
-| Key | Read in |
-|---|---|
-| `engine` | `PlanEngineSelector.java:98` |
-| `importance` | `ImportanceStrategies.java:86` |
-| `precedence` | `PrecedencePolicies.java:50` |
-| `provenance` | `PrerequisiteProvenance.java:62` |
+`engine` is one of **four** keys the Core reads from `algorithmParams`. The set is closed: `engine`,
+`importance`, `precedence` and `provenance` (`AlgorithmParamsLog.APPLIED_KEYS`). Every other key is
+accepted and ignored. The values, defaults and error answers below were checked against the code and
+executed over HTTP on the reference request, for each engine, in EOA-13.
 
-Every other key is ignored, including the `generations`, `population-size` and `mutation-rate` the
-platform sends. The search budget comes from `plan.engine.ga.*`.
+| Key | Accepted values | Default when absent | Unknown string, `""` included | Non-string, e.g. `42` | Effective value in the response | Applies to |
+|---|---|---|---|---|---|---|
+| `engine` | `ga`, `ga-timeline`, `greedy-baseline` | `plan.engine.default` = `greedy-baseline` | `422` `unknown-engine` | `422` `unusable-engine` | `fitness.engine`, every engine | every request |
+| `importance` | `goal-priority`, `prerequisite-centrality` | `plan.fitness.sinapse.importance-strategy` = `goal-priority` | `422` `unknown-importance-strategy` | `422` `unusable-importance-strategy` | `fitness.importance-strategy`, also when it came from the default | `ga`, `ga-timeline` |
+| `precedence` | `lexicographic`, `weighted` | **per engine**: `ga` → `lexicographic`, `ga-timeline` → `weighted` | `422` `unknown-precedence-policy` | `422` `unusable-precedence-policy` | `fitness.precedence-policy`, also when it came from the default | `ga`, `ga-timeline` |
+| `provenance` | `curated`, `curated-textbook`, `all` | `plan.prerequisites.provenance` = `all` | `422` `unknown-provenance-filter` | `422` `unusable-provenance-filter` | `fitness.prerequisite-provenance`, every engine | every engine |
 
-These behaviours are pinned by `PlanEngineSelectionHttpTest` (over HTTP, on the reference request)
-and `PlanEngineSelectorTest`. Reproducibility per engine is covered by `PlanEngineDeterminismTest`
+Error types are `https://api.dynamicstudyplanner.com/errors/<code>`, and a `422` names the value in
+`offending`. A `null` value under **any** of the four keys is a `400` `malformed-body`, for the
+reason given above for `engine`. An unknown value is refused, never replaced by the default.
+
+**`importance` and `precedence` do not apply to `greedy-baseline`.** The greedy engine runs no
+fitness, so it has nothing to weigh by importance and no repair-or-price choice to make
+(`CLAUDE.md` §1b). It does not read either key, so it does not validate them either: sent to the
+greedy engine, even an invalid value is answered `200` with the same plan as without the key, and
+its `fitness` carries neither `importance-strategy` nor `precedence-policy`. Nothing is stamped
+there on purpose: stamping a value would claim the greedy engine applied a condition it ignores.
+`provenance` does apply to the greedy engine.
+
+#### The GA's search parameters belong to the Core
+
+Decided by the project owner on 2026-10-08 (D4, [ADR 0009](./docs/adr/0009-hiperparametros-sao-do-core.md)).
+`generations`, `population-size` and `mutation-rate` — the three keys the reference request
+`src/test/resources/contract/plan-request-v1.0.json` carries — are outside the closed set and change
+nothing. **Executed, not only read**: `HiperparametrosDoCoreHttpTest`
+sends the same request and seed with each of them at a minimum and a maximum value and gets the
+same sessions, `fitness` and `metadata`. As a positive control, the same engine built with a
+one-generation budget does produce a different plan.
+
+What actually runs:
+
+| Parameter | `ga` | `ga-timeline` | Where it comes from |
+|---|---|---|---|
+| generations | 60 | 60 | `plan.engine.ga.generations` |
+| population size | 40 | 40 | `plan.engine.ga.population-size` |
+| crossover rate | 0.95 | 0.95 | `DefaultGeneticAlgorithmFactory.CROSSOVER_RATE` / `TimelineSearch.CROSSOVER_RATE` |
+| mutation rate | 0.05 | 0.05 | `DefaultGeneticAlgorithmFactory.MUTATION_RATE` / `TimelineSearch.MUTATION_RATE` |
+| elitism, stagnation patience, hypermutation rate | on, 25, 0.20 | — | `DefaultGeneticAlgorithmFactory` |
+
+The ignored keys are no longer ignored silently. On every request the Core logs a `WARN` naming the
+received keys outside the closed set (names only, never values) and an `INFO` with the effective
+search parameters of the engine that runs (`AlgorithmParamsLog`).
+
+**Which build ran is in `fitness.build`**: the full commit SHA the jar was built from, with a
+`-dirty` suffix if the tree had uncommitted changes, or `unknown` if it was built outside a git
+clone. `metadata.coreVersion` is the Maven version and does **not** identify the build. The rates
+are code, so the commit identifies them. `generations` and `population-size` are configuration:
+the commit identifies their packaged values, but a deployment can override `plan.engine.ga.*`, and
+such an override shows only in `metadata.generations` (for generations) and in the `INFO` log line.
+The response has no field for the population size or the rates, and none was added: that would be
+a contract change.
+
+These behaviours are pinned by `PlanEngineSelectionHttpTest` (over HTTP, on the reference request),
+`PlanEngineSelectorTest`, `HiperparametrosDoCoreHttpTest` (the ignored keys, executed),
+`AlgorithmParamsLogTest` (the log lines) and `BuildIdentityTest` / `VersaoDoBuildTest`
+(`fitness.build`). Reproducibility per engine is covered by `PlanEngineDeterminismTest`
 for all three engines, and again for every engine by `MeasurementHarnessTest` through
 `MeasurementHarness.checkReproducible`.
 
 Every engine checks its own answer with `PlanOutputInvariants.check` before returning it
-(`GreedyBaselineScheduler.java:173`, `GeneticPlanEngine.java:192`, `TimelinePlanEngine.java:304`):
-the eight properties `RestSinapseCore.validated` applies, the four it does not (horizon, availability
-window, non-overlap, known `topicId`) and contiguous `sequenceIndex`. A violation is answered with
-`500`, never returned as a plan.
+(`GreedyBaselineScheduler.java:173`, `GeneticPlanEngine.java:192`, `TimelinePlanEngine.java:304`).
+What the Core enforces there: the contract version; at least one session; metadata naming the core
+version and echoing the seed; every session with a topic, a kind and a start, and a positive
+duration; every topic one that was sent; every session starting inside the horizon and fitting
+whole inside one availability window; no two sessions overlapping; `sequenceIndex` unique and
+contiguous from 0; and no session of a dependent topic before its `HARD` prerequisites. A violation
+is answered with `500`, never returned as a plan. `PlanEngineInvariantTest` checks it for all three
+engines. What the platform validates on its side is described in its own documentation,
+`sinapse-platform` `docs/ai/INTEGRATION.md` "Response validation" (read at `1006475`); this README
+does not restate it.
 
 In tests, `PlanEngineInvariantTest` and the rest of the suite parameterised over
 `PlanEngines.all()` cover all three engines. That list is written by hand, not read from the
