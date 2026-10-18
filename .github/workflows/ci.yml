@@ -62,7 +62,7 @@ jobs:
       # arquivo e linha, sem exigir que alguém releia o log inteiro.
       - name: Publica relatorio de estilo
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: checkstyle-report
           path: target/checkstyle-result.xml
@@ -72,7 +72,7 @@ jobs:
       # Publicado mesmo quando a etapa anterior falha: é o relatório que explica a falha.
       - name: Publica relatorios de teste
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: surefire-reports
           path: target/surefire-reports/
@@ -81,7 +81,7 @@ jobs:
 
       - name: Publica relatorio de cobertura
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jacoco-report
           path: target/site/jacoco/
