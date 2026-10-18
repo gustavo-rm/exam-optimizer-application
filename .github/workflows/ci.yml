@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Java 21: é a versão que o pom fixa em <java.version> e a que o bytecode gerado usa
       # (major version 65). O `source`/`target` 24 declarado no maven-compiler-plugin é inerte,
