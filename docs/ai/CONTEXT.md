@@ -131,7 +131,7 @@ The single list; each row names where the rule comes from.
 | Path | Rule | Source |
 |---|---|---|
 | `src/test/resources/contract/*.json` | never edited, not even to make a test pass; byte-identical to the platform's copies, and a failure there means the repositories diverged | CLAUDE.md §2 |
-| `src/test/resources/instances/*.json` and its `README.md` | byte-for-byte copies of `sinapse-platform@cbb5529`, SHA-256 listed in that README and in `docs/DIAGNOSTICO_ESCALA_REAL.md` §2 (EOA-10); updated only by a new copy whose SHA-256 is checked, announced by the platform | HANDOFF.md EOA-H2 |
+| `src/test/resources/instances/*.json` and its `README.md` | byte-for-byte copies of `sinapse-platform@3e9ce74` (EOA-14), SHA-256 listed in that README; updated only by a new copy whose SHA-256 is checked, announced by the platform | HANDOFF.md EOA-H2 |
 | `src/test/resources/instances/reproducers/` | the EOA-10 `ddmin` reproducers; not edited | INTEGRATION.md "Instances shared with the platform" |
 | `ga/strategy/mutation/CreepMutation`, `ga/strategy/mutation/TransferMutation`, `ga/strategy/crossover/WeightedAverageCrossover`, `ga/strategy/selection/TournamentSelection`, `ga/Population`, the evolution loop in `ga/GeneticAlgorithm` | not touched without an explicit instruction | CLAUDE.md §4 |
 | `GaResultadoInalteradoTest` | never weakened (seed, assertion, comparison); a divergence is a finding | CLAUDE.md §5 |
