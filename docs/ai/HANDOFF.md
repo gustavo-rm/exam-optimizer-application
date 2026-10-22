@@ -32,14 +32,18 @@ UNVERIFIED(not read in sinapse-platform).
 | Date | 2026-10-08 (registered here; copy made in commit `e9e09d1` on 2026-10-05) |
 | What changes or is needed | If the platform regenerates the instances in its repository, they must be copied again here byte for byte and the expected SHA-256 values updated |
 | Why | EOA-10 results are tied to those exact bytes |
-| Interface affected | `src/test/resources/instances/*.json` and their README (copied from `sinapse-platform@cbb5529`) |
+| Interface affected | `src/test/resources/instances/*.json` and their README (copied from `sinapse-platform@cbb5529`; since EOA-14 from `sinapse-platform@3e9ce74`) |
 | What the platform must do | Announce a regeneration in its `docs/ai/HANDOFF.md`, with the new commit SHA |
 | Depends on | nothing |
-| Status | acknowledged |
+| Status | done |
 
-Where the expected SHA-256 values live here: the table in `src/test/resources/instances/README.md`
-and the truncated table in `docs/DIAGNOSTICO_ESCALA_REAL.md` §2. No test in this repository asserts
-them. READ(@9104c1b). Current files match: OBSERVED(9104c1b, `sha256sum src/test/resources/instances/*.json`).
+The platform announced its regeneration (commit `b65540a`, PR #27) in its `docs/ai/HANDOFF.md`, rows
+EOA-H2 and SP-H4, read at other-repo@3e9ce74; EOA-14 made the new copy (see SP-H4 below). A future
+regeneration is a new request. Where the expected SHA-256 values live here: the table in
+`src/test/resources/instances/README.md`. `docs/DIAGNOSTICO_ESCALA_REAL.md` §2 keeps the truncated
+values of the `cbb5529` copy it measured. No test in this repository asserts the SHA-256 values;
+`InstanciasSemChavesIgnoradasTest` asserts that the copies carry none of the three ignored keys.
+READ(EOA-14). Current files match the README: OBSERVED(EOA-14, `sha256sum src/test/resources/instances/*.json`).
 
 ## Responses to requests from the other repository
 
@@ -50,6 +54,7 @@ Requests are read in `sinapse-platform`'s `docs/ai/HANDOFF.md`, at the SHA in ea
 | SP-H1 | other-repo@1006475 | (a) Executed, not only read: `generations`, `population-size` and `mutation-rate` sent in `algorithmParams` do not change the plan (`HiperparametrosDoCoreHttpTest`: minimum and maximum of each key give the same sessions, `fitness` and `metadata`; a positive control with a one-generation Core budget does change the plan). They stay ignored by decision D4 (ADR-0009) and each request now logs their names at WARN. (b) The response already reports the effective `importance` (`fitness.importance-strategy`) and `precedence` (`fitness.precedence-policy`) for `ga` and `ga-timeline`, defaults included, and `provenance` (`fitness.prerequisite-provenance`) for every engine; `importance` and `precedence` do not apply to `greedy-baseline`, so nothing is reported there. Values, defaults and errors: README "Choosing the engine per request" | EOA-13 Part B, items 0 and 0b (#36) | done |
 | SP-H2 | other-repo@1006475 | Decided by the project owner on 2026-10-08 (DT-2, [ADR-0008](../adr/0008-elapsed-millis-reservado.md)): the Core will **not** fill `metadata.elapsedMillis`. It stays a reserved constant 0, so the response stays reproducible byte for byte and the contract does not change. The platform measures the call itself, in a new column (its SP-8 item 3c) | EOA-13 Part A (documentation only); done on the platform side when SP-8 item 3c is delivered | acknowledged |
 | SP-H3 | other-repo@1006475 | EOA-12, by owner decisions D1 and D2 (ADR-0010, ADR-0011). **`ga-timeline`: resolved.** On the three instances from `cbb5529` × seeds 1–10 it answers 30/30 with a non-empty plan that passes `PlanOutputInvariants` (was 0/30); median topics 13, 18 and 33 on `apertado`, `medio`, `folgado`. Gate pinned in `verify` (`LinhaDoTempoPlanoNaoVazioTest`). **`ga`: not yet.** It still refuses 23/30; the cause is placement (the first topic of its order, 150 min, never fits a window), not fitness, and the options are owner decisions listed in `docs/REPARO_ESCALA_REAL.md` §7. Greedy and `ga` responses are unchanged by the fix. Data: `docs/REPARO_ESCALA_REAL.md` §5 and `docs/reparo-escala-real/*.csv`. OBSERVED(9405285) | EOA-12 (`ga-timeline`); `ga` open (STATE.md K3) | acknowledged |
+| SP-H4 | other-repo@3e9ce74 | **Done: the responses do not change.** The three JSON and the README were copied byte for byte from the platform's `origin/main` at `3e9ce74` (merge of PR #27; regeneration commit `b65540a` is reachable from it); `cmp` equal, and the SHA-256 of the working-tree file and of the committed blob match the README table: `apertado` `d9efef5f…9f82`, `medio` `6b46cf43…64aa`, `folgado` `8a0ebf3f…5e71`. The same harness (`RealCatalogRepairTest`), same engines and seeds, was run with the old and the new instances and the **content** compared (sessions; `fitness` with keys sorted and without `fitness.build`; `metadata`; code and message for refusals): equal in **90 of 90** runs (3 instances × `greedy-baseline`, `ga`, `ga-timeline` × seeds 1–10; `ga` still refuses 23 of them, identically) and in **3 of 3** HTTP requests of the files as is (200, default engine, 2/15/33 sessions). The ignored-keys WARN appears with the old files and not with the new ones. One correction to the request: no test in the Core fails on the instances' SHA-256; the protection is the copy procedure (EOA-H2) and, since EOA-14, `InstanciasSemChavesIgnoradasTest` | EOA-14 | done |
 
 ## Cross-repository log
 
@@ -57,6 +62,7 @@ Newest first, at most 20 entries; older ones leave (git keeps them).
 
 | Date | Change | Interface affected | Action required |
 |---|---|---|---|
+| 2026-10-21 | EOA-14 answers SP-H4 (done) and closes EOA-H2: instances copied from other-repo@3e9ce74 without the three ignored keys; responses equal in content in 90/90 runs and 3/3 HTTP requests | test inputs only | platform: close SP-H4 on its side when this PR merges |
 | 2026-10-13 | EOA-12: `ga-timeline` no longer answers `plan-would-be-empty` on the real catalogue (30/30 non-empty, valid); `ga` still refuses 23/30; greedy and `ga` responses unchanged | `POST /plans` behaviour of `ga-timeline` (no shape change) | platform: may use `ga-timeline` on the real catalogue; still do not rely on `ga` (SP-H3) |
 | 2026-10-08 | EOA-13 answers the platform's SP-H1 (done: executed), SP-H2 (acknowledged, DT-2) and SP-H3 (acknowledged, EOA-12), read at other-repo@1006475 | none (answers only) | platform: close SP-H1 on its side when this PR merges |
 | 2026-10-08 | EOA-13: `fitness.build` carries the Core's build commit; the ignored `algorithmParams` keys are logged by name; README documents the four applied keys; D4 and DT decided (ADR-0009, ADR-0008) | `PlanResponse.fitness` (open map, no contract change) | platform: may read `fitness.build` to know which Core build produced a plan; `metadata.coreVersion` does not say it |

@@ -122,8 +122,24 @@ READ(api/exception/ProblemDetails.java:34@9104c1b)
 ## Instances shared with the platform
 
 `src/test/resources/instances/`: three synthetic `PlanRequest`s (`apertado`, `medio`, `folgado`) and
-a README, copied byte for byte from `sinapse-platform@cbb5529`. READ(docs/DIAGNOSTICO_ESCALA_REAL.md:52-58@9104c1b);
-SHA-256 of all three match the README table: OBSERVED(9104c1b, `sha256sum src/test/resources/instances/*.json`).
+a README, copied byte for byte from `sinapse-platform` `origin/main` at `3e9ce74` (merge of its PR #27;
+the files are those of its regeneration commit `b65540a`, reachable from that `origin/main`).
+OBSERVED(EOA-14, other-repo@3e9ce74, `cmp` against the clone). SHA-256 of all three match that
+README's table, in the working tree and in the committed blob: OBSERVED(EOA-14, `sha256sum`).
+
+They carry `"algorithmParams": { }`: no `generations`, `population-size` or `mutation-rate`. Only that
+member changed from the earlier copy (`sinapse-platform@cbb5529`); topics, windows, goals, horizon
+and seed are identical. READ(EOA-14, `diff` of the two copies). The platform stopped sending the three
+keys and regenerated the instances without them: DECISION(project owner, 2026-10-20, platform
+SP-8-3b option A). `InstanciasSemChavesIgnoradasTest` pins that the copies carry none of the three
+keys and that each file, posted as is, gets a 200 plan from the default engine with no ignored-keys
+WARN.
+
+The Core answers the new instances exactly as it answered the old ones: same content (sessions,
+`fitness` with keys sorted and without `fitness.build`, `metadata`; code and message for refusals) in
+90 of 90 runs (3 instances × 3 engines × seeds 1–10) and in 3 of 3 HTTP requests of the files as is.
+OBSERVED(3b54ba4 + the new copies, `RealCatalogRepairTest` before and after, 90 runs + 3 HTTP
+requests). So the EOA-10 and EOA-12 results measured on the old bytes hold for the new ones.
 
 `src/test/resources/instances/reproducers/` (commit `b9f62b3`): two minimal requests produced by
 the EOA-10 `ddmin` reduction in `diagnostic/RealCatalogDiagnosticTest`. `ga-timeline-empty-minimal.json`
@@ -131,7 +147,9 @@ the EOA-10 `ddmin` reduction in `diagnostic/RealCatalogDiagnosticTest`. `ga-time
 nothing fits. `…-feasible.json` (a 50-min and a 150-min topic, one 70-min window) is accepted by
 greedy and, since EOA-12, by `ga-timeline` in 10/10 seeds with the one 50-min session that fits;
 `ga` still refuses it in 10/10. OBSERVED(9405285, `RealCatalogRepairTest`; `LinhaDoTempoPlanoNaoVazioTest`
-pins the feasible case in `verify`). Do not edit them.
+pins the feasible case in `verify`). Being derived from the old instances, both still carry
+`generations`, `population-size` and `mutation-rate` (each request logs the ignored-keys WARN):
+harmless, since the Core ignores them (STATE.md K6). READ, OBSERVED(EOA-14 log). Do not edit them.
 
 ## Contract change protocol
 
