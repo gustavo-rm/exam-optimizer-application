@@ -44,3 +44,4 @@ antigo passa a "Substituído por". O histórico é o valor.
 | [0009](./0009-hiperparametros-sao-do-core.md) | Os hiperparâmetros do AG são do Core | Aceito |
 | [0010](./0010-criterio-de-reparo-do-ag.md) | O que encerra o reparo do AG: invariantes como portão, qualidade só medida | Aceito |
 | [0011](./0011-escopo-do-reparo-do-ag.md) | O que o reparo do AG pode tocar, em estágios | Aceito |
+| [0012](./0012-medir-opcoes-do-alocador.md) | Medir duas opções do alocador, sem adotar nenhuma | Aceito |
