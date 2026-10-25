@@ -11,11 +11,14 @@ import com.ia.project.dynamicstudyplanner.ga.tactical.repair.ChromosomeRepairer;
 import com.ia.project.dynamicstudyplanner.plan.AvailabilityAllocator;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
 import com.ia.project.dynamicstudyplanner.plan.PlacementVariant;
+import com.ia.project.dynamicstudyplanner.plan.SkipAheadAllocator;
 import com.ia.project.dynamicstudyplanner.sinapse.AvailabilityWindows;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -186,7 +189,51 @@ public final class VariantTimelineRepairer implements ChromosomeRepairer {
     private TacticalStudyPlan skipAhead(List<PlanningItem> order,
             Map<PlanningItem, List<TacticalStudyBlock>> byItem) {
 
-        throw new UnsupportedOperationException("P ainda não implementada");
+        SkipAheadAllocator allocator = SkipAheadAllocator.from(prepared);
+        Map<TimeSlot, TacticalStudyBlock> schedule = new LinkedHashMap<>();
+        boolean[] skipped = new boolean[positions.size()];
+
+        for (PlanningItem item : order) {
+            int at = positions.get(item);
+            if (!skipped[at] && !placeItem(allocator, byItem.get(item), schedule)) {
+                skipWithDependents(at, skipped);
+            }
+        }
+        return new TacticalStudyPlan(schedule);
+    }
+
+    /**
+     * Os blocos de um item sob P: o primeiro é obrigatório, os seguintes param no primeiro que não cabe.
+     *
+     * @return se o item entrou no plano, isto é, se o primeiro bloco coube
+     */
+    private static boolean placeItem(SkipAheadAllocator allocator, List<TacticalStudyBlock> blocks,
+            Map<TimeSlot, TacticalStudyBlock> schedule) {
+
+        for (int index = 0; index < blocks.size(); index++) {
+            TacticalStudyBlock block = blocks.get(index);
+            Optional<Instant> start = allocator.place((int) block.durationMinutes());
+            if (start.isEmpty()) {
+                return index > 0;
+            }
+            put(schedule, start.get(), block);
+        }
+        return true;
+    }
+
+    /** A regra P4, sobre os vetores de dependentes que o construtor já montou. */
+    private void skipWithDependents(int root, boolean[] skipped) {
+        Deque<Integer> pending = new ArrayDeque<>();
+        pending.push(root);
+        while (!pending.isEmpty()) {
+            int at = pending.pop();
+            if (!skipped[at]) {
+                skipped[at] = true;
+                for (int dependent : dependents[at]) {
+                    pending.push(dependent);
+                }
+            }
+        }
     }
 
     private static void put(Map<TimeSlot, TacticalStudyBlock> schedule, Instant start,

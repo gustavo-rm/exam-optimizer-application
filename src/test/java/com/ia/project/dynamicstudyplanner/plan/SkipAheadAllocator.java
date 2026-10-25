@@ -70,7 +70,33 @@ public final class SkipAheadAllocator {
      * @return os inícios, ou vazio, e nesse caso o estado é o de antes da chamada
      */
     public Optional<List<Instant>> placeAll(List<Integer> durations) {
-        throw new UnsupportedOperationException("P ainda não implementada");
+        List<Instant> starts = new ArrayList<>(durations.size());
+        for (int minutes : durations) {
+            Optional<Instant> start = live.place(minutes);
+            if (start.isEmpty()) {
+                rollBack();
+                return Optional.empty();
+            }
+            starts.add(start.get());
+        }
+        accepted.addAll(durations);
+        return Optional.of(List.copyOf(starts));
+    }
+
+    /**
+     * Volta ao estado depois da última tentativa aceita.
+     *
+     * <p>Refazer uma duração aceita não pode falhar: foi aceita a partir deste mesmo estado. Se
+     * falhar, o alocador de produção deixou de ser determinístico, e a medição para aqui.
+     */
+    private void rollBack() {
+        live = prepared.rewound();
+        for (int minutes : accepted) {
+            if (live.place(minutes).isEmpty()) {
+                throw new IllegalStateException("Refazer as colocações aceitas divergiu em "
+                        + minutes + " minutos: o alocador não é função da sequência aceita.");
+            }
+        }
     }
 
     /** @return os minutos oferecidos, como {@link AvailabilityAllocator#availableMinutes()} */

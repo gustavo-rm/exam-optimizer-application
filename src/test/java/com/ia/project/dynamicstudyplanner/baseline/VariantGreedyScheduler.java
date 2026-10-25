@@ -5,6 +5,7 @@ import com.ia.project.dynamicstudyplanner.coreapi.contract.PlanResponse;
 import com.ia.project.dynamicstudyplanner.coreapi.contract.SessionKind;
 import com.ia.project.dynamicstudyplanner.plan.AvailabilityAllocator;
 import com.ia.project.dynamicstudyplanner.plan.EdgeProvenanceFilter;
+import com.ia.project.dynamicstudyplanner.plan.HardDependents;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
 import com.ia.project.dynamicstudyplanner.plan.PlacedSession;
 import com.ia.project.dynamicstudyplanner.plan.PlacementVariant;
@@ -119,7 +120,43 @@ public final class VariantGreedyScheduler implements VariantEngine {
     private static List<PlacedSession> skipAhead(List<PlanRequest.Topic> order,
             RevisionPolicy revision, SkipAheadAllocator allocator, HardPrerequisiteGraph graph) {
 
-        throw new UnsupportedOperationException("P ainda não implementada");
+        List<PlacedSession> placed = new ArrayList<>();
+        Set<UUID> skipped = new TreeSet<>(HardPrerequisiteGraph.BY_TEXT);
+        for (PlanRequest.Topic topic : order) {
+            if (skipped.contains(topic.id())) {
+                continue;
+            }
+            List<PlacedSession> ofTopic = placeWhole(topic, revision, allocator);
+            if (ofTopic.isEmpty()) {
+                skipped.add(topic.id());
+                skipped.addAll(HardDependents.of(graph, topic.id()));
+                continue;
+            }
+            placed.addAll(ofTopic);
+        }
+        return List.copyOf(placed);
+    }
+
+    /**
+     * A unidade de tentativa do guloso sob P: estudo e, quando concedida, revisão, numa só tentativa.
+     *
+     * <p>Se a revisão não cabe, o estudo volta junto e nenhuma janela é consumida (regras P2 e P3).
+     */
+    private static List<PlacedSession> placeWhole(PlanRequest.Topic topic, RevisionPolicy revision,
+            SkipAheadAllocator allocator) {
+
+        int study = topic.estimatedMinutes();
+        if (!revision.needsRevision(topic.id())) {
+            return allocator.place(study)
+                    .map(start -> List.of(new PlacedSession(topic.id(), SessionKind.STUDY, start, study)))
+                    .orElse(List.of());
+        }
+        int again = RevisionPolicy.revisionMinutes(study);
+        return allocator.placeAll(List.of(study, again))
+                .map(starts -> List.of(
+                        new PlacedSession(topic.id(), SessionKind.STUDY, starts.get(0), study),
+                        new PlacedSession(topic.id(), SessionKind.REVISION, starts.get(1), again)))
+                .orElse(List.of());
     }
 
     private static int topicsScheduled(List<PlacedSession> placed) {

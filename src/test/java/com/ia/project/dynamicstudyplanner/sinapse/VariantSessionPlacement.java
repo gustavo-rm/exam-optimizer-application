@@ -8,8 +8,10 @@ import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyBlock;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TacticalStudyPlan;
 import com.ia.project.dynamicstudyplanner.domain.tactical.TimeSlot;
 import com.ia.project.dynamicstudyplanner.plan.AvailabilityAllocator;
+import com.ia.project.dynamicstudyplanner.plan.HardDependents;
 import com.ia.project.dynamicstudyplanner.plan.HardPrerequisiteGraph;
 import com.ia.project.dynamicstudyplanner.plan.PlacementVariant;
+import com.ia.project.dynamicstudyplanner.plan.SkipAheadAllocator;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -17,6 +19,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
 import java.util.function.IntFunction;
 
 /**
@@ -79,7 +84,33 @@ public final class VariantSessionPlacement {
             List<PlanRequest.Topic> order, StudyPlan chromosome,
             Map<PlanRequest.Topic, PlanningItem> itemsByTopic, HardPrerequisiteGraph graph) {
 
-        throw new UnsupportedOperationException("P ainda não implementada");
+        SkipAheadAllocator allocator = SkipAheadAllocator.over(request);
+        Map<TimeSlot, TacticalStudyBlock> schedule = new LinkedHashMap<>();
+        Set<UUID> skipped = new TreeSet<>(HardPrerequisiteGraph.BY_TEXT);
+        int scheduled = 0;
+        long minutes = 0;
+
+        for (PlanRequest.Topic topic : order) {
+            if (skipped.contains(topic.id())) {
+                continue;
+            }
+            PlanningItem item = itemsByTopic.get(topic);
+            List<Block> blocks = placeTopic(topic, item, chromosome.getDaysForItem(item),
+                    allocator::place);
+            if (blocks.isEmpty()) {
+                skipped.add(topic.id());
+                skipped.addAll(HardDependents.of(graph, topic.id()));
+                continue;
+            }
+            for (Block block : blocks) {
+                schedule.put(block.slot(), block.block());
+                minutes += block.block().durationMinutes();
+            }
+            scheduled++;
+        }
+
+        return new SessionPlacement.Result(new TacticalStudyPlan(schedule), scheduled, order.size(),
+                minutes);
     }
 
     /**
