@@ -87,6 +87,7 @@ suppressed (CLAUDE.md §1, "The prohibition"). DECISION(stated by project owner)
 | `docs/revisao-ag/`, `docs/qualidade/` | GA review and quality sweep reports, each with a README index |
 | `docs/DIAGNOSTICO_ESCALA_REAL.md` (+ `.csv`, `docs/diagnostico-escala-real/`) | EOA-10 real-scale diagnosis |
 | `docs/REPARO_ESCALA_REAL.md` (+ `docs/reparo-escala-real/`) | EOA-12 repair: Phase 0 experiments, the `ga-timeline` fix, open Phase 2 proposals |
+| `docs/MEDICAO_ALOCADOR.md` (+ `docs/alocador-opcoes/`) | EOA-12b: allocator options P and D measured, none adopted (ADR-0012) |
 | `docs/ai/` | this layer |
 
 Root-level `*_ARCHITECTURE.md`, `*_AUDIT.md` and `*_EVALUATION.md` files were not reviewed for this
