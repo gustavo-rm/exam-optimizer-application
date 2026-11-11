@@ -45,6 +45,18 @@ values of the `cbb5529` copy it measured. No test in this repository asserts the
 `InstanciasSemChavesIgnoradasTest` asserts that the copies carry none of the three ignored keys.
 READ(EOA-14). Current files match the README: OBSERVED(EOA-14, `sha256sum src/test/resources/instances/*.json`).
 
+### EOA-H3 — what the curation measurement found, for the curator's spreadsheet (ADR 0014)
+
+| Field | Value |
+|---|---|
+| Date | 2026-11-11 |
+| What changes or is needed | Nothing in the interface. The validation ADR 0014 asked for ("does HARD/SOFT produce different plans, do effort tiers change the allocation") was measured on synthetic instances shaped like `catalog/MED-ANAT` (read at other-repo@46b5b3c): both distinctions change the plan; neither is inert |
+| Why | ADR 0014: "if one of these distinctions does not pay, it leaves before costing curation at scale" — none leaves, but they pay differently |
+| Interface affected | none (catalogue content and the platform's `effort-tier-duration` configuration) |
+| What the platform must do | Read docs/MEDICAO_EIXOS_DE_CURADORIA.md §11 and decide D-CUR (STATE.md). Two findings concern the platform's side: the coverage effect of the effort axis is mostly the level of `effort-tier-duration` (its calibration), not the tier annotation; and the pilot needs two or more subjects, tightness around 1.0 and students with equal priorities for the engine comparison to be able to lose (§10) |
+| Depends on | nothing |
+| Status | open |
+
 ## Responses to requests from the other repository
 
 Requests are read in `sinapse-platform`'s `docs/ai/HANDOFF.md`, at the SHA in each row.
@@ -62,6 +74,7 @@ Newest first, at most 20 entries; older ones leave (git keeps them).
 
 | Date | Change | Interface affected | Action required |
 |---|---|---|---|
+| 2026-11-11 | EOA-1: curation axes measured (HARD/SOFT, effort tier, importance spread, 1–3 subjects); neither curated distinction is inert; recommendation in docs/MEDICAO_EIXOS_DE_CURADORIA.md §11 | none | platform: see EOA-H3 |
 | 2026-10-21 | EOA-14 answers SP-H4 (done) and closes EOA-H2: instances copied from other-repo@3e9ce74 without the three ignored keys; responses equal in content in 90/90 runs and 3/3 HTTP requests | test inputs only | platform: close SP-H4 on its side when this PR merges |
 | 2026-10-13 | EOA-12: `ga-timeline` no longer answers `plan-would-be-empty` on the real catalogue (30/30 non-empty, valid); `ga` still refuses 23/30; greedy and `ga` responses unchanged | `POST /plans` behaviour of `ga-timeline` (no shape change) | platform: may use `ga-timeline` on the real catalogue; still do not rely on `ga` (SP-H3) |
 | 2026-10-08 | EOA-13 answers the platform's SP-H1 (done: executed), SP-H2 (acknowledged, DT-2) and SP-H3 (acknowledged, EOA-12), read at other-repo@1006475 | none (answers only) | platform: close SP-H1 on its side when this PR merges |

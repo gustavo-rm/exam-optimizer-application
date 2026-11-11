@@ -247,3 +247,244 @@ comparação usa `ga_objective_*`, e nenhuma conclusão sobre motor sai de uma m
 | P6 | Com folga 1,5 nenhuma distinção passa o limiar em `topics_scheduled` | tudo cabe |
 
 Previsões que falharem são relatadas como falhas, na mesma tabela, com o número.
+
+---
+
+> ## A partir daqui: resultados
+>
+> Escritos depois da medição, em commit posterior ao do pré-registro (`18a0422`). Todo número sai de
+> `benchmarks/analysis/curation_axes.py` sobre `results/curation-axes.csv`; a saída inteira, sem
+> edição, está em [`eixos-de-curadoria/analise-completa.md`](./eixos-de-curadoria/analise-completa.md).
+> Onde um número vem de um recorte que o pré-registro **não** previa, ele está marcado
+> **[exploratório]**.
+
+## 7. A execução
+
+| Item | Valor | Status |
+|---|---|---|
+| Linhas | 7 020 (52 pontos × 3 folgas × 3 sorteios × 3 motores × 5 sementes), nenhum aborto | OBSERVED |
+| Grupo (a) | `invariants_ok` e `reproducible` verdadeiros nas 7 020 | OBSERVED |
+| Régua nova sob `all-hard` | 1 890 linhas, 0 inversões de ordem, 0 dependentes sem pré-requisito | OBSERVED |
+| Guloso entre sementes | 0 de 468 células com mais de um plano: dispersão entre sementes zero, medida | OBSERVED |
+| Dispersão efetiva (`importance_cv`) | 1 disciplina: 0 nos três níveis; 2: 0 / 0,143 / 0,667; 3: 0 / 0,141 / 0,808 | OBSERVED |
+| Tempo | 2 251 s. Mediana por linha (duas chamadas): guloso 0,2 / 0,5 / 0,8 ms, `ga` 6 / 12 / 19 ms, `ga-timeline` 197 / 461 / 680 ms com 35 / 70 / 105 tópicos | OBSERVED (`curation-axes-environment.txt`: JDK 21.0.12.1, 4 processadores) |
+| Folga efetiva, 2 disciplinas, nominal 0,7 / 1,0 / 1,5 | `uniform` e `tiers-flat` 0,89 / 1,30 / 1,92; `tiers-narrow` 0,82 / 1,20 / 1,77; `tiers-platform` 0,72 / 1,05 / 1,55 | OBSERVED — consequência declarada do calendário fixo (§2.3) |
+
+**Uma propriedade da v1 que condiciona a leitura.** Com folga 0,7, a população inicial do `ga` é
+inteiramente empatada em **100%** das linhas (`search_initial_distinct = 1`, 780 de 780), nos três
+tamanhos: é o G20 reaparecendo — o orçamento de sessões iguala a soma dos pisos, e a v1 não busca. Ali
+o plano dela é a ordem de estudo dela mais a colocação, e um resultado da v1 com folga 0,7 **não é
+evidência sobre busca**. A v2 tem população empatada em 15 de 780 linhas com folga 0,7. OBSERVED
+
+## 8. Resposta 1 — cada distinção curada muda o plano?
+
+### 8.1 Força da aresta (`HARD`/`SOFT`): **sim, nos três motores, e é a que mais muda**
+
+Taxa de plano idêntico contra `curated-mix`:
+
+| Contraste | Bloco | guloso | `ga` | `ga-timeline` |
+|---|---|---|---|---|
+| `all-soft` | F (2 disc.) | 180/540 | 0/540 | 0/540 |
+| `all-hard` | F | 0/540 | 0/540 | 0/540 |
+| `all-soft` | S, 1 disc. | 45/45 | 25/45 | 0/45 |
+| `all-hard` | S, 1 disc. | 10/45 | 10/45 | 0/45 |
+| `all-soft` / `all-hard` | S, 3 disc. | 0/45 | 0/45 | 0/45 |
+
+Efeito no bloco F (média pareada; entre parênteses, DP entre sementes), as linhas que passam o limiar:
+
+| Contraste | Motor | Folga | Inversões de ordem (todas as arestas) | Dependentes sem pré-requisito | Tópicos agendados |
+|---|---|---|---|---|---|
+| `all-soft − curated-mix` | guloso | 0,7 / 1,0 / 1,5 | +1,72 / **+3,22** / +3,33 (0) | **+1,61** / 0 / 0 | ≈ 0 |
+| | `ga` | 1,0 / 1,5 | **+2,23** (1,27) / +2,19 | +1,25 com 0,7 | −0,57 com 1,0 (não passa) |
+| | `ga-timeline` | 0,7 / 1,0 / 1,5 | **+9,21** (2,59) / **+21,38** (3,81) / +19,48 | **+7,68** (0,95) com 0,7 | **−2,22** (0,65) com 0,7 |
+| `all-hard − curated-mix` | guloso | 0,7 / 1,0 / 1,5 | −2,61 / **−4,19** (0) / −4,44 | ≈ 0 | ≈ 0 |
+| | `ga` | 1,0 / 1,5 | −1,44 (0,42) / −2,37 | ≈ 0 | +0,19 com 1,0 (não passa) |
+| | `ga-timeline` | 0,7 / 1,0 / 1,5 | **−3,97** (1,02) / **−6,52** (1,30) / −6,53 | **−1,89** com 0,7 | +0,74 com 0,7 (não passa) |
+
+Com três disciplinas os efeitos crescem: `all-soft` custa à v2 **−6,73 tópicos** com folga 0,7 e
++32,67 inversões com 1,0; `all-hard` custa ao guloso **−2,00 tópicos** com folga 0,7 (sinal igual nos
+três sorteios) e dá à v2 **+3,53**.
+
+**O regime em que o guloso reage, [exploratório].** No bloco F, o plano do guloso sob `all-soft` é
+**idêntico** ao de `curated-mix` em **todos** os 180 pares com importância `flat`, e diferente em
+todos os 360 com `close` ou `extreme` (+2,6 a +5,0 inversões). A razão é estrutural: as arestas
+`HARD` do catálogo apontam todas a favor da posição curricular, e com prioridades iguais o guloso já
+estuda por posição — a restrição nunca morde. Ela só passa a valer quando a prioridade das metas puxa a
+ordem para longe da posição. Com uma disciplina o mesmo acontece (45/45 idênticos sob `all-soft`).
+
+**Leitura.** A distinção não é inerte em nenhum motor. Rebaixar tudo a preferência (`all-soft`) piora
+ordem e órfãos em todo motor e, na v2, também a cobertura com folga apertada. Promover tudo a
+requisito (`all-hard`) melhora ordem e órfãos e quase não custa cobertura — **o único custo material de
+cobertura medido é o do guloso com três disciplinas e folga 0,7 (−2 tópicos)**. Isso tem uma ressalva
+que não se resolve com estes dados: `order_inversions_all_edges` trata toda aresta invertida como ruim,
+então `all-hard` ganha nela por construção. Se uma aresta `SOFT` é de fato opcional, invertê-la não é
+perda, e o benefício de rotulá-la `SOFT` — flexibilidade quando o calendário aperta — é exatamente o
+que apareceu pouco: em cobertura, só os 2 tópicos do guloso com três disciplinas.
+
+### 8.2 Faixa de esforço: **sim, mas por canais diferentes em cada motor**
+
+Taxa de plano idêntico contra `uniform`:
+
+| Contraste | guloso | `ga` | `ga-timeline` |
+|---|---|---|---|
+| `tiers-flat` (só a banda) | **405/405** (F), 45/45, 45/45 | 135/405 (F), 15/45, 15/45 | 0/405, 0/45, 0/45 |
+| `tiers-narrow`, `tiers-platform` | 0 em todos | 0 em todos | 0 em todos |
+
+Efeito no bloco F, folga 0,7 / 1,0 / 1,5 (DP entre sementes entre parênteses quando ≠ 0):
+
+| Contraste | Motor | Tópicos agendados | Sessões de revisão | Tópicos LONG+EXTENDED (latentes) agendados |
+|---|---|---|---|---|
+| `tiers-flat − uniform` | guloso | 0 / 0 / 0 | 0 / 0 / 0 | 0 |
+| | `ga` | 0 / ≈0 / 0 | 0 / 0 / 0 | ≈ 0 |
+| | `ga-timeline` | 0 / 0 / 0 | **−4,15** / **−4,73** / **−8,41** (8,6) | **+3,48** com 0,7 |
+| `tiers-narrow − uniform` | guloso | +0,15 / 0 / 0 | 0 | +0,22 com 0,7 |
+| | `ga` | −0,22 / **−1,96** / 0 | 0 / **−7,13** / **−11,00** | −0,44 com 1,0 |
+| | `ga-timeline` | +0,78 / 0 / 0 | **−4,44** / **−8,28** / **−14,60** | **+3,33** com 0,7 |
+| `tiers-platform − uniform` | guloso | **−7,11** / **−6,59** / 0 | 0 | **−2,07** / −1,78 |
+| | `ga` | **−6,33** / **−6,53** (0,95) / 0 | 0 / **−18,10** / **−26,00** | **−1,78** / **−2,67** |
+| | `ga-timeline` | **−5,46** (0,88) / **−1,56** / 0 | **−13,42** / **−19,78** / **−23,95** | **+2,16** com 0,7 |
+
+**Os dois canais, separados.**
+
+* **Banda** (`tiers-flat − uniform`, minutos iguais): o guloso não a vê — controle negativo, 405 de
+  405 planos idênticos. A v1 muda o cronograma em 2/3 dos pares mas não muda nenhuma métrica de
+  decisão: **muda o cronograma sem mudar o resultado**. A v2 é o único motor em que a banda sozinha
+  passa o limiar: 4 a 8 revisões a menos, e com folga 0,7 ~3,5 tópicos `LONG`/`EXTENDED` a mais no
+  lugar de curtos, com o mesmo total de tópicos.
+* **Minutos.** A diferença de cobertura de `tiers-platform` é quase toda **nível** da tabela, não
+  **distinção** entre faixas — **[exploratório]**: `tiers-narrow` (média 54 min) contra `uniform`
+  (50 min) não passa o limiar em tópicos em nenhum motor salvo a v1 com folga 1,0 (−1,96), e
+  `tiers-platform` contra `tiers-narrow` dá −4,6 a −7,3 tópicos no guloso e na v1 (folgas 0,7 e 1,0). Com o calendário fixo,
+  a tabela da plataforma pede ~24% mais minutos que "tudo STANDARD" (62 contra 50 min por tópico em
+  média), e é isso que tira 5 a 7 tópicos de 70. Ou seja: o número que mais move a cobertura é a
+  **calibração** da tabela, que é configuração da plataforma, não trabalho do curador.
+
+### 8.3 Dispersão de importância: **muda o plano; o resultado, pouco** — e não é curadoria
+
+Taxa de plano idêntico contra `flat`:
+
+| Contraste | Bloco | guloso | `ga` | `ga-timeline` |
+|---|---|---|---|---|
+| `close`, `extreme` | F | 0/540 | 184/540, 183/540 | 14/540, 7/540 |
+| `close`, `extreme` | S, 1 disc. | 45/45 | 45/45 | 45/45 |
+| `close`, `extreme` | S, 3 disc. | 0/45 | 15/45 | 0/45 |
+
+O guloso muda **sempre** que há duas disciplinas ou mais, e o que muda é a ordem: **+1,47 / +2,06 /
++2,11** inversões em todas as arestas (folga 0,7 / 1,0 / 1,5, DP 0, sinal igual nos três sorteios),
+iguais para `close` e `extreme` — a ordem do guloso é lexicográfica, então qualquer diferença de
+prioridade produz o mesmo plano. Com três disciplinas e folga 0,7 ele agenda **+4,00 tópicos**. A v1
+quase não reage: as médias ficam abaixo de 1 em todas as métricas de decisão, e com folga 0,7 os planos
+são idênticos (180/180) porque a v1 ali não busca (§7). A v2 passa o limiar uma vez no bloco F
+(`extreme`, folga 1,5: **+5,93 revisões**, DP 6,91) e quatro vezes com três disciplinas (−1,67 tópico com
+0,7, −1,27 revisão com 1,0, +1,20 e +2,67 inversões com 1,5). Com uma disciplina os três níveis dão o mesmo plano nos três motores,
+como previsto.
+
+A importância não sai da planilha do curador: sai das metas do aluno. Ela entra aqui porque decide o
+**regime** — e o regime decide se a força da aresta morde (§8.1).
+
+## 9. Resposta 2 — onde está a diferença entre os motores, com a importância ligada
+
+Quadro de hoje (`measurement.csv`, proveniência `all`): `ga` vence o guloso em inversões `SOFT` (100 /
+20 / 0) e não em cobertura (30 / 44 / 46). No regime novo, V/E/D pareados por instância e semente
+(vitória = menos inversões, mais tópicos):
+
+| `ga` contra guloso | Recorte | Inversões `SOFT` | Tópicos agendados | Inversões, todas as arestas | Órfãos |
+|---|---|---|---|---|---|
+| centro (força e esforço no centro) | todas as importâncias | **131 / 4 / 0** | 26 / 85 / 24 | 114 / 21 / 0 | 27 / 103 / 5 |
+| bloco F inteiro | `flat` | 265 / 243 / **32** | 56 / 351 / 133 | 248 / 263 / 29 | 37 / 437 / 66 |
+| | `close` | 354 / 184 / 2 | 25 / 378 / 137 | 349 / 189 / 2 | 45 / 486 / 9 |
+| | `extreme` | 350 / 187 / 3 | 25 / 384 / 131 | 346 / 193 / 1 | 45 / 481 / 14 |
+| | folga 1,0 | 320 / 199 / 21 | **21 / 193 / 326** | 324 / 200 / 16 | 12 / 484 / 44 |
+| | total | **969 / 614 / 37** | **106 / 1 113 / 401** | 943 / 645 / 32 | 127 / 1 404 / 89 |
+
+**Confirmado, e mais nítido.** A vantagem do `ga` continua na ordem e não na cobertura; na cobertura
+ele agora **perde** mais do que ganha (106 contra 401), quase tudo com folga 1,0 (326 derrotas em 540).
+O eixo novo mostra **onde a vantagem de ordem pode perder**: com importância `flat` o `ga` perde 32
+pares de inversões `SOFT`; com dispersão, 5 em 1 080. A dispersão de importância amplia a vantagem de
+ordem (média −0,92 com `flat`, −2,9 com `close`, −2,8 com `extreme`) porque é ela que tira o guloso da
+ordem curricular (§8.1).
+
+A v2, para registro: contra o guloso no bloco F ela agenda mais (290 / 1 250 / 80) e inverte mais
+(47 / 614 / 959 em `SOFT`), em todo nível de importância. Nenhuma das duas comparações usa
+`ga_objective_*`, e nenhuma conclusão sobre qual motor é melhor sai daqui: cada um ganha numa métrica
+e perde noutra.
+
+## 10. Resposta 3 — em que regime o piloto deve ficar para que a comparação possa perder
+
+| Fator | Faixa | Por quê (medido) |
+|---|---|---|
+| Folga | **entre 0,7 e 1,0, com 1,0 dentro** | com 1,5 tudo cabe: **0 de 540** pares do bloco F diferem em tópicos entre `ga` e guloso, e nenhuma distinção passa o limiar em tópicos (P6). Com 0,7 a v1 não busca (§7). Com 1,0 a cobertura do `ga` perde 326 de 540: é o único regime em que a comparação de cobertura perde de verdade |
+| Dispersão de importância | **incluir alunos com prioridades iguais** (o padrão 3) | é o único regime em que a vantagem de ordem do `ga` perde pares (32 contra 5) e em que o guloso segue a ordem curricular; com prioridades diferentes a comparação de ordem fica quase impossível de perder |
+| Tamanho | **duas disciplinas ou mais** | com uma, a importância é degenerada (planos idênticos nos três motores) e a força da aresta não move o guloso (45/45); com três os efeitos de força e esforço crescem (§8.1, §8.2) |
+
+Um piloto só com uma disciplina, folga larga e prioridades distintas produziria uma comparação que não
+tem como perder em ordem nem como diferir em cobertura. RECOMENDAÇÃO, não decisão.
+
+## 11. Resposta 4 — o que vale curar
+
+**Nenhuma das duas distinções da planilha do curador é inerte. Nenhuma sai.** Mas elas não pagam do
+mesmo jeito, e o tempo do curador deve seguir isso:
+
+1. **A aresta em si (qual tópico depende de qual) é o que mais move o plano.** Toda comparação de força
+   da §8.1 muda o plano em quase 100% dos pares com duas disciplinas ou mais.
+2. **`HARD`/`SOFT`: manter a coluna, com `HARD` como padrão barato.** Rebaixar arestas a `SOFT` piorou
+   ordem e órfãos em todo motor e não comprou cobertura (salvo 2 tópicos no guloso com três disciplinas
+   e calendário apertado); tratar tudo como `HARD` quase não custou nada medido. PROPOSTA para a
+   plataforma: o curador marca `SOFT` só quando sabe que a ordem é opcional, em vez de decidir aresta por
+   aresta — a ressalva da §8.1 sobre a régua vale aqui.
+3. **Faixa de esforço: vale curar, e é barata** (uma anotação ordinal por tópico). Ela muda o plano em
+   todo motor pelos minutos, e na v2 também pela banda (revisões, que tipo de tópico entra). **Mas o que
+   mais move a cobertura é a tabela de minutos, não a anotação**: a calibração de
+   `effort-tier-duration` contra dado do piloto merece mais atenção que refinar faixas. Com o motor
+   padrão de produção (`greedy-baseline`) a banda é inerte; só os minutos contam.
+4. **Importância** não é curadoria. Ela decide o regime, e por isso entra na especificação do piloto
+   (§10), não na planilha.
+
+Se o produto adotar `ga-timeline`, a força da aresta passa a ser a distinção de maior efeito medido
+(`all-soft` tira 2 a 7 tópicos com folga 0,7 e acrescenta 4 a 33 inversões), e a recomendação 2 fica mais forte.
+
+## 12. As previsões
+
+| # | Previsão | Resultado |
+|---|---|---|
+| P1 | `extreme − flat` muda o guloso em 100% com 2 ou 3 disciplinas e 0% com uma | **confirmada**: 0/540 e 0/45 idênticos; 45/45 idênticos com uma |
+| P2 | uma disciplina: planos idênticos nos três motores | **confirmada**: 45/45 em cada |
+| P3 | `all-soft − curated-mix` passa o limiar em órfãos no guloso com folga 0,7 | **confirmada com 2 e 3 disciplinas** (+1,61, +2,33); **falhou com uma** (planos idênticos, §8.1) |
+| P4 | `tiers-flat − uniform`: guloso 100% idêntico, genéticos mudam em parte | **confirmada**: 405/405; `ga` 135/405 idênticos, `ga-timeline` 0/405 |
+| P5 | `tiers-platform − uniform` passa o limiar em tópicos com folga 0,7 nos três motores | **confirmada** nos três tamanhos (F: −7,11 / −6,33 / −5,46); mas o efeito é sobretudo de nível da tabela (§8.2) |
+| P6 | com folga 1,5 nenhuma distinção passa o limiar em tópicos | **confirmada** |
+
+## 13. O que ficou sem resposta
+
+* **Nível contra dispersão da tabela de minutos.** `uniform` vale 50 min (o que a plataforma manda sem
+  anotação), não a média da tabela (62). Um nível "tudo `STANDARD` a 62 min" separaria os dois efeitos
+  de §8.2; a leitura de que a cobertura é sobretudo nível vem de `tiers-narrow`, e está marcada
+  exploratória. Não medido.
+* **Se `SOFT` compra alguma coisa que estas métricas não veem.** Toda métrica de ordem aqui trata
+  inversão como perda. O valor pedagógico de inverter uma aresta opcional não é mensurável sem dado do
+  piloto.
+* **Arestas entre disciplinas.** A fração de 20% é suposição: nenhum catálogo real tem mais de uma
+  disciplina. Os efeitos de força com várias disciplinas dependem dela.
+* **Generalidade além de três sorteios.** Três estruturas por tamanho; a consistência de sinal entre
+  elas é o que o limiar exige, mas não é uma amostra de catálogos reais.
+* **Proveniência e o fator por aluno** (0,5–2,0 sobre os minutos) ficaram fora, de propósito.
+
+## 14. O que no enunciado estava errado ou incompleto
+
+1. **"O que cada banda vale em minutos é configuração" vale para a plataforma, não para o Core.** No
+   Core a faixa é também banda de dificuldade, fixa no código (`EffortTierBands`), lida pelos motores
+   genéticos. Por isso "todas as bandas valendo o mesmo" **não é inerte por construção** para eles — e
+   a medição confirmou: a v2 muda o plano em 405 de 405 pares só pela banda. Só para o guloso o nível é
+   controle negativo.
+2. **Os números 100 / 20 / 0 e 30 / 44 / 46 são da proveniência `all`.** O enunciado não dizia; em
+   `curated` a vantagem de ordem é 61 / 59 / 0.
+3. **`InstanceLibrary` não tem a forma do que a plataforma manda** — minutos sorteados independentes da
+   faixa, faixas por `índice % 4`, metade das `SOFT` para trás de propósito. Um eixo de esforço sobre ela
+   mediria uma faixa que não determina os minutos. Por isso a biblioteca nova.
+4. **"O piloto rodaria fora da faixa medida"** era verdade também em importância: as instâncias de
+   catálogo real têm uma meta só, regime que nenhuma das 1 080 linhas publicadas cobre.
+5. **Manter a folga fixa entre níveis de esforço**, lido ao pé da letra ("mantendo tudo o mais igual"),
+   teria recalculado o calendário por nível e medido o calendário em vez da anotação. Aqui o calendário
+   é que fica igual (§2.3).
+6. **O README dizia que cada CSV tem o seu `-environment.txt`** e descrevia 51 colunas; dois dos três
+   não têm, e o harness escreve 55. Corrigido no README nesta tarefa.

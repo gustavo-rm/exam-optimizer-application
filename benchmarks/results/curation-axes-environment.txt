@@ -1,0 +1,12 @@
+measured-at=2026-11-11T23:28:05.602668662Z
+java.version=21.0.12.1
+java.vendor=Ubuntu
+java.vm.name=OpenJDK 64-Bit Server VM
+java.vm.version=21.0.12.1+1-1-24.04.4-Ubuntu
+jdk.major=21
+expected.jdk.major=21
+os.name=Linux
+os.arch=amd64
+os.version=6.18.44-fc-v378
+availableProcessors=4
+maxMemoryMiB=3420
