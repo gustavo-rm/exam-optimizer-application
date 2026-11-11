@@ -11,11 +11,16 @@ coluna do CSV mudasse — ver "Acrescentar um motor", abaixo.
 Relatórios: [`09`](../docs/revisao-ag/09-medicao-baseline-vs-v1.md) (guloso × v1),
 [`10`](../docs/revisao-ag/10-medicao-v2-linha-do-tempo.md) (as três condições),
 [`11`](../docs/revisao-ag/11-varredura-peso-ordem.md) (a varredura de peso) e
-[`12`](../docs/revisao-ag/12-desconfundindo-precedencia.md) (o 2×2 de precedência).
+[`12`](../docs/revisao-ag/12-desconfundindo-precedencia.md) (o 2×2 de precedência) e
+[`MEDICAO_EIXOS_DE_CURADORIA`](../docs/MEDICAO_EIXOS_DE_CURADORIA.md) (EOA-1: os eixos que decidem o
+que vale curar).
 Dados brutos: [`results/measurement.csv`](./results/measurement.csv),
 [`results/soft-weight-sweep.csv`](./results/soft-weight-sweep.csv),
-[`results/precedence-cells.csv`](./results/precedence-cells.csv), cada um com o seu
-`-environment.txt` ao lado.
+[`results/precedence-cells.csv`](./results/precedence-cells.csv),
+[`results/curation-axes.csv`](./results/curation-axes.csv). Só os dois últimos têm o
+`-environment.txt` ao lado: `measurement.csv` e `soft-weight-sweep.csv` foram gravados antes de o
+harness escrevê-lo, e o registro do ambiente deles não existe. `measurement.csv` reproduz no HEAD
+(verificado na EOA-1: 1 080 linhas iguais em todas as colunas comuns, salvo `elapsed_micros`).
 
 ---
 
@@ -114,6 +119,31 @@ Duas das quatro células são os padrões publicados (`ga/lexicographic` é a v1
 verificação de que o eixo de política não contaminou as condições de controle. Relatório:
 [`12-desconfundindo-precedencia.md`](../docs/revisao-ag/12-desconfundindo-precedencia.md).
 
+### A medição de curadoria (manual, EOA-1)
+
+```bash
+java -cp "target/classes:target/test-classes:$(cat target/cp.txt)" \
+     com.ia.project.dynamicstudyplanner.benchmark.harness.CurationAxesMain
+python3 -I benchmarks/analysis/curation_axes.py benchmarks/results/curation-axes.csv
+```
+
+Uma biblioteca **à parte**, `CurationLibrary`, com a forma do catálogo de exemplo da plataforma (35
+tópicos por disciplina, a proporção de faixas dele, minutos derivados da faixa pela tabela da
+plataforma, 24 de 35 arestas `HARD`), e três eixos que a matriz principal mantém fixos: dispersão de
+importância (`ImportanceSpread`), força da aresta (`EdgeStrengthMix`) e faixa de esforço
+(`EffortMapping`), mais 1, 2 ou 3 disciplinas. O desenho (`CurationDesign`) é um fatorial completo
+dos três eixos com duas disciplinas e uma variação um-de-cada-vez com uma e três: **7 020 linhas**.
+Escreve `benchmarks/results/curation-axes.csv` — as colunas de `measurement.csv` intactas no meio,
+coordenadas dos eixos à frente e métricas novas atrás; esquema abaixo. O script de análise imprime as
+tabelas do relatório, e nenhum número do relatório sai de outro lugar.
+
+> **O eixo de força reclassifica; a proveniência remove.** `provenance` tira arestas do grafo; o eixo
+> de força deixa **as mesmas arestas**, par por par, e muda só `HARD`/`SOFT`. As instâncias de
+> curadoria têm todas as arestas `CURATED` e rodam com a proveniência em `all`.
+
+`InstanceLibrary` não foi tocada: um eixo a mais nela mudaria o fluxo pseudoaleatório de cada instância
+e invalidaria os números de 09 a 12.
+
 ### O ambiente, ao lado de cada CSV
 
 Toda execução escreve um irmão `<nome>-environment.txt` com versão do JDK, VM, sistema, processadores
@@ -145,7 +175,8 @@ entre execuções, não.
 | `provenance` | `curated` ⊂ `curated-textbook` ⊂ `all` | a ablação de arestas |
 | `seed` | 5 valores distintos | a unidade de replicação |
 
-`importance` é mantida fixa em `goal-priority` — não é um eixo desta medição — e mesmo assim é
+`importance` é mantida fixa em `goal-priority` — não é um eixo desta medição (é da medição de curadoria,
+acima) — e mesmo assim é
 escrita em toda requisição e registrada em toda linha, para que a linha diga o que a produziu em vez
 de depender do que as propriedades do deployment diziam naquele dia.
 
@@ -294,7 +325,37 @@ não declara sai **vazio**, nunca zero: um termo que não rodou não é um termo
 
 Na composição atual (`sinapse`) os termos são, nesta ordem: `syllabusMastery`, `retention`,
 `dailyLoadBudget`, `MinimumDaysConstraint`, `MandatoryReviewConstraint`,
-`SoftPrerequisiteOrderConstraint` — 51 colunas no total.
+`SoftPrerequisiteOrderConstraint` — **55 colunas** no total no harness atual. `measurement.csv` e
+`soft-weight-sweep.csv` (que acrescenta `soft_weight`) foram gravados com o esquema anterior de **51**,
+sem `precedence_policy`, `search_vital`, `search_initial_distinct` e `search_improved`;
+`precedence-cells.csv` e `curation-axes.csv` têm as 55.
+
+### `curation-axes.csv` — o que a medição de curadoria acrescenta
+
+À frente das 55 colunas acima:
+
+| Coluna | Significado |
+|---|---|
+| `design_role` | `factorial` (bloco F, 2 disciplinas) ou `size`, `size-importance`, `size-strength`, `size-effort` (bloco S) |
+| `point_id` | as coordenadas, `s2-r1-close-curated-mix-tiers-platform-a1.0` |
+| `subjects`, `replicate` | disciplinas (35 tópicos cada) e o sorteio da estrutura |
+| `importance_level`, `importance_cv` | `flat` / `close` / `extreme`, e a dispersão **efetiva**: desvio-padrão ÷ média da importância por tópico como a estratégia de produção a resolve |
+| `strength_level`, `edges_total`, `edges_hard`, `edges_backward`, `edges_cross` | `all-soft` / `curated-mix` / `all-hard`, e as contagens: total, `HARD` neste nível, contra a posição, entre disciplinas |
+| `effort_level`, `effort_minutes`, `minutes_cv` | `uniform` / `tiers-flat` / `tiers-narrow` / `tiers-platform`, a tabela `SHORT/STANDARD/LONG/EXTENDED` em minutos, e o CV de `estimatedMinutes` |
+
+Atrás delas:
+
+| Coluna | Significado |
+|---|---|
+| `plan_hash` | 16 hex do SHA-256 das sessões; igual ⇔ mesmo cronograma |
+| `order_inversions_all_edges`, `order_pairs_scheduled` | arestas de **qualquer** força invertidas no plano (1.ª sessão do dependente antes da 1.ª do pré-requisito, ambos agendados), e o denominador |
+| `dependents_without_prerequisite` | arestas com o dependente agendado e o pré-requisito fora |
+| `sessions_study`, `sessions_revision` | sessões por tipo |
+| `scheduled_short` … `scheduled_extended` | tópicos agendados por faixa **latente** (a da estrutura, também em `uniform`) |
+
+`tightness` aqui é contra a demanda **nominal** (faixas latentes sob a tabela da plataforma), para que
+o calendário seja o mesmo em todo nível de esforço; a folga efetiva de cada linha é
+`available_minutes ÷ demanded_minutes`.
 
 ---
 
@@ -302,9 +363,9 @@ Na composição atual (`sinapse`) os termos são, nesta ordem: `syllabusMastery`
 
 | Pacote | Conteúdo |
 |---|---|
-| `instance` | `InstanceLibrary` (o fatorial, determinístico) e `BenchmarkInstance` (uma instância com suas coordenadas) |
-| `metric` | `Invariants` (a), `OutcomeMetrics` (b), `CostMetrics` (c), `PlanScoring` (d) e `MeasurementRow` (o esquema) |
-| `harness` | `Condition` (a matriz), `MeasurementHarness` (a execução), `MeasurementCsv`, `Environment` (a invariante de JDK e a proveniência), e os três pontos de entrada: `MeasurementMain`, `WeightSweepMain`, `PrecedenceCellsMain` |
+| `instance` | `InstanceLibrary` (o fatorial, determinístico) e `BenchmarkInstance` (uma instância com suas coordenadas); `CurationLibrary`, `CurationPoint`, `CurationInstance` e os níveis `ImportanceSpread`, `EdgeStrengthMix`, `EffortMapping` (a medição de curadoria) |
+| `metric` | `Invariants` (a), `OutcomeMetrics` (b), `CostMetrics` (c), `PlanScoring` (d) e `MeasurementRow` (o esquema); `CurationMetrics` e `CurationRow` (o que a medição de curadoria acrescenta) |
+| `harness` | `Condition` (a matriz), `MeasurementHarness` (a execução), `MeasurementCsv`, `Environment` (a invariante de JDK e a proveniência), e os três pontos de entrada: `MeasurementMain`, `WeightSweepMain`, `PrecedenceCellsMain`; e `CurationDesign` + `CurationAxesMain` (a medição de curadoria) |
 | `strategy` | Estratégias de alocação de nível macro, herdadas da revisão do AG — **fora da matriz de motores**, ver abaixo |
 
 ### Por que `strategy/**` não está na matriz

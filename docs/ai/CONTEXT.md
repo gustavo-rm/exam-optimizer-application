@@ -88,6 +88,7 @@ suppressed (CLAUDE.md §1, "The prohibition"). DECISION(stated by project owner)
 | `docs/DIAGNOSTICO_ESCALA_REAL.md` (+ `.csv`, `docs/diagnostico-escala-real/`) | EOA-10 real-scale diagnosis |
 | `docs/REPARO_ESCALA_REAL.md` (+ `docs/reparo-escala-real/`) | EOA-12 repair: Phase 0 experiments, the `ga-timeline` fix, open Phase 2 proposals |
 | `docs/MEDICAO_ALOCADOR.md` (+ `docs/alocador-opcoes/`) | EOA-12b: allocator options P and D measured, none adopted (ADR-0012) |
+| `docs/MEDICAO_EIXOS_DE_CURADORIA.md` (+ `benchmarks/results/curation-axes.csv`) | EOA-1: which curated distinctions (importance spread, HARD/SOFT, effort tier) change the plan, pre-registered; the spec of what is worth curating |
 | `docs/ai/` | this layer |
 
 Root-level `*_ARCHITECTURE.md`, `*_AUDIT.md` and `*_EVALUATION.md` files were not reviewed for this
@@ -124,6 +125,7 @@ This repository offers it the v1.0 contract and expects nothing that is verified
 | Why the GA fails on the real catalogue | [docs/DIAGNOSTICO_ESCALA_REAL.md](../DIAGNOSTICO_ESCALA_REAL.md) §1 |
 | What EOA-12 repaired, and what is still open | [docs/REPARO_ESCALA_REAL.md](../REPARO_ESCALA_REAL.md) §1, §7 |
 | Contract component-by-component | [docs/CORE_CONTRACT_SURVEY.md](../CORE_CONTRACT_SURVEY.md) |
+| Which catalogue annotations change the plan, and which are not worth curating? | [docs/MEDICAO_EIXOS_DE_CURADORIA.md](../MEDICAO_EIXOS_DE_CURADORIA.md) |
 
 ## Files that are never edited
 
