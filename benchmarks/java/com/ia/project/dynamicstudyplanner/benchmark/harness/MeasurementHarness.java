@@ -112,6 +112,33 @@ public final class MeasurementHarness {
      * @throws MeasurementAbortedException when the answer is invalid or not reproducible
      */
     public MeasurementRow measure(BenchmarkInstance instance, Condition condition, long seed) {
+        return measured(instance, condition, seed).row();
+    }
+
+    /**
+     * Uma execução medida, com a resposta junto da linha.
+     *
+     * @param row      a linha, idêntica à que {@link #measure} devolve
+     * @param request  o pedido como foi ao seletor, já com a condição e a semente
+     * @param response a resposta que passou por todas as checagens do grupo (a)
+     */
+    public record Measured(MeasurementRow row, PlanRequest request, PlanResponse response) {
+    }
+
+    /**
+     * O mesmo que {@link #measure}, devolvendo também a resposta.
+     *
+     * <p>Existe para quem precisa de uma métrica a mais sobre a <b>mesma</b> resposta — a medição de
+     * curadoria lê o cronograma de novo — sem chamar o motor uma terceira vez. As checagens, a ordem
+     * delas e a linha são exatamente as de {@link #measure}, que agora delega para cá.
+     *
+     * @param instance  the instance
+     * @param condition the engine and the ablation condition
+     * @param seed      the replication unit
+     * @return a linha, o pedido e a resposta
+     * @throws MeasurementAbortedException when the answer is invalid or not reproducible
+     */
+    public Measured measured(BenchmarkInstance instance, Condition condition, long seed) {
         PlanRequest request = condition.applyTo(instance.request(), seed);
 
         long startedAt = System.nanoTime();
@@ -134,7 +161,8 @@ public final class MeasurementHarness {
                 : asDouble(response.fitness().get(SearchVitality.FINAL_KEY))
                         > asDouble(response.fitness().get(SearchVitality.INITIAL_KEY));
 
-        return new MeasurementRow(instance, engineOf(response), condition.provenance().id(),
+        MeasurementRow row = new MeasurementRow(instance, engineOf(response),
+                condition.provenance().id(),
                 condition.effectivePolicy().id(), Condition.IMPORTANCE, seed,
                 count(response, "prerequisite-edges-hard"),
                 count(response, "prerequisite-edges-soft"),
@@ -142,6 +170,7 @@ public final class MeasurementHarness {
                 OutcomeMetrics.of(response, plan, context, instance.availableMinutes()),
                 CostMetrics.of(response, populationSizeFor(response), elapsedMicros),
                 objective);
+        return new Measured(row, request, response);
     }
 
     /**
